@@ -1,6 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import { useRouter } from "next/navigation";
+
+import { createClient } from "@/lib/supabase";
 
 import Sidebar from "@/components/Sidebar";
 import Footer from "@/components/Footer";
@@ -25,15 +32,62 @@ import Flashcard from "@/components/Flashcard";
 import Admin from "@/components/Admin";
 
 export default function Home() {
+  const router = useRouter();
+
+  const [authChecked, setAuthChecked] =
+    useState(false);
+
   const [activePage, setActivePage] =
     useState("Dashboard");
 
   const [selectedPersonId, setSelectedPersonId] =
     useState<string | null>(null);
 
-  const [displayName, setDisplayName] = useState(
-    "Life Game Player"
-  );
+  const [displayName, setDisplayName] =
+    useState("Life Game Player");
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    let cancelled = false;
+
+    async function checkSession() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (cancelled) {
+        return;
+      }
+
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
+
+      setAuthChecked(true);
+    }
+
+    void checkSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!session) {
+          router.replace("/login");
+          return;
+        }
+
+        setAuthChecked(true);
+      }
+    );
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, [router]);
 
   function handleNavigate(page: string) {
     setSelectedPersonId(null);
@@ -44,22 +98,43 @@ export default function Home() {
     if (activePage === "Profile") {
       return (
         <Profile
-          onDisplayNameChange={setDisplayName}
+          onDisplayNameChange={
+            setDisplayName
+          }
         />
       );
     }
 
-    if (activePage === "Today") return <Today />;
-    if (activePage === "Habits") return <Habits />;
-    if (activePage === "Prayer") return <Prayer />;
-    if (activePage === "Records") return <Records />;
-    if (activePage === "Journal") return <Journal />;
-    if (activePage === "Notes") return <Notes />;
+    if (activePage === "Today") {
+      return <Today />;
+    }
+
+    if (activePage === "Habits") {
+      return <Habits />;
+    }
+
+    if (activePage === "Prayer") {
+      return <Prayer />;
+    }
+
+    if (activePage === "Records") {
+      return <Records />;
+    }
+
+    if (activePage === "Journal") {
+      return <Journal />;
+    }
+
+    if (activePage === "Notes") {
+      return <Notes />;
+    }
 
     if (activePage === "Archive") {
       return (
         <Archive
-          onNavigate={handleNavigate}
+          onNavigate={
+            handleNavigate
+          }
         />
       );
     }
@@ -68,9 +143,13 @@ export default function Home() {
       if (selectedPersonId) {
         return (
           <PersonArchive
-            personId={selectedPersonId}
+            personId={
+              selectedPersonId
+            }
             onBack={() => {
-              setSelectedPersonId(null);
+              setSelectedPersonId(
+                null
+              );
             }}
           />
         );
@@ -78,24 +157,63 @@ export default function Home() {
 
       return (
         <People
-          onOpenPerson={(personId) => {
-            setSelectedPersonId(personId);
+          onOpenPerson={(
+            personId
+          ) => {
+            setSelectedPersonId(
+              personId
+            );
           }}
         />
       );
     }
 
-    if (activePage === "Finance") return <Finance />;
-    if (activePage === "Projects") return <Projects />;
-    if (activePage === "Planner") return <Planner />;
-    if (activePage === "Learning") return <Learning />;
-    if (activePage === "Flashcard") return <Flashcard />;
-    if (activePage === "Admin") return <Admin />;
+    if (activePage === "Finance") {
+      return <Finance />;
+    }
+
+    if (activePage === "Projects") {
+      return <Projects />;
+    }
+
+    if (activePage === "Planner") {
+      return <Planner />;
+    }
+
+    if (activePage === "Learning") {
+      return <Learning />;
+    }
+
+    if (activePage === "Flashcard") {
+      return <Flashcard />;
+    }
+
+    if (activePage === "Admin") {
+      return <Admin />;
+    }
 
     return (
       <Dashboard
-        onNavigate={handleNavigate}
+        onNavigate={
+          handleNavigate
+        }
       />
+    );
+  }
+
+  if (!authChecked) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#e8dfd2] px-6 text-[#3f382f]">
+        <div className="text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#746a5e]">
+            HOLOZOE
+          </p>
+
+          <p className="mt-3 text-sm text-[#8a7e70]">
+            Loading...
+          </p>
+        </div>
+      </main>
     );
   }
 
@@ -104,8 +222,12 @@ export default function Home() {
       <main className="min-h-screen bg-[#e8dfd2] text-[#3f382f]">
         <div className="flex min-h-screen">
           <Sidebar
-            activePage={activePage}
-            onNavigate={handleNavigate}
+            activePage={
+              activePage
+            }
+            onNavigate={
+              handleNavigate
+            }
           />
 
           <div className="min-w-0 flex-1 p-5 sm:p-8">
@@ -123,7 +245,9 @@ export default function Home() {
                   </div>
 
                   <GlobalSearch
-                    onNavigate={handleNavigate}
+                    onNavigate={
+                      handleNavigate
+                    }
                   />
                 </div>
               </header>
