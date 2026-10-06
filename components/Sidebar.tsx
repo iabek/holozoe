@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { useRouter } from "next/navigation";
+
 import { createClient } from "@/lib/supabase";
 
 type SidebarProps = {
@@ -269,6 +271,103 @@ function MenuIcon({
   }
 }
 
+function ProfileIcon() {
+  return (
+    <svg
+      width="19"
+      height="19"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle
+        cx="12"
+        cy="8"
+        r="3"
+      />
+      <path d="M5 20c0-3.3 3.1-5 7-5s7 1.7 7 5" />
+    </svg>
+  );
+}
+
+function LogoutIcon() {
+  return (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M10 17l5-5-5-5" />
+      <path d="M15 12H3" />
+      <path d="M21 5v14" />
+    </svg>
+  );
+}
+
+function MenuButtonIcon() {
+  return (
+    <svg
+      width="21"
+      height="21"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    >
+      <path d="M4 7h16" />
+      <path d="M4 12h16" />
+      <path d="M4 17h16" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg
+      width="21"
+      height="21"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    >
+      <path d="M6 6l12 12" />
+      <path d="M18 6 6 18" />
+    </svg>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg
+      width="19"
+      height="19"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    >
+      <circle
+        cx="11"
+        cy="11"
+        r="6.5"
+      />
+      <path d="m16 16 4 4" />
+    </svg>
+  );
+}
+
 export default function Sidebar({
   activePage,
   onNavigate,
@@ -279,6 +378,9 @@ export default function Sidebar({
     useState("HOLOZOE Player");
 
   const [isAdmin, setIsAdmin] =
+    useState(false);
+
+  const [mobileOpen, setMobileOpen] =
     useState(false);
 
   useEffect(() => {
@@ -303,6 +405,7 @@ export default function Sidebar({
           "SIDEBAR PROFILE ERROR:",
           error
         );
+
         return;
       }
 
@@ -347,6 +450,38 @@ export default function Sidebar({
     };
   }, []);
 
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [activePage]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    function handleEscape(
+      event: KeyboardEvent
+    ) {
+      if (event.key === "Escape") {
+        setMobileOpen(false);
+      }
+    }
+
+    document.addEventListener(
+      "keydown",
+      handleEscape
+    );
+
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener(
+        "keydown",
+        handleEscape
+      );
+
+      document.body.style.overflow = "";
+    };
+  }, [mobileOpen]);
+
   async function handleLogout() {
     const confirmed = window.confirm(
       "Logout dari HOLOZOE?\n\nProgress kamu tetap tersimpan."
@@ -364,6 +499,7 @@ export default function Sidebar({
         "LOGOUT ERROR:",
         error
       );
+
       return;
     }
 
@@ -371,76 +507,18 @@ export default function Sidebar({
     router.refresh();
   }
 
-  return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-[#d8cec0] bg-[#eee7dc] p-5">
-      {/* BRAND */}
-      <div>
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#f7f2ea]">
-            <img
-              src="/zoe.png"
-              alt="Zoe"
-              className="h-full w-full object-contain"
-            />
-          </div>
+  function handleMobileNavigate(
+    page: string
+  ) {
+    setMobileOpen(false);
+    onNavigate(page);
+  }
 
-          <div className="min-w-0">
-            <p className="text-sm font-semibold tracking-wide text-[#3f382f]">
-              HOLOZOE
-            </p>
-
-            <p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-[#8a7e70]">
-              Life, fully lived.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* PROFILE */}
-      <button
-        type="button"
-        onClick={() =>
-          onNavigate("Profile")
-        }
-        className={`mt-6 flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left shadow-sm transition ${
-          activePage === "Profile"
-            ? "border-[#c8bbaa] bg-[#f7f2ea]"
-            : "border-[#d8cec0] bg-[#f7f2ea] hover:bg-[#f2ece3]"
-        }`}
-      >
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#d8cec0] text-[#746a5e]">
-          <svg
-            width="19"
-            height="19"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle
-              cx="12"
-              cy="8"
-              r="3"
-            />
-            <path d="M5 20c0-3.3 3.1-5 7-5s7 1.7 7 5" />
-          </svg>
-        </div>
-
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-[#3f382f]">
-            {displayName}
-          </p>
-
-          <p className="text-xs text-[#8a7e70]">
-            Profile
-          </p>
-        </div>
-      </button>
-
-      {/* MENU */}
-      <nav className="mt-7 flex-1 space-y-6">
+  function renderMenu(
+    mobile = false
+  ) {
+    return (
+      <>
         {menuSections.map(
           (section) => (
             <div
@@ -464,9 +542,13 @@ export default function Sidebar({
                         }
                         type="button"
                         onClick={() =>
-                          onNavigate(
-                            item.name
-                          )
+                          mobile
+                            ? handleMobileNavigate(
+                                item.name
+                              )
+                            : onNavigate(
+                                item.name
+                              )
                         }
                         className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
                           active
@@ -490,7 +572,9 @@ export default function Sidebar({
                         </span>
 
                         <span>
-                          {item.name}
+                          {
+                            item.name
+                          }
                         </span>
                       </button>
                     );
@@ -501,7 +585,6 @@ export default function Sidebar({
           )
         )}
 
-        {/* ADMIN */}
         {isAdmin && (
           <div>
             <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest text-[#8a7e70]">
@@ -511,17 +594,25 @@ export default function Sidebar({
             <button
               type="button"
               onClick={() =>
-                onNavigate("Admin")
+                mobile
+                  ? handleMobileNavigate(
+                      "Admin"
+                    )
+                  : onNavigate(
+                      "Admin"
+                    )
               }
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
-                activePage === "Admin"
+                activePage ===
+                "Admin"
                   ? "bg-[#d8cec0] font-semibold text-[#3f382f]"
                   : "text-[#3f382f] hover:bg-[#e4dbcf]"
               }`}
             >
               <span
                 className={`flex h-5 w-5 shrink-0 items-center justify-center ${
-                  activePage === "Admin"
+                  activePage ===
+                  "Admin"
                     ? "text-[#554c42]"
                     : "text-[#8a7e70]"
                 }`}
@@ -538,37 +629,236 @@ export default function Sidebar({
             </button>
           </div>
         )}
-      </nav>
+      </>
+    );
+  }
 
-      {/* LOGOUT */}
-      <div className="mt-6 border-t border-[#d8cec0] pt-4">
+  return (
+    <>
+      {/* DESKTOP SIDEBAR */}
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-[#d8cec0] bg-[#eee7dc] p-5 md:flex">
+        {/* BRAND */}
+        <div>
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#f7f2ea]">
+              <img
+                src="/zoe.png"
+                alt="Zoe"
+                className="h-full w-full object-contain"
+              />
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-sm font-semibold tracking-wide text-[#3f382f]">
+                HOLOZOE
+              </p>
+
+              <p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-[#8a7e70]">
+                Life, fully lived.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* PROFILE */}
         <button
           type="button"
-          onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-[#765d55] transition hover:bg-[#e4dbcf]"
+          onClick={() =>
+            onNavigate("Profile")
+          }
+          className={`mt-6 flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left shadow-sm transition ${
+            activePage ===
+            "Profile"
+              ? "border-[#c8bbaa] bg-[#f7f2ea]"
+              : "border-[#d8cec0] bg-[#f7f2ea] hover:bg-[#f2ece3]"
+          }`}
         >
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center">
-            <svg
-              width="17"
-              height="17"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M10 17l5-5-5-5" />
-              <path d="M15 12H3" />
-              <path d="M21 5v14" />
-            </svg>
-          </span>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#d8cec0] text-[#746a5e]">
+            <ProfileIcon />
+          </div>
 
-          <span>
-            Logout
-          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-[#3f382f]">
+              {displayName}
+            </p>
+
+            <p className="text-xs text-[#8a7e70]">
+              Profile
+            </p>
+          </div>
         </button>
+
+        {/* MENU */}
+        <nav className="mt-7 flex-1 space-y-6">
+          {renderMenu()}
+        </nav>
+
+        {/* LOGOUT */}
+        <div className="mt-6 border-t border-[#d8cec0] pt-4">
+          <button
+            type="button"
+            onClick={
+              handleLogout
+            }
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-[#765d55] transition hover:bg-[#e4dbcf]"
+          >
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+              <LogoutIcon />
+            </span>
+
+            <span>
+              Logout
+            </span>
+          </button>
+        </div>
+      </aside>
+
+      {/* MOBILE TOP BAR */}
+      <div className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-[#d8cec0] bg-[#eee7dc]/95 px-4 backdrop-blur md:hidden">
+        <button
+          type="button"
+          onClick={() =>
+            setMobileOpen(true)
+          }
+          aria-label="Open menu"
+          className="flex h-10 w-10 items-center justify-center rounded-xl text-[#3f382f] transition hover:bg-[#e4dbcf]"
+        >
+          <MenuButtonIcon />
+        </button>
+
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-[#f7f2ea]">
+            <img
+              src="/zoe.png"
+              alt="Zoe"
+              className="h-full w-full object-contain"
+            />
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold tracking-wide text-[#3f382f]">
+              HOLOZOE
+            </p>
+
+            <p className="text-[8px] uppercase tracking-[0.12em] text-[#8a7e70]">
+              Life, fully lived.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex h-10 w-10 items-center justify-center text-[#746a5e]">
+          <SearchIcon />
+        </div>
       </div>
-    </aside>
+
+      {/* MOBILE OVERLAY */}
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="Close menu"
+          onClick={() =>
+            setMobileOpen(false)
+          }
+          className="fixed inset-0 z-40 bg-[#3f382f]/25 md:hidden"
+        />
+      )}
+
+      {/* MOBILE DRAWER */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-[min(82vw,20rem)] flex-col border-r border-[#d8cec0] bg-[#eee7dc] p-5 shadow-2xl transition-transform duration-200 ease-out md:hidden ${
+          mobileOpen
+            ? "translate-x-0"
+            : "-translate-x-full"
+        }`}
+      >
+        {/* MOBILE DRAWER HEADER */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#f7f2ea]">
+              <img
+                src="/zoe.png"
+                alt="Zoe"
+                className="h-full w-full object-contain"
+              />
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold tracking-wide text-[#3f382f]">
+                HOLOZOE
+              </p>
+
+              <p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-[#8a7e70]">
+                Life, fully lived.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              setMobileOpen(false)
+            }
+            aria-label="Close menu"
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-[#746a5e] transition hover:bg-[#e4dbcf]"
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        {/* MOBILE PROFILE */}
+        <button
+          type="button"
+          onClick={() =>
+            handleMobileNavigate(
+              "Profile"
+            )
+          }
+          className={`mt-6 flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left shadow-sm transition ${
+            activePage ===
+            "Profile"
+              ? "border-[#c8bbaa] bg-[#f7f2ea]"
+              : "border-[#d8cec0] bg-[#f7f2ea] hover:bg-[#f2ece3]"
+          }`}
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#d8cec0] text-[#746a5e]">
+            <ProfileIcon />
+          </div>
+
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-[#3f382f]">
+              {displayName}
+            </p>
+
+            <p className="text-xs text-[#8a7e70]">
+              Profile
+            </p>
+          </div>
+        </button>
+
+        {/* MOBILE MENU */}
+        <nav className="mt-7 flex-1 space-y-6 overflow-y-auto pr-1">
+          {renderMenu(true)}
+        </nav>
+
+        {/* MOBILE LOGOUT */}
+        <div className="mt-6 border-t border-[#d8cec0] pt-4">
+          <button
+            type="button"
+            onClick={
+              handleLogout
+            }
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-[#765d55] transition hover:bg-[#e4dbcf]"
+          >
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+              <LogoutIcon />
+            </span>
+
+            <span>
+              Logout
+            </span>
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }

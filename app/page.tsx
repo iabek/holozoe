@@ -230,7 +230,7 @@ export default function Home() {
             }
           />
 
-          <div className="min-w-0 flex-1 p-5 sm:p-8">
+          <div className="min-w-0 flex-1 p-5 pt-20 sm:p-8 sm:pt-8">
             <div className="mx-auto max-w-6xl">
               <header className="mb-7">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
