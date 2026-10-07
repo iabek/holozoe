@@ -30,6 +30,7 @@ import Planner from "@/components/Planner";
 import Learning from "@/components/Learning";
 import Flashcard from "@/components/Flashcard";
 import Admin from "@/components/Admin";
+import ScreenTime from "@/components/ScreenTime";
 
 export default function Home() {
   const router = useRouter();
@@ -191,6 +192,10 @@ export default function Home() {
 
     if (activePage === "Flashcard") {
       return <Flashcard />;
+    }
+
+    if (activePage === "Screen Time") {
+      return <ScreenTime />;
     }
 
     if (activePage === "Admin") {

@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -25,6 +28,7 @@ type MenuIconName =
   | "habits"
   | "prayer"
   | "records"
+  | "screen-time"
   | "admin";
 
 const menuSections: {
@@ -42,6 +46,7 @@ const menuSections: {
       { name: "Planner", icon: "calendar" },
     ],
   },
+
   {
     title: "PERSONAL",
     items: [
@@ -54,6 +59,7 @@ const menuSections: {
       { name: "Projects", icon: "projects" },
     ],
   },
+
   {
     title: "LIFE",
     items: [
@@ -61,10 +67,12 @@ const menuSections: {
       { name: "Prayer", icon: "prayer" },
     ],
   },
+
   {
     title: "TRACKING",
     items: [
       { name: "Records", icon: "records" },
+      { name: "Screen Time", icon: "screen-time" },
     ],
   },
 ];
@@ -251,6 +259,24 @@ function MenuIcon({
           <path d="M10 19V5" />
           <path d="M16 19v-7" />
           <path d="M22 19H2" />
+        </svg>
+      );
+
+    case "screen-time":
+      return (
+        <svg {...commonProps}>
+          <rect
+            x="5"
+            y="3"
+            width="14"
+            height="18"
+            rx="2.5"
+          />
+          <path d="M9 7h6" />
+          <path d="M9 11h6" />
+          <path d="M9 15h3" />
+          <circle cx="16" cy="16" r="2.5" />
+          <path d="M16 14.5V16l1 1" />
         </svg>
       );
 
