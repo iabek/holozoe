@@ -303,7 +303,7 @@ export default function GlobalSearch({
   onOpenPerson,
 }: {
   onNavigate: (page: string) => void;
-  onOpenPerson: (personId: string) => void;
+  onOpenPerson?: (personId: string) => void;
 }) {
   const [query, setQuery] =
     useState("");
@@ -506,7 +506,6 @@ export default function GlobalSearch({
      * PEOPLE
      * ============================
      */
-
     people.forEach(
       (person) => {
         const zodiac =
@@ -573,7 +572,6 @@ export default function GlobalSearch({
      * HABITS
      * ============================
      */
-
     const habits =
       getStoredData(
         "life-game-habits"
@@ -614,7 +612,6 @@ export default function GlobalSearch({
      * NOTES
      * ============================
      */
-
     const notes =
       getStoredData(
         "life-game-notes"
@@ -659,7 +656,6 @@ export default function GlobalSearch({
      * PROJECTS
      * ============================
      */
-
     const projects =
       getStoredData(
         "life-game-projects"
@@ -699,7 +695,6 @@ export default function GlobalSearch({
      * JOURNAL
      * ============================
      */
-
     const journal =
       getStoredData(
         "life-game-journal"
@@ -744,7 +739,6 @@ export default function GlobalSearch({
      * PLANNER
      * ============================
      */
-
     const events =
       getStoredData(
         "life-game-planner-events"
@@ -793,7 +787,6 @@ export default function GlobalSearch({
      * RECORDS
      * ============================
      */
-
     const records =
       getStoredData(
         "life-game-history"
@@ -834,7 +827,6 @@ export default function GlobalSearch({
      * LEARNING
      * ============================
      */
-
     const learning =
       getStoredData(
         "life-game-learning"
@@ -891,7 +883,6 @@ export default function GlobalSearch({
      * FINANCE
      * ============================
      */
-
     const financeKeys = [
       "life-game-transactions",
       "life-game-accounts",
@@ -995,7 +986,11 @@ export default function GlobalSearch({
           ""
         );
 
-      onOpenPerson(personId);
+      if (onOpenPerson) {
+        onOpenPerson(personId);
+      } else {
+        onNavigate("People");
+      }
 
       setQuery("");
       setOpen(false);
