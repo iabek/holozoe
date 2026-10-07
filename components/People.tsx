@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-
 import { createClient } from "@/lib/supabase";
 
 type Person = {
@@ -24,8 +23,7 @@ type PeopleProps = {
 function getZodiac(birthDate: string | null) {
   if (!birthDate) return null;
 
-  const [, monthString, dayString] =
-    birthDate.split("-");
+  const [, monthString, dayString] = birthDate.split("-");
 
   const month = Number(monthString);
   const day = Number(dayString);
@@ -133,14 +131,10 @@ function getZodiacSymbol(zodiac: string | null) {
     Pisces: "♓",
   };
 
-  return zodiac
-    ? symbols[zodiac] ?? ""
-    : "";
+  return zodiac ? symbols[zodiac] ?? "" : "";
 }
 
-function getLifePathNumber(
-  birthDate: string | null
-) {
+function getLifePathNumber(birthDate: string | null) {
   if (!birthDate) return null;
 
   const digits = birthDate
@@ -166,8 +160,7 @@ function getLifePathNumber(
     total = String(total)
       .split("")
       .reduce(
-        (sum, digit) =>
-          sum + Number(digit),
+        (sum, digit) => sum + Number(digit),
         0
       );
   }
@@ -175,9 +168,7 @@ function getLifePathNumber(
   return total;
 }
 
-function getShioSymbol(
-  shio: string | null
-) {
+function getShioSymbol(shio: string | null) {
   const symbols: Record<string, string> = {
     Rat: "🐀",
     Ox: "🐂",
@@ -193,13 +184,11 @@ function getShioSymbol(
     Pig: "🐖",
   };
 
-  return shio
-    ? symbols[shio] ?? ""
-    : "";
+  return shio ? symbols[shio] ?? "" : "";
 }
 
 function getShioFromBirthDate(
-  birthDate: string
+  birthDate: string | null
 ) {
   if (!birthDate) return "";
 
@@ -224,9 +213,27 @@ function getShioFromBirthDate(
     "Pig",
   ];
 
-  return (
-    animals[(year - 4) % 12] ?? ""
-  );
+  return animals[(year - 4) % 12] ?? "";
+}
+
+function parseTags(value: string | null) {
+  if (!value) return [];
+
+  return value
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .filter(
+      (tag, index, array) =>
+        array.findIndex(
+          (item) =>
+            item.toLowerCase() === tag.toLowerCase()
+        ) === index
+    );
+}
+
+function tagsToString(tags: string[]) {
+  return tags.join(", ");
 }
 
 const MBTI_TYPES = [
@@ -300,6 +307,9 @@ export default function People({
   const [saving, setSaving] =
     useState(false);
 
+  const [deletingPersonId, setDeletingPersonId] =
+    useState<string | null>(null);
+
   const [name, setName] =
     useState("");
 
@@ -324,6 +334,12 @@ export default function People({
   const [tags, setTags] =
     useState("");
 
+  const [tagInput, setTagInput] =
+    useState("");
+
+  const [showTagSuggestions, setShowTagSuggestions] =
+    useState(false);
+
   const [filterMbti, setFilterMbti] =
     useState("");
 
@@ -346,8 +362,7 @@ export default function People({
       const {
         data: { user },
         error: userError,
-      } =
-        await supabase.auth.getUser();
+      } = await supabase.auth.getUser();
 
       if (userError || !user) {
         console.error(
@@ -389,12 +404,16 @@ export default function People({
 
   function openForm() {
     setShowForm(true);
+    setTagInput("");
+    setShowTagSuggestions(false);
   }
 
   function closeForm() {
     if (saving) return;
 
     setShowForm(false);
+    setTagInput("");
+    setShowTagSuggestions(false);
   }
 
   function handleBirthDateChange(
@@ -411,6 +430,124 @@ export default function People({
     }
   }
 
+  const availableTags = useMemo(() => {
+    const allTags = people.flatMap((person) =>
+      parseTags(person.tags)
+    );
+
+    return allTags
+      .filter(
+        (tag, index, array) =>
+          array.findIndex(
+            (item) =>
+              item.toLowerCase() ===
+              tag.toLowerCase()
+          ) === index
+      )
+      .sort((a, b) =>
+        a.localeCompare(
+          b,
+          undefined,
+          {
+            sensitivity: "base",
+          }
+        )
+      );
+  }, [people]);
+
+  const currentTags = useMemo(
+    () => parseTags(tags),
+    [tags]
+  );
+
+  const filteredTagSuggestions = useMemo(() => {
+    const query = tagInput
+      .trim()
+      .toLowerCase();
+
+    return availableTags
+      .filter(
+        (tag) =>
+          !currentTags.some(
+            (currentTag) =>
+              currentTag.toLowerCase() ===
+              tag.toLowerCase()
+          )
+      )
+      .filter((tag) =>
+        query
+          ? tag
+              .toLowerCase()
+              .includes(query)
+          : true
+      )
+      .slice(0, 12);
+  }, [
+    availableTags,
+    currentTags,
+    tagInput,
+  ]);
+
+  function addTag(tag: string) {
+    const cleanTag = tag.trim();
+
+    if (!cleanTag) return;
+
+    const existingTags = parseTags(tags);
+
+    const alreadyExists = existingTags.some(
+      (existingTag) =>
+        existingTag.toLowerCase() ===
+        cleanTag.toLowerCase()
+    );
+
+    if (alreadyExists) {
+      setTagInput("");
+      return;
+    }
+
+    setTags(
+      tagsToString([
+        ...existingTags,
+        cleanTag,
+      ])
+    );
+
+    setTagInput("");
+  }
+
+  function removeTag(tagToRemove: string) {
+    const nextTags = parseTags(tags).filter(
+      (tag) =>
+        tag.toLowerCase() !==
+        tagToRemove.toLowerCase()
+    );
+
+    setTags(tagsToString(nextTags));
+  }
+
+  function handleTagInputKeyDown(
+    event: React.KeyboardEvent<HTMLInputElement>
+  ) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+
+      if (tagInput.trim()) {
+        addTag(tagInput);
+      }
+    }
+
+    if (
+      event.key === "Backspace" &&
+      !tagInput &&
+      currentTags.length > 0
+    ) {
+      removeTag(
+        currentTags[currentTags.length - 1]
+      );
+    }
+  }
+
   async function savePerson() {
     if (!name.trim()) return;
 
@@ -422,8 +559,7 @@ export default function People({
       const {
         data: { user },
         error: userError,
-      } =
-        await supabase.auth.getUser();
+      } = await supabase.auth.getUser();
 
       if (userError || !user) {
         console.error(
@@ -439,6 +575,9 @@ export default function People({
               birthDate
             )
           : shio;
+
+      const cleanTags =
+        parseTags(tags);
 
       const { data, error } =
         await supabase
@@ -460,7 +599,9 @@ export default function People({
               characteristics.trim() ||
               null,
             tags:
-              tags.trim() || null,
+              cleanTags.length > 0
+                ? tagsToString(cleanTags)
+                : null,
           })
           .select(
             "id, name, birth_date, mbti, characteristics, tags, shio, blood_type, address, created_at"
@@ -492,44 +633,157 @@ export default function People({
       setMbti("");
       setCharacteristics("");
       setTags("");
+      setTagInput("");
+      setShowTagSuggestions(false);
       setShowForm(false);
     } finally {
       setSaving(false);
     }
   }
 
-  const filteredPeople = useMemo(() => {
-    const filtered = people.filter(
-      (person) => {
-        const zodiac = getZodiac(
-          person.birth_date
-        );
-
-        const matchesMbti =
-          !filterMbti ||
-          person.mbti === filterMbti;
-
-        const matchesZodiac =
-          !filterZodiac ||
-          zodiac === filterZodiac;
-
-        const matchesShio =
-          !filterShio ||
-          person.shio === filterShio;
-
-        const matchesBloodType =
-          !filterBloodType ||
-          person.blood_type ===
-            filterBloodType;
-
-        return (
-          matchesMbti &&
-          matchesZodiac &&
-          matchesShio &&
-          matchesBloodType
-        );
-      }
+  async function deletePerson(
+    person: Person
+  ) {
+    const confirmed = window.confirm(
+      `Hapus "${person.name}"?\n\nData person ini akan dihapus dari People Archive.`
     );
+
+    if (!confirmed) return;
+
+    setDeletingPersonId(person.id);
+
+    try {
+      const supabase = createClient();
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        console.error(
+          "PEOPLE: USER ERROR",
+          userError
+        );
+        return;
+      }
+
+      /*
+       * Hapus moments terlebih dahulu supaya
+       * relasi person_moments tidak menghalangi
+       * penghapusan person jika foreign key tidak
+       * menggunakan ON DELETE CASCADE.
+       */
+      const { error: momentsError } =
+        await supabase
+          .from("person_moments")
+          .delete()
+          .eq(
+            "person_id",
+            person.id
+          )
+          .eq(
+            "user_id",
+            user.id
+          );
+
+      if (momentsError) {
+        console.error(
+          "PEOPLE: MOMENTS DELETE ERROR",
+          momentsError
+        );
+
+        /*
+         * Kita tetap lanjut mencoba menghapus
+         * person utama. Jika database memang
+         * memiliki constraint yang mencegahnya,
+         * error akan ditangkap di bawah.
+         */
+      }
+
+      const { error } =
+        await supabase
+          .from("people")
+          .delete()
+          .eq(
+            "id",
+            person.id
+          )
+          .eq(
+            "user_id",
+            user.id
+          );
+
+      if (error) {
+        console.error(
+          "PEOPLE: DELETE ERROR",
+          error
+        );
+        return;
+      }
+
+      setPeople(
+        (currentPeople) =>
+          currentPeople.filter(
+            (item) =>
+              item.id !== person.id
+          )
+      );
+    } finally {
+      setDeletingPersonId(null);
+    }
+  }
+
+  const filteredPeople = useMemo(() => {
+    const filtered =
+      people.filter(
+        (person) => {
+          const zodiac =
+            getZodiac(
+              person.birth_date
+            );
+
+          /*
+           * Data lama mungkin punya
+           * shio = null.
+           *
+           * Karena itu kita hitung fallback
+           * dari birth_date.
+           */
+          const calculatedShio =
+            person.shio ||
+            getShioFromBirthDate(
+              person.birth_date
+            );
+
+          const matchesMbti =
+            !filterMbti ||
+            person.mbti ===
+              filterMbti;
+
+          const matchesZodiac =
+            !filterZodiac ||
+            zodiac ===
+              filterZodiac;
+
+          const matchesShio =
+            !filterShio ||
+            calculatedShio ===
+              filterShio;
+
+          const matchesBloodType =
+            !filterBloodType ||
+            person.blood_type ===
+              filterBloodType;
+
+          return (
+            matchesMbti &&
+            matchesZodiac &&
+            matchesShio &&
+            matchesBloodType
+          );
+        }
+      );
 
     return [...filtered].sort(
       (a, b) => {
@@ -538,20 +792,26 @@ export default function People({
             b.name,
             undefined,
             {
-              sensitivity: "base",
+              sensitivity:
+                "base",
             }
           );
         }
 
-        const aTime = new Date(
-          a.created_at
-        ).getTime();
+        const aTime =
+          new Date(
+            a.created_at
+          ).getTime();
 
-        const bTime = new Date(
-          b.created_at
-        ).getTime();
+        const bTime =
+          new Date(
+            b.created_at
+          ).getTime();
 
-        if (sortOrder === "oldest") {
+        if (
+          sortOrder ===
+          "oldest"
+        ) {
           return aTime - bTime;
         }
 
@@ -567,12 +827,13 @@ export default function People({
     sortOrder,
   ]);
 
-  const hasFilters = Boolean(
-    filterMbti ||
-      filterZodiac ||
-      filterShio ||
-      filterBloodType
-  );
+  const hasFilters =
+    Boolean(
+      filterMbti ||
+        filterZodiac ||
+        filterShio ||
+        filterBloodType
+    );
 
   function clearFilters() {
     setFilterMbti("");
@@ -724,7 +985,9 @@ export default function People({
                 </label>
 
                 <select
-                  value={filterBloodType}
+                  value={
+                    filterBloodType
+                  }
                   onChange={(event) =>
                     setFilterBloodType(
                       event.target.value
@@ -791,8 +1054,12 @@ export default function People({
 
             <p className="mt-3 text-xs text-[#8a7e70]">
               Showing{" "}
-              {filteredPeople.length} of{" "}
-              {people.length} people
+              {
+                filteredPeople.length
+              }{" "}
+              of{" "}
+              {people.length}{" "}
+              people
             </p>
           </div>
         )}
@@ -871,7 +1138,7 @@ export default function People({
               />
 
               {birthDate && (
-                <div className="mt-3 space-y-1 text-xs text-[#8a7e70]">
+                <div className="mt-3 rounded-xl bg-[#ebe3d8] px-4 py-3 text-xs text-[#746a5e]">
                   <p>
                     Zodiac:{" "}
                     {getZodiacSymbol(
@@ -884,7 +1151,7 @@ export default function People({
                     )}
                   </p>
 
-                  <p>
+                  <p className="mt-1">
                     Shio:{" "}
                     {getShioSymbol(
                       shio
@@ -892,7 +1159,7 @@ export default function People({
                     {shio}
                   </p>
 
-                  <p>
+                  <p className="mt-1">
                     Life Path:{" "}
                     {getLifePathNumber(
                       birthDate
@@ -902,42 +1169,31 @@ export default function People({
               )}
             </div>
 
-            {/* SHIO */}
+            {/* SHIO AUTO */}
             <div>
               <label className="text-sm font-medium text-[#3f382f]">
                 Shio
               </label>
 
-              <select
-                value={shio}
-                onChange={(event) =>
-                  setShio(
-                    event.target.value
-                  )
-                }
-                className="mt-2 w-full rounded-xl border border-[#d8cec0] bg-[#ebe3d8] px-4 py-3 text-sm text-[#3f382f] outline-none focus:border-[#8b6f5a]"
-              >
-                <option value="">
-                  Select Shio
-                </option>
-
-                {SHIO_TYPES.map(
-                  (type) => (
-                    <option
-                      key={type}
-                      value={type}
-                    >
+              <div className="mt-2 flex min-h-[48px] items-center rounded-xl border border-[#d8cec0] bg-[#ebe3d8] px-4 py-3 text-sm text-[#3f382f]">
+                {shio ? (
+                  <>
+                    <span className="mr-2">
                       {getShioSymbol(
-                        type
-                      )}{" "}
-                      {type}
-                    </option>
-                  )
+                        shio
+                      )}
+                    </span>
+                    {shio}
+                  </>
+                ) : (
+                  <span className="text-[#a69a8b]">
+                    Select birth date first
+                  </span>
                 )}
-              </select>
+              </div>
 
               <p className="mt-2 text-xs text-[#8a7e70]">
-                Automatically filled from birth date. You can adjust it if needed.
+                Automatically calculated from birth date.
               </p>
             </div>
 
@@ -1049,20 +1305,114 @@ export default function People({
                 Tags
               </label>
 
-              <input
-                type="text"
-                value={tags}
-                onChange={(event) =>
-                  setTags(
-                    event.target.value
-                  )
-                }
-                placeholder="friend, classmate, important"
-                className="mt-2 w-full rounded-xl border border-[#d8cec0] bg-[#ebe3d8] px-4 py-3 text-sm text-[#3f382f] outline-none placeholder:text-[#a69a8b] focus:border-[#8b6f5a]"
-              />
+              {/* SELECTED TAGS */}
+              {currentTags.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {currentTags.map(
+                    (tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center gap-1 rounded-full bg-[#8b6f5a] px-3 py-1.5 text-xs font-medium text-white"
+                      >
+                        {tag}
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            removeTag(tag)
+                          }
+                          className="ml-1 rounded-full text-white/80 hover:text-white"
+                          aria-label={`Remove ${tag}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    )
+                  )}
+                </div>
+              )}
+
+              <div className="relative">
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={(event) =>
+                    setTagInput(
+                      event.target.value
+                    )
+                  }
+                  onFocus={() =>
+                    setShowTagSuggestions(
+                      true
+                    )
+                  }
+                  onKeyDown={
+                    handleTagInputKeyDown
+                  }
+                  placeholder={
+                    currentTags.length > 0
+                      ? "Add another tag..."
+                      : "friend, classmate, important"
+                  }
+                  className="mt-3 w-full rounded-xl border border-[#d8cec0] bg-[#ebe3d8] px-4 py-3 text-sm text-[#3f382f] outline-none placeholder:text-[#a69a8b] focus:border-[#8b6f5a]"
+                />
+
+                {showTagSuggestions &&
+                  filteredTagSuggestions.length >
+                    0 && (
+                    <div className="absolute left-0 right-0 z-20 mt-2 overflow-hidden rounded-xl border border-[#d8cec0] bg-[#f7f2ea] shadow-lg">
+                      <div className="px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em] text-[#9a8c7c]">
+                        Existing tags
+                      </div>
+
+                      {filteredTagSuggestions.map(
+                        (tag) => (
+                          <button
+                            type="button"
+                            key={tag}
+                            onMouseDown={(
+                              event
+                            ) =>
+                              event.preventDefault()
+                            }
+                            onClick={() => {
+                              addTag(tag);
+                              setShowTagSuggestions(
+                                true
+                              );
+                            }}
+                            className="block w-full px-4 py-2.5 text-left text-sm text-[#746a5e] transition hover:bg-[#ebe3d8]"
+                          >
+                            #{tag}
+                          </button>
+                        )
+                      )}
+                    </div>
+                  )}
+              </div>
+
+              {tagInput.trim() &&
+                !currentTags.some(
+                  (tag) =>
+                    tag.toLowerCase() ===
+                    tagInput
+                      .trim()
+                      .toLowerCase()
+                ) && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      addTag(tagInput)
+                    }
+                    className="mt-2 rounded-lg bg-[#ebe3d8] px-3 py-2 text-xs font-medium text-[#746a5e] transition hover:bg-[#ddd3c6]"
+                  >
+                    + Add “
+                    {tagInput.trim()}”
+                  </button>
+                )}
 
               <p className="mt-2 text-xs text-[#8a7e70]">
-                Separate multiple tags with commas.
+                Press Enter to add a tag. Existing tags will appear automatically.
               </p>
             </div>
           </div>
@@ -1082,7 +1432,8 @@ export default function People({
               type="button"
               onClick={savePerson}
               disabled={
-                saving || !name.trim()
+                saving ||
+                !name.trim()
               }
               className="rounded-xl bg-[#8b6f5a] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#765a46] disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -1124,30 +1475,89 @@ export default function People({
                     person.birth_date
                   );
 
-                return (
-                  <button
-                    key={person.id}
-                    type="button"
-                    onClick={() =>
-                      onOpenPerson(
-                        person.id
-                      )
-                    }
-                    className="group w-full rounded-2xl bg-[#f7f2ea] p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:bg-[#f2ece3]"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#ebe3d8] text-2xl">
-                        👤
-                      </div>
+                /*
+                 * IMPORTANT:
+                 * Person lama mungkin shio-nya NULL.
+                 * Jadi kartu selalu menggunakan
+                 * calculatedShio sebagai fallback.
+                 */
+                const calculatedShio =
+                  person.shio ||
+                  getShioFromBirthDate(
+                    person.birth_date
+                  );
 
-                      <span className="text-sm text-[#b0a496] transition group-hover:translate-x-0.5">
-                        →
-                      </span>
+                return (
+                  <article
+                    key={person.id}
+                    className="group relative w-full rounded-2xl bg-[#f7f2ea] p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:bg-[#f2ece3]"
+                  >
+                    {/* TOP */}
+                    <div className="flex items-start justify-between">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onOpenPerson(
+                            person.id
+                          )
+                        }
+                        className="flex h-14 w-14 items-center justify-center rounded-full bg-[#ebe3d8] text-2xl"
+                        aria-label={`Open ${person.name}`}
+                      >
+                        👤
+                      </button>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onOpenPerson(
+                              person.id
+                            )
+                          }
+                          className="text-sm text-[#b0a496] transition group-hover:translate-x-0.5"
+                          aria-label={`Open ${person.name}`}
+                        >
+                          →
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            deletePerson(
+                              person
+                            )
+                          }
+                          disabled={
+                            deletingPersonId ===
+                            person.id
+                          }
+                          className="rounded-lg p-2 text-[#a98d82] transition hover:bg-[#ebe3d8] hover:text-[#a06f63] disabled:cursor-not-allowed disabled:opacity-50"
+                          aria-label={`Delete ${person.name}`}
+                          title="Delete person"
+                        >
+                          {deletingPersonId ===
+                          person.id
+                            ? "..."
+                            : "🗑️"}
+                        </button>
+                      </div>
                     </div>
 
-                    <h3 className="mt-4 text-lg font-semibold text-[#3f382f]">
-                      {person.name}
-                    </h3>
+                    {/* NAME */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onOpenPerson(
+                          person.id
+                        )
+                      }
+                      className="mt-4 block w-full text-left"
+                    >
+                      <h3 className="text-lg font-semibold text-[#3f382f]">
+                        {person.name}
+                      </h3>
+                    </button>
 
                     {/* BASIC BADGES */}
                     <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -1164,12 +1574,12 @@ export default function People({
                         </span>
                       )}
 
-                      {person.shio && (
+                      {calculatedShio && (
                         <span className="rounded-full bg-[#ebe3d8] px-3 py-1 text-xs text-[#746a5e]">
                           {getShioSymbol(
-                            person.shio
+                            calculatedShio
                           )}{" "}
-                          {person.shio}
+                          {calculatedShio}
                         </span>
                       )}
 
@@ -1177,14 +1587,18 @@ export default function People({
                         null && (
                         <span className="rounded-full bg-[#ebe3d8] px-3 py-1 text-xs text-[#746a5e]">
                           🔢{" "}
-                          {lifePathNumber}
+                          {
+                            lifePathNumber
+                          }
                         </span>
                       )}
 
                       {person.blood_type && (
                         <span className="rounded-full bg-[#ebe3d8] px-3 py-1 text-xs text-[#746a5e]">
                           🩸{" "}
-                          {person.blood_type}
+                          {
+                            person.blood_type
+                          }
                         </span>
                       )}
                     </div>
@@ -1210,7 +1624,9 @@ export default function People({
                     {person.address && (
                       <p className="mt-3 line-clamp-2 text-xs leading-5 text-[#8a7e70]">
                         📍{" "}
-                        {person.address}
+                        {
+                          person.address
+                        }
                       </p>
                     )}
 
@@ -1226,25 +1642,21 @@ export default function People({
                     {/* TAGS */}
                     {person.tags && (
                       <div className="mt-4 flex flex-wrap gap-2">
-                        {person.tags
-                          .split(",")
-                          .map((tag) =>
-                            tag.trim()
+                        {parseTags(
+                          person.tags
+                        ).map(
+                          (tag) => (
+                            <span
+                              key={tag}
+                              className="rounded-full bg-[#ebe3d8] px-3 py-1 text-xs text-[#746a5e]"
+                            >
+                              {tag}
+                            </span>
                           )
-                          .filter(Boolean)
-                          .map(
-                            (tag) => (
-                              <span
-                                key={tag}
-                                className="rounded-full bg-[#ebe3d8] px-3 py-1 text-xs text-[#746a5e]"
-                              >
-                                {tag}
-                              </span>
-                            )
-                          )}
+                        )}
                       </div>
                     )}
-                  </button>
+                  </article>
                 );
               }
             )}
