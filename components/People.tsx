@@ -11,6 +11,7 @@ type Person = {
   mbti: string | null;
   characteristics: string | null;
   tags: string | null;
+  shio: string | null;
   blood_type: string | null;
   address: string | null;
   created_at: string;
@@ -116,9 +117,7 @@ function getZodiac(birthDate: string | null) {
   return null;
 }
 
-function getZodiacSymbol(
-  zodiac: string | null
-) {
+function getZodiacSymbol(zodiac: string | null) {
   const symbols: Record<string, string> = {
     Aries: "♈",
     Taurus: "♉",
@@ -136,61 +135,6 @@ function getZodiacSymbol(
 
   return zodiac
     ? symbols[zodiac] ?? ""
-    : "";
-}
-
-function getShio(
-  birthDate: string | null
-) {
-  if (!birthDate) return null;
-
-  const year = Number(
-    birthDate.split("-")[0]
-  );
-
-  if (!year) return null;
-
-  const animals = [
-    "Rat",
-    "Ox",
-    "Tiger",
-    "Rabbit",
-    "Dragon",
-    "Snake",
-    "Horse",
-    "Goat",
-    "Monkey",
-    "Rooster",
-    "Dog",
-    "Pig",
-  ];
-
-  return (
-    animals[(year - 4) % 12] ??
-    null
-  );
-}
-
-function getShioSymbol(
-  shio: string | null
-) {
-  const symbols: Record<string, string> = {
-    Rat: "🐀",
-    Ox: "🐂",
-    Tiger: "🐅",
-    Rabbit: "🐇",
-    Dragon: "🐉",
-    Snake: "🐍",
-    Horse: "🐎",
-    Goat: "🐐",
-    Monkey: "🐒",
-    Rooster: "🐓",
-    Dog: "🐕",
-    Pig: "🐖",
-  };
-
-  return shio
-    ? symbols[shio] ?? ""
     : "";
 }
 
@@ -229,6 +173,60 @@ function getLifePathNumber(
   }
 
   return total;
+}
+
+function getShioSymbol(
+  shio: string | null
+) {
+  const symbols: Record<string, string> = {
+    Rat: "🐀",
+    Ox: "🐂",
+    Tiger: "🐅",
+    Rabbit: "🐇",
+    Dragon: "🐉",
+    Snake: "🐍",
+    Horse: "🐎",
+    Goat: "🐐",
+    Monkey: "🐒",
+    Rooster: "🐓",
+    Dog: "🐕",
+    Pig: "🐖",
+  };
+
+  return shio
+    ? symbols[shio] ?? ""
+    : "";
+}
+
+function getShioFromBirthDate(
+  birthDate: string
+) {
+  if (!birthDate) return "";
+
+  const year = Number(
+    birthDate.split("-")[0]
+  );
+
+  if (!year) return "";
+
+  const animals = [
+    "Rat",
+    "Ox",
+    "Tiger",
+    "Rabbit",
+    "Dragon",
+    "Snake",
+    "Horse",
+    "Goat",
+    "Monkey",
+    "Rooster",
+    "Dog",
+    "Pig",
+  ];
+
+  return (
+    animals[(year - 4) % 12] ?? ""
+  );
 }
 
 const MBTI_TYPES = [
@@ -308,6 +306,9 @@ export default function People({
   const [birthDate, setBirthDate] =
     useState("");
 
+  const [shio, setShio] =
+    useState("");
+
   const [bloodType, setBloodType] =
     useState("");
 
@@ -362,7 +363,7 @@ export default function People({
         await supabase
           .from("people")
           .select(
-            "id, name, birth_date, mbti, characteristics, tags, blood_type, address, created_at"
+            "id, name, birth_date, mbti, characteristics, tags, shio, blood_type, address, created_at"
           )
           .eq("user_id", user.id)
           .order("created_at", {
@@ -396,10 +397,22 @@ export default function People({
     setShowForm(false);
   }
 
-  async function savePerson() {
-    if (!name.trim()) {
-      return;
+  function handleBirthDateChange(
+    value: string
+  ) {
+    setBirthDate(value);
+
+    if (value) {
+      setShio(
+        getShioFromBirthDate(value)
+      );
+    } else {
+      setShio("");
     }
+  }
+
+  async function savePerson() {
+    if (!name.trim()) return;
 
     setSaving(true);
 
@@ -417,9 +430,15 @@ export default function People({
           "PEOPLE: USER ERROR",
           userError
         );
-
         return;
       }
+
+      const calculatedShio =
+        birthDate
+          ? getShioFromBirthDate(
+              birthDate
+            )
+          : shio;
 
       const { data, error } =
         await supabase
@@ -429,11 +448,14 @@ export default function People({
             name: name.trim(),
             birth_date:
               birthDate || null,
+            shio:
+              calculatedShio || null,
             blood_type:
               bloodType || null,
             address:
               address.trim() || null,
-            mbti: mbti || null,
+            mbti:
+              mbti || null,
             characteristics:
               characteristics.trim() ||
               null,
@@ -441,7 +463,7 @@ export default function People({
               tags.trim() || null,
           })
           .select(
-            "id, name, birth_date, mbti, characteristics, tags, blood_type, address, created_at"
+            "id, name, birth_date, mbti, characteristics, tags, shio, blood_type, address, created_at"
           )
           .single();
 
@@ -450,21 +472,21 @@ export default function People({
           "PEOPLE: SAVE ERROR",
           error
         );
-
         return;
       }
 
       if (data) {
         setPeople(
           (currentPeople) => [
-            ...currentPeople,
             data,
+            ...currentPeople,
           ]
         );
       }
 
       setName("");
       setBirthDate("");
+      setShio("");
       setBloodType("");
       setAddress("");
       setMbti("");
@@ -483,10 +505,6 @@ export default function People({
           person.birth_date
         );
 
-        const shio = getShio(
-          person.birth_date
-        );
-
         const matchesMbti =
           !filterMbti ||
           person.mbti === filterMbti;
@@ -497,7 +515,7 @@ export default function People({
 
         const matchesShio =
           !filterShio ||
-          shio === filterShio;
+          person.shio === filterShio;
 
         const matchesBloodType =
           !filterBloodType ||
@@ -593,185 +611,191 @@ export default function People({
       </div>
 
       {/* FILTERS */}
-      {!loading && people.length > 0 && (
-        <div className="mt-6 rounded-2xl bg-[#f7f2ea] p-5 shadow-sm">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
-            <div>
-              <label className="text-xs font-medium uppercase tracking-[0.15em] text-[#8a7e70]">
-                MBTI
-              </label>
+      {!loading &&
+        people.length > 0 && (
+          <div className="mt-6 rounded-2xl bg-[#f7f2ea] p-5 shadow-sm">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
+              {/* MBTI */}
+              <div>
+                <label className="text-xs font-medium uppercase tracking-[0.15em] text-[#8a7e70]">
+                  MBTI
+                </label>
 
-              <select
-                value={filterMbti}
-                onChange={(event) =>
-                  setFilterMbti(
-                    event.target.value
-                  )
-                }
-                className="mt-2 w-full rounded-xl border border-[#d8cec0] bg-[#ebe3d8] px-4 py-3 text-sm text-[#3f382f] outline-none focus:border-[#8b6f5a]"
-              >
-                <option value="">
-                  All MBTI
-                </option>
+                <select
+                  value={filterMbti}
+                  onChange={(event) =>
+                    setFilterMbti(
+                      event.target.value
+                    )
+                  }
+                  className="mt-2 w-full rounded-xl border border-[#d8cec0] bg-[#ebe3d8] px-4 py-3 text-sm text-[#3f382f] outline-none focus:border-[#8b6f5a]"
+                >
+                  <option value="">
+                    All MBTI
+                  </option>
 
-                {MBTI_TYPES.map(
-                  (type) => (
-                    <option
-                      key={type}
-                      value={type}
-                    >
-                      {type}
-                    </option>
-                  )
-                )}
-              </select>
+                  {MBTI_TYPES.map(
+                    (type) => (
+                      <option
+                        key={type}
+                        value={type}
+                      >
+                        {type}
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
+
+              {/* ZODIAC */}
+              <div>
+                <label className="text-xs font-medium uppercase tracking-[0.15em] text-[#8a7e70]">
+                  Zodiac
+                </label>
+
+                <select
+                  value={filterZodiac}
+                  onChange={(event) =>
+                    setFilterZodiac(
+                      event.target.value
+                    )
+                  }
+                  className="mt-2 w-full rounded-xl border border-[#d8cec0] bg-[#ebe3d8] px-4 py-3 text-sm text-[#3f382f] outline-none focus:border-[#8b6f5a]"
+                >
+                  <option value="">
+                    All Zodiac
+                  </option>
+
+                  {ZODIAC_TYPES.map(
+                    (zodiac) => (
+                      <option
+                        key={zodiac}
+                        value={zodiac}
+                      >
+                        {getZodiacSymbol(
+                          zodiac
+                        )}{" "}
+                        {zodiac}
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
+
+              {/* SHIO */}
+              <div>
+                <label className="text-xs font-medium uppercase tracking-[0.15em] text-[#8a7e70]">
+                  Shio
+                </label>
+
+                <select
+                  value={filterShio}
+                  onChange={(event) =>
+                    setFilterShio(
+                      event.target.value
+                    )
+                  }
+                  className="mt-2 w-full rounded-xl border border-[#d8cec0] bg-[#ebe3d8] px-4 py-3 text-sm text-[#3f382f] outline-none focus:border-[#8b6f5a]"
+                >
+                  <option value="">
+                    All Shio
+                  </option>
+
+                  {SHIO_TYPES.map(
+                    (type) => (
+                      <option
+                        key={type}
+                        value={type}
+                      >
+                        {getShioSymbol(
+                          type
+                        )}{" "}
+                        {type}
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
+
+              {/* BLOOD TYPE */}
+              <div>
+                <label className="text-xs font-medium uppercase tracking-[0.15em] text-[#8a7e70]">
+                  Blood Type
+                </label>
+
+                <select
+                  value={filterBloodType}
+                  onChange={(event) =>
+                    setFilterBloodType(
+                      event.target.value
+                    )
+                  }
+                  className="mt-2 w-full rounded-xl border border-[#d8cec0] bg-[#ebe3d8] px-4 py-3 text-sm text-[#3f382f] outline-none focus:border-[#8b6f5a]"
+                >
+                  <option value="">
+                    All Blood Types
+                  </option>
+
+                  {BLOOD_TYPES.map(
+                    (type) => (
+                      <option
+                        key={type}
+                        value={type}
+                      >
+                        {type}
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
+
+              {/* SORT */}
+              <div>
+                <label className="text-xs font-medium uppercase tracking-[0.15em] text-[#8a7e70]">
+                  Sort
+                </label>
+
+                <select
+                  value={sortOrder}
+                  onChange={(event) =>
+                    setSortOrder(
+                      event.target.value
+                    )
+                  }
+                  className="mt-2 w-full rounded-xl border border-[#d8cec0] bg-[#ebe3d8] px-4 py-3 text-sm text-[#3f382f] outline-none focus:border-[#8b6f5a]"
+                >
+                  <option value="newest">
+                    Terbaru
+                  </option>
+
+                  <option value="oldest">
+                    Terlama
+                  </option>
+
+                  <option value="az">
+                    A–Z
+                  </option>
+                </select>
+              </div>
             </div>
 
-            <div>
-              <label className="text-xs font-medium uppercase tracking-[0.15em] text-[#8a7e70]">
-                Zodiac
-              </label>
-
-              <select
-                value={filterZodiac}
-                onChange={(event) =>
-                  setFilterZodiac(
-                    event.target.value
-                  )
-                }
-                className="mt-2 w-full rounded-xl border border-[#d8cec0] bg-[#ebe3d8] px-4 py-3 text-sm text-[#3f382f] outline-none focus:border-[#8b6f5a]"
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="mt-4 rounded-xl border border-[#d8cec0] px-4 py-2.5 text-sm font-medium text-[#746a5e] transition hover:bg-[#ebe3d8]"
               >
-                <option value="">
-                  All Zodiac
-                </option>
+                Clear filters
+              </button>
+            )}
 
-                {ZODIAC_TYPES.map(
-                  (zodiac) => (
-                    <option
-                      key={zodiac}
-                      value={zodiac}
-                    >
-                      {getZodiacSymbol(
-                        zodiac
-                      )}{" "}
-                      {zodiac}
-                    </option>
-                  )
-                )}
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium uppercase tracking-[0.15em] text-[#8a7e70]">
-                Shio
-              </label>
-
-              <select
-                value={filterShio}
-                onChange={(event) =>
-                  setFilterShio(
-                    event.target.value
-                  )
-                }
-                className="mt-2 w-full rounded-xl border border-[#d8cec0] bg-[#ebe3d8] px-4 py-3 text-sm text-[#3f382f] outline-none focus:border-[#8b6f5a]"
-              >
-                <option value="">
-                  All Shio
-                </option>
-
-                {SHIO_TYPES.map(
-                  (shio) => (
-                    <option
-                      key={shio}
-                      value={shio}
-                    >
-                      {getShioSymbol(
-                        shio
-                      )}{" "}
-                      {shio}
-                    </option>
-                  )
-                )}
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium uppercase tracking-[0.15em] text-[#8a7e70]">
-                Blood Type
-              </label>
-
-              <select
-                value={filterBloodType}
-                onChange={(event) =>
-                  setFilterBloodType(
-                    event.target.value
-                  )
-                }
-                className="mt-2 w-full rounded-xl border border-[#d8cec0] bg-[#ebe3d8] px-4 py-3 text-sm text-[#3f382f] outline-none focus:border-[#8b6f5a]"
-              >
-                <option value="">
-                  All Blood Types
-                </option>
-
-                {BLOOD_TYPES.map(
-                  (type) => (
-                    <option
-                      key={type}
-                      value={type}
-                    >
-                      {type}
-                    </option>
-                  )
-                )}
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium uppercase tracking-[0.15em] text-[#8a7e70]">
-                Sort
-              </label>
-
-              <select
-                value={sortOrder}
-                onChange={(event) =>
-                  setSortOrder(
-                    event.target.value
-                  )
-                }
-                className="mt-2 w-full rounded-xl border border-[#d8cec0] bg-[#ebe3d8] px-4 py-3 text-sm text-[#3f382f] outline-none focus:border-[#8b6f5a]"
-              >
-                <option value="newest">
-                  Terbaru
-                </option>
-
-                <option value="oldest">
-                  Terlama
-                </option>
-
-                <option value="az">
-                  A–Z
-                </option>
-              </select>
-            </div>
+            <p className="mt-3 text-xs text-[#8a7e70]">
+              Showing{" "}
+              {filteredPeople.length} of{" "}
+              {people.length} people
+            </p>
           </div>
-
-          {hasFilters && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="mt-4 rounded-xl border border-[#d8cec0] px-4 py-2.5 text-sm font-medium text-[#746a5e] transition hover:bg-[#ebe3d8]"
-            >
-              Clear filters
-            </button>
-          )}
-
-          <p className="mt-3 text-xs text-[#8a7e70]">
-            Showing{" "}
-            {filteredPeople.length} of{" "}
-            {people.length} people
-          </p>
-        </div>
-      )}
+        )}
 
       {/* ADD PERSON FORM */}
       {showForm && (
@@ -839,7 +863,7 @@ export default function People({
                 type="date"
                 value={birthDate}
                 onChange={(event) =>
-                  setBirthDate(
+                  handleBirthDateChange(
                     event.target.value
                   )
                 }
@@ -847,7 +871,7 @@ export default function People({
               />
 
               {birthDate && (
-                <div className="mt-2 space-y-1 text-xs text-[#8a7e70]">
+                <div className="mt-3 space-y-1 text-xs text-[#8a7e70]">
                   <p>
                     Zodiac:{" "}
                     {getZodiacSymbol(
@@ -863,13 +887,9 @@ export default function People({
                   <p>
                     Shio:{" "}
                     {getShioSymbol(
-                      getShio(
-                        birthDate
-                      )
+                      shio
                     )}{" "}
-                    {getShio(
-                      birthDate
-                    )}
+                    {shio}
                   </p>
 
                   <p>
@@ -880,6 +900,45 @@ export default function People({
                   </p>
                 </div>
               )}
+            </div>
+
+            {/* SHIO */}
+            <div>
+              <label className="text-sm font-medium text-[#3f382f]">
+                Shio
+              </label>
+
+              <select
+                value={shio}
+                onChange={(event) =>
+                  setShio(
+                    event.target.value
+                  )
+                }
+                className="mt-2 w-full rounded-xl border border-[#d8cec0] bg-[#ebe3d8] px-4 py-3 text-sm text-[#3f382f] outline-none focus:border-[#8b6f5a]"
+              >
+                <option value="">
+                  Select Shio
+                </option>
+
+                {SHIO_TYPES.map(
+                  (type) => (
+                    <option
+                      key={type}
+                      value={type}
+                    >
+                      {getShioSymbol(
+                        type
+                      )}{" "}
+                      {type}
+                    </option>
+                  )
+                )}
+              </select>
+
+              <p className="mt-2 text-xs text-[#8a7e70]">
+                Automatically filled from birth date. You can adjust it if needed.
+              </p>
             </div>
 
             {/* BLOOD TYPE */}
@@ -1060,16 +1119,6 @@ export default function People({
                     zodiac
                   );
 
-                const shio =
-                  getShio(
-                    person.birth_date
-                  );
-
-                const shioSymbol =
-                  getShioSymbol(
-                    shio
-                  );
-
                 const lifePathNumber =
                   getLifePathNumber(
                     person.birth_date
@@ -1100,6 +1149,7 @@ export default function People({
                       {person.name}
                     </h3>
 
+                    {/* BASIC BADGES */}
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       {person.mbti && (
                         <span className="rounded-full bg-[#ebe3d8] px-3 py-1 text-xs font-medium uppercase tracking-wide text-[#8b6f5a]">
@@ -1114,10 +1164,12 @@ export default function People({
                         </span>
                       )}
 
-                      {shio && (
+                      {person.shio && (
                         <span className="rounded-full bg-[#ebe3d8] px-3 py-1 text-xs text-[#746a5e]">
-                          {shioSymbol}{" "}
-                          {shio}
+                          {getShioSymbol(
+                            person.shio
+                          )}{" "}
+                          {person.shio}
                         </span>
                       )}
 
@@ -1137,6 +1189,7 @@ export default function People({
                       )}
                     </div>
 
+                    {/* BIRTH DATE */}
                     {person.birth_date && (
                       <p className="mt-3 text-xs text-[#8a7e70]">
                         🎂{" "}
@@ -1153,6 +1206,7 @@ export default function People({
                       </p>
                     )}
 
+                    {/* ADDRESS */}
                     {person.address && (
                       <p className="mt-3 line-clamp-2 text-xs leading-5 text-[#8a7e70]">
                         📍{" "}
@@ -1160,6 +1214,7 @@ export default function People({
                       </p>
                     )}
 
+                    {/* CHARACTERISTICS */}
                     {person.characteristics && (
                       <p className="mt-3 line-clamp-2 text-sm leading-5 text-[#746a5e]">
                         {
@@ -1168,6 +1223,7 @@ export default function People({
                       </p>
                     )}
 
+                    {/* TAGS */}
                     {person.tags && (
                       <div className="mt-4 flex flex-wrap gap-2">
                         {person.tags
