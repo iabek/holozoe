@@ -205,7 +205,10 @@ function getLifePathNumber(birthDate: string | null) {
 
   if (digits.length !== 8) return null;
 
-  let total = digits.reduce((sum, digit) => sum + digit, 0);
+  let total = digits.reduce(
+    (sum, digit) => sum + digit,
+    0
+  );
 
   while (
     total > 9 &&
@@ -215,7 +218,10 @@ function getLifePathNumber(birthDate: string | null) {
   ) {
     total = String(total)
       .split("")
-      .reduce((sum, digit) => sum + Number(digit), 0);
+      .reduce(
+        (sum, digit) => sum + Number(digit),
+        0
+      );
   }
 
   return total;
@@ -224,7 +230,9 @@ function getLifePathNumber(birthDate: string | null) {
 function formatDate(date: string | null) {
   if (!date) return "-";
 
-  return new Date(`${date}T00:00:00`).toLocaleDateString("en-GB", {
+  return new Date(
+    `${date}T00:00:00`
+  ).toLocaleDateString("en-GB", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -243,54 +251,127 @@ export default function PersonArchive({
   personId,
   onBack,
 }: PersonArchiveProps) {
-  const [person, setPerson] = useState<Person | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [person, setPerson] =
+    useState<Person | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
 
   /* BASIC INFO */
-  const [editingBasicInfo, setEditingBasicInfo] = useState(false);
-  const [basicName, setBasicName] = useState("");
-  const [basicBirthDate, setBasicBirthDate] = useState("");
-  const [basicMbti, setBasicMbti] = useState("");
-  const [basicBloodType, setBasicBloodType] = useState("");
-  const [basicAddress, setBasicAddress] = useState("");
-  const [basicCharacteristics, setBasicCharacteristics] = useState("");
-  const [basicTags, setBasicTags] = useState("");
-  const [savingBasicInfo, setSavingBasicInfo] = useState(false);
-  const [basicInfoSaved, setBasicInfoSaved] = useState(false);
+  const [editingBasicInfo, setEditingBasicInfo] =
+    useState(false);
+
+  const [basicName, setBasicName] =
+    useState("");
+
+  const [basicBirthDate, setBasicBirthDate] =
+    useState("");
+
+  const [basicMbti, setBasicMbti] =
+    useState("");
+
+  const [basicBloodType, setBasicBloodType] =
+    useState("");
+
+  const [basicAddress, setBasicAddress] =
+    useState("");
+
+  const [basicCharacteristics, setBasicCharacteristics] =
+    useState("");
+
+  const [basicTags, setBasicTags] =
+    useState("");
+
+  const [basicTagInput, setBasicTagInput] =
+    useState("");
+
+  const [availableBasicTags, setAvailableBasicTags] =
+    useState<string[]>([]);
+
+  const [showBasicTagSuggestions, setShowBasicTagSuggestions] =
+    useState(false);
+
+  const [savingBasicInfo, setSavingBasicInfo] =
+    useState(false);
+
+  const [basicInfoSaved, setBasicInfoSaved] =
+    useState(false);
 
   /* RELATIONSHIP */
-  const [relationship, setRelationship] = useState("");
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [editingRelationship, setEditingRelationship] = useState(false);
-  const [savingRelationship, setSavingRelationship] = useState(false);
-  const [relationshipSaved, setRelationshipSaved] = useState(false);
+  const [relationship, setRelationship] =
+    useState("");
+
+  const [isFavorite, setIsFavorite] =
+    useState(false);
+
+  const [editingRelationship, setEditingRelationship] =
+    useState(false);
+
+  const [savingRelationship, setSavingRelationship] =
+    useState(false);
+
+  const [relationshipSaved, setRelationshipSaved] =
+    useState(false);
 
   /* LIKES */
-  const [likes, setLikes] = useState("");
-  const [dislikes, setDislikes] = useState("");
-  const [editingLikes, setEditingLikes] = useState(false);
-  const [savingLikes, setSavingLikes] = useState(false);
-  const [likesSaved, setLikesSaved] = useState(false);
+  const [likes, setLikes] =
+    useState("");
+
+  const [dislikes, setDislikes] =
+    useState("");
+
+  const [editingLikes, setEditingLikes] =
+    useState(false);
+
+  const [savingLikes, setSavingLikes] =
+    useState(false);
+
+  const [likesSaved, setLikesSaved] =
+    useState(false);
 
   /* NOTES */
-  const [notes, setNotes] = useState("");
-  const [editingNotes, setEditingNotes] = useState(false);
-  const [savingNotes, setSavingNotes] = useState(false);
-  const [notesSaved, setNotesSaved] = useState(false);
+  const [notes, setNotes] =
+    useState("");
+
+  const [editingNotes, setEditingNotes] =
+    useState(false);
+
+  const [savingNotes, setSavingNotes] =
+    useState(false);
+
+  const [notesSaved, setNotesSaved] =
+    useState(false);
 
   /* MOMENTS */
-  const [moments, setMoments] = useState<PersonMoment[]>([]);
-  const [loadingMoments, setLoadingMoments] = useState(true);
-  const [showMomentForm, setShowMomentForm] = useState(false);
-  const [editingMomentId, setEditingMomentId] = useState<string | null>(null);
-  const [momentDate, setMomentDate] = useState("");
-  const [momentTitle, setMomentTitle] = useState("");
-  const [momentDescription, setMomentDescription] = useState("");
-  const [momentTags, setMomentTags] = useState("");
-  const [savingMoment, setSavingMoment] = useState(false);
-  const [deletingMomentId, setDeletingMomentId] = useState<string | null>(
-    null
-  );
+  const [moments, setMoments] =
+    useState<PersonMoment[]>([]);
+
+  const [loadingMoments, setLoadingMoments] =
+    useState(true);
+
+  const [showMomentForm, setShowMomentForm] =
+    useState(false);
+
+  const [editingMomentId, setEditingMomentId] =
+    useState<string | null>(null);
+
+  const [momentDate, setMomentDate] =
+    useState("");
+
+  const [momentTitle, setMomentTitle] =
+    useState("");
+
+  const [momentDescription, setMomentDescription] =
+    useState("");
+
+  const [momentTags, setMomentTags] =
+    useState("");
+
+  const [savingMoment, setSavingMoment] =
+    useState(false);
+
+  const [deletingMomentId, setDeletingMomentId] =
+    useState<string | null>(null);
 
   useEffect(() => {
     async function loadPerson() {
@@ -304,7 +385,11 @@ export default function PersonArchive({
       } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        console.error("PERSON ARCHIVE: USER ERROR", userError);
+        console.error(
+          "PERSON ARCHIVE: USER ERROR",
+          userError
+        );
+
         setLoading(false);
         return;
       }
@@ -319,34 +404,57 @@ export default function PersonArchive({
         .single();
 
       if (error) {
-        console.error("PERSON ARCHIVE: LOAD ERROR", error);
+        console.error(
+          "PERSON ARCHIVE: LOAD ERROR",
+          error
+        );
+
         setLoading(false);
         return;
       }
 
-      const calculatedShio = data.shio ?? getShio(data.birth_date);
+      const calculatedShio =
+        data.shio ??
+        getShio(data.birth_date);
 
       const normalizedPerson: Person = {
         ...data,
         shio: calculatedShio,
-        blood_type: data.blood_type ?? null,
-        address: data.address ?? null,
+        blood_type:
+          data.blood_type ?? null,
+        address:
+          data.address ?? null,
       };
 
       setPerson(normalizedPerson);
 
       setBasicName(data.name ?? "");
-      setBasicBirthDate(data.birth_date ?? "");
+      setBasicBirthDate(
+        data.birth_date ?? ""
+      );
       setBasicMbti(data.mbti ?? "");
-      setBasicBloodType(data.blood_type ?? "");
-      setBasicAddress(data.address ?? "");
-      setBasicCharacteristics(data.characteristics ?? "");
+      setBasicBloodType(
+        data.blood_type ?? ""
+      );
+      setBasicAddress(
+        data.address ?? ""
+      );
+      setBasicCharacteristics(
+        data.characteristics ?? ""
+      );
       setBasicTags(data.tags ?? "");
 
-      setRelationship(data.relationship ?? "");
-      setIsFavorite(data.is_favorite ?? false);
+      setRelationship(
+        data.relationship ?? ""
+      );
+
+      setIsFavorite(
+        data.is_favorite ?? false
+      );
+
       setLikes(data.likes ?? "");
       setDislikes(data.dislikes ?? "");
+
       setNotes(data.notes ?? "");
 
       setLoading(false);
@@ -367,22 +475,33 @@ export default function PersonArchive({
       } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        console.error("PERSON MOMENTS: USER ERROR", userError);
+        console.error(
+          "PERSON MOMENTS: USER ERROR",
+          userError
+        );
+
         setLoadingMoments(false);
         return;
       }
 
-      const { data, error } = await supabase
-        .from("person_moments")
-        .select("id, person_id, moment_date, title, description, tags")
-        .eq("person_id", personId)
-        .eq("user_id", user.id)
-        .order("moment_date", {
-          ascending: false,
-        });
+      const { data, error } =
+        await supabase
+          .from("person_moments")
+          .select(
+            "id, person_id, moment_date, title, description, tags"
+          )
+          .eq("person_id", personId)
+          .eq("user_id", user.id)
+          .order("moment_date", {
+            ascending: false,
+          });
 
       if (error) {
-        console.error("PERSON MOMENTS: LOAD ERROR", error);
+        console.error(
+          "PERSON MOMENTS: LOAD ERROR",
+          error
+        );
+
         setLoadingMoments(false);
         return;
       }
@@ -394,31 +513,180 @@ export default function PersonArchive({
     void loadMoments();
   }, [personId]);
 
+  /* TAG HELPERS */
+
+  function parseTags(value: string | null) {
+    if (!value) return [];
+
+    return value
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+      .filter(
+        (tag, index, array) =>
+          array.findIndex(
+            (item) =>
+              item.toLowerCase() ===
+              tag.toLowerCase()
+          ) === index
+      );
+  }
+
+  function tagsToString(tags: string[]) {
+    return tags.join(", ");
+  }
+
+  async function loadAvailableBasicTags() {
+    const supabase = createClient();
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      console.error(
+        "PERSON ARCHIVE: TAG USER ERROR",
+        userError
+      );
+      return;
+    }
+
+    const { data, error } =
+      await supabase
+        .from("people")
+        .select("tags")
+        .eq("user_id", user.id);
+
+    if (error) {
+      console.error(
+        "PERSON ARCHIVE: TAG LOAD ERROR",
+        error
+      );
+      return;
+    }
+
+    const uniqueTags = (data ?? [])
+      .flatMap((item) =>
+        parseTags(item.tags)
+      )
+      .filter(
+        (tag, index, array) =>
+          array.findIndex(
+            (item) =>
+              item.toLowerCase() ===
+              tag.toLowerCase()
+          ) === index
+      )
+      .sort((a, b) =>
+        a.localeCompare(
+          b,
+          undefined,
+          {
+            sensitivity: "base",
+          }
+        )
+      );
+
+    setAvailableBasicTags(
+      uniqueTags
+    );
+  }
+
+  function addBasicTag(tag: string) {
+    const cleanTag = tag.trim();
+
+    if (!cleanTag) return;
+
+    const existingTags =
+      parseTags(basicTags);
+
+    const alreadyExists =
+      existingTags.some(
+        (existingTag) =>
+          existingTag.toLowerCase() ===
+          cleanTag.toLowerCase()
+      );
+
+    if (alreadyExists) {
+      setBasicTagInput("");
+      return;
+    }
+
+    setBasicTags(
+      tagsToString([
+        ...existingTags,
+        cleanTag,
+      ])
+    );
+
+    setBasicTagInput("");
+    setShowBasicTagSuggestions(true);
+  }
+
+  function removeBasicTag(
+    tagToRemove: string
+  ) {
+    setBasicTags(
+      tagsToString(
+        parseTags(basicTags).filter(
+          (tag) =>
+            tag.toLowerCase() !==
+            tagToRemove.toLowerCase()
+        )
+      )
+    );
+  }
+
   function startEditingBasicInfo() {
     if (!person) return;
 
     setBasicName(person.name ?? "");
-    setBasicBirthDate(person.birth_date ?? "");
+    setBasicBirthDate(
+      person.birth_date ?? ""
+    );
     setBasicMbti(person.mbti ?? "");
-    setBasicBloodType(person.blood_type ?? "");
-    setBasicAddress(person.address ?? "");
-    setBasicCharacteristics(person.characteristics ?? "");
+    setBasicBloodType(
+      person.blood_type ?? ""
+    );
+    setBasicAddress(
+      person.address ?? ""
+    );
+    setBasicCharacteristics(
+      person.characteristics ?? ""
+    );
     setBasicTags(person.tags ?? "");
+
+    setBasicTagInput("");
+    setShowBasicTagSuggestions(true);
 
     setBasicInfoSaved(false);
     setEditingBasicInfo(true);
+
+    void loadAvailableBasicTags();
   }
 
   function cancelEditingBasicInfo() {
     if (!person) return;
 
     setBasicName(person.name ?? "");
-    setBasicBirthDate(person.birth_date ?? "");
+    setBasicBirthDate(
+      person.birth_date ?? ""
+    );
     setBasicMbti(person.mbti ?? "");
-    setBasicBloodType(person.blood_type ?? "");
-    setBasicAddress(person.address ?? "");
-    setBasicCharacteristics(person.characteristics ?? "");
+    setBasicBloodType(
+      person.blood_type ?? ""
+    );
+    setBasicAddress(
+      person.address ?? ""
+    );
+    setBasicCharacteristics(
+      person.characteristics ?? ""
+    );
     setBasicTags(person.tags ?? "");
+
+    setBasicTagInput("");
+    setShowBasicTagSuggestions(false);
 
     setEditingBasicInfo(false);
   }
@@ -426,39 +694,54 @@ export default function PersonArchive({
   async function saveBasicInfo() {
     if (!person) return;
 
-    const cleanName = basicName.trim();
+    const cleanName =
+      basicName.trim();
 
-    if (!cleanName) {
-      return;
-    }
+    if (!cleanName) return;
 
     setSavingBasicInfo(true);
     setBasicInfoSaved(false);
 
     try {
-      const supabase = createClient();
+      const supabase =
+        createClient();
 
-      const calculatedShio = getShio(basicBirthDate || null);
+      const calculatedShio =
+        getShio(
+          basicBirthDate || null
+        );
 
       const payload = {
         name: cleanName,
-        birth_date: basicBirthDate || null,
-        mbti: basicMbti.trim() || null,
+        birth_date:
+          basicBirthDate || null,
+        mbti:
+          basicMbti.trim() || null,
         shio: calculatedShio,
-        blood_type: basicBloodType || null,
-        address: basicAddress.trim() || null,
-        characteristics: basicCharacteristics.trim() || null,
-        tags: basicTags.trim() || null,
-        updated_at: new Date().toISOString(),
+        blood_type:
+          basicBloodType || null,
+        address:
+          basicAddress.trim() || null,
+        characteristics:
+          basicCharacteristics.trim() ||
+          null,
+        tags:
+          basicTags.trim() || null,
+        updated_at:
+          new Date().toISOString(),
       };
 
-      const { error } = await supabase
-        .from("people")
-        .update(payload)
-        .eq("id", person.id);
+      const { error } =
+        await supabase
+          .from("people")
+          .update(payload)
+          .eq("id", person.id);
 
       if (error) {
-        console.error("PERSON ARCHIVE: BASIC INFO SAVE ERROR", error);
+        console.error(
+          "PERSON ARCHIVE: BASIC INFO SAVE ERROR",
+          error
+        );
         return;
       }
 
@@ -467,19 +750,33 @@ export default function PersonArchive({
           ? {
               ...current,
               ...payload,
-              birth_date: payload.birth_date,
-              mbti: payload.mbti,
-              shio: payload.shio,
-              blood_type: payload.blood_type,
-              address: payload.address,
-              characteristics: payload.characteristics,
-              tags: payload.tags,
+              birth_date:
+                payload.birth_date,
+              mbti:
+                payload.mbti,
+              shio:
+                payload.shio,
+              blood_type:
+                payload.blood_type,
+              address:
+                payload.address,
+              characteristics:
+                payload.characteristics,
+              tags:
+                payload.tags,
             }
           : current
       );
 
+      setBasicTagInput("");
+      setShowBasicTagSuggestions(
+        false
+      );
+
       setEditingBasicInfo(false);
       setBasicInfoSaved(true);
+
+      await loadAvailableBasicTags();
 
       window.setTimeout(() => {
         setBasicInfoSaved(false);
@@ -496,18 +793,24 @@ export default function PersonArchive({
     setRelationshipSaved(false);
 
     try {
-      const supabase = createClient();
+      const supabase =
+        createClient();
 
-      const cleanRelationship = relationship.trim() || null;
+      const cleanRelationship =
+        relationship.trim() || null;
 
-      const { error } = await supabase
-        .from("people")
-        .update({
-          relationship: cleanRelationship,
-          is_favorite: isFavorite,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", person.id);
+      const { error } =
+        await supabase
+          .from("people")
+          .update({
+            relationship:
+              cleanRelationship,
+            is_favorite:
+              isFavorite,
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq("id", person.id);
 
       if (error) {
         console.error(
@@ -521,8 +824,10 @@ export default function PersonArchive({
         current
           ? {
               ...current,
-              relationship: cleanRelationship,
-              is_favorite: isFavorite,
+              relationship:
+                cleanRelationship,
+              is_favorite:
+                isFavorite,
             }
           : current
       );
@@ -530,7 +835,13 @@ export default function PersonArchive({
       setEditingRelationship(false);
       setRelationshipSaved(true);
 
-      window.setTimeout(() => setRelationshipSaved(false), 2500);
+      window.setTimeout(
+        () =>
+          setRelationshipSaved(
+            false
+          ),
+        2500
+      );
     } finally {
       setSavingRelationship(false);
     }
@@ -543,19 +854,26 @@ export default function PersonArchive({
     setLikesSaved(false);
 
     try {
-      const supabase = createClient();
+      const supabase =
+        createClient();
 
-      const cleanLikes = likes.trim() || null;
-      const cleanDislikes = dislikes.trim() || null;
+      const cleanLikes =
+        likes.trim() || null;
 
-      const { error } = await supabase
-        .from("people")
-        .update({
-          likes: cleanLikes,
-          dislikes: cleanDislikes,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", person.id);
+      const cleanDislikes =
+        dislikes.trim() || null;
+
+      const { error } =
+        await supabase
+          .from("people")
+          .update({
+            likes: cleanLikes,
+            dislikes:
+              cleanDislikes,
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq("id", person.id);
 
       if (error) {
         console.error(
@@ -570,7 +888,8 @@ export default function PersonArchive({
           ? {
               ...current,
               likes: cleanLikes,
-              dislikes: cleanDislikes,
+              dislikes:
+                cleanDislikes,
             }
           : current
       );
@@ -578,7 +897,11 @@ export default function PersonArchive({
       setEditingLikes(false);
       setLikesSaved(true);
 
-      window.setTimeout(() => setLikesSaved(false), 2500);
+      window.setTimeout(
+        () =>
+          setLikesSaved(false),
+        2500
+      );
     } finally {
       setSavingLikes(false);
     }
@@ -591,20 +914,27 @@ export default function PersonArchive({
     setNotesSaved(false);
 
     try {
-      const supabase = createClient();
+      const supabase =
+        createClient();
 
-      const cleanNotes = notes.trim() || null;
+      const cleanNotes =
+        notes.trim() || null;
 
-      const { error } = await supabase
-        .from("people")
-        .update({
-          notes: cleanNotes,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", person.id);
+      const { error } =
+        await supabase
+          .from("people")
+          .update({
+            notes: cleanNotes,
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq("id", person.id);
 
       if (error) {
-        console.error("PERSON ARCHIVE: NOTES SAVE ERROR", error);
+        console.error(
+          "PERSON ARCHIVE: NOTES SAVE ERROR",
+          error
+        );
         return;
       }
 
@@ -620,7 +950,11 @@ export default function PersonArchive({
       setEditingNotes(false);
       setNotesSaved(true);
 
-      window.setTimeout(() => setNotesSaved(false), 2500);
+      window.setTimeout(
+        () =>
+          setNotesSaved(false),
+        2500
+      );
     } finally {
       setSavingNotes(false);
     }
@@ -637,8 +971,11 @@ export default function PersonArchive({
 
   function openNewMoment() {
     setMomentDate(
-      new Date().toISOString().slice(0, 10)
+      new Date()
+        .toISOString()
+        .slice(0, 10)
     );
+
     setMomentTitle("");
     setMomentDescription("");
     setMomentTags("");
@@ -646,41 +983,71 @@ export default function PersonArchive({
     setShowMomentForm(true);
   }
 
-  function openEditMoment(moment: PersonMoment) {
-    setMomentDate(moment.moment_date ?? "");
-    setMomentTitle(moment.title ?? "");
-    setMomentDescription(moment.description ?? "");
-    setMomentTags(moment.tags ?? "");
-    setEditingMomentId(moment.id);
+  function openEditMoment(
+    moment: PersonMoment
+  ) {
+    setMomentDate(
+      moment.moment_date ?? ""
+    );
+    setMomentTitle(
+      moment.title ?? ""
+    );
+    setMomentDescription(
+      moment.description ?? ""
+    );
+    setMomentTags(
+      moment.tags ?? ""
+    );
+    setEditingMomentId(
+      moment.id
+    );
     setShowMomentForm(true);
   }
 
   async function saveMoment() {
     if (!person) return;
 
-    if (!momentDate || !momentTitle.trim()) {
+    if (
+      !momentDate ||
+      !momentTitle.trim()
+    ) {
       return;
     }
 
     setSavingMoment(true);
 
     try {
-      const supabase = createClient();
+      const supabase =
+        createClient();
 
       const payload = {
-        moment_date: momentDate,
-        title: momentTitle.trim(),
-        description: momentDescription.trim() || null,
-        tags: momentTags.trim() || null,
-        updated_at: new Date().toISOString(),
+        moment_date:
+          momentDate,
+        title:
+          momentTitle.trim(),
+        description:
+          momentDescription.trim() ||
+          null,
+        tags:
+          momentTags.trim() ||
+          null,
+        updated_at:
+          new Date().toISOString(),
       };
 
       if (editingMomentId) {
-        const { error } = await supabase
-          .from("person_moments")
-          .update(payload)
-          .eq("id", editingMomentId)
-          .eq("person_id", person.id);
+        const { error } =
+          await supabase
+            .from("person_moments")
+            .update(payload)
+            .eq(
+              "id",
+              editingMomentId
+            )
+            .eq(
+              "person_id",
+              person.id
+            );
 
         if (error) {
           console.error(
@@ -693,27 +1060,37 @@ export default function PersonArchive({
         setMoments((current) =>
           current
             .map((moment) =>
-              moment.id === editingMomentId
+              moment.id ===
+              editingMomentId
                 ? {
                     ...moment,
-                    moment_date: payload.moment_date,
-                    title: payload.title,
-                    description: payload.description,
-                    tags: payload.tags,
+                    moment_date:
+                      payload.moment_date,
+                    title:
+                      payload.title,
+                    description:
+                      payload.description,
+                    tags:
+                      payload.tags,
                   }
                 : moment
             )
             .sort(
               (a, b) =>
-                new Date(b.moment_date).getTime() -
-                new Date(a.moment_date).getTime()
+                new Date(
+                  b.moment_date
+                ).getTime() -
+                new Date(
+                  a.moment_date
+                ).getTime()
             )
         );
       } else {
         const {
           data: { user },
           error: userError,
-        } = await supabase.auth.getUser();
+        } =
+          await supabase.auth.getUser();
 
         if (userError || !user) {
           console.error(
@@ -723,17 +1100,18 @@ export default function PersonArchive({
           return;
         }
 
-        const { data, error } = await supabase
-          .from("person_moments")
-          .insert({
-            user_id: user.id,
-            person_id: person.id,
-            ...payload,
-          })
-          .select(
-            "id, person_id, moment_date, title, description, tags"
-          )
-          .single();
+        const { data, error } =
+          await supabase
+            .from("person_moments")
+            .insert({
+              user_id: user.id,
+              person_id: person.id,
+              ...payload,
+            })
+            .select(
+              "id, person_id, moment_date, title, description, tags"
+            )
+            .single();
 
         if (error) {
           console.error(
@@ -747,8 +1125,12 @@ export default function PersonArchive({
           setMoments((current) =>
             [data, ...current].sort(
               (a, b) =>
-                new Date(b.moment_date).getTime() -
-                new Date(a.moment_date).getTime()
+                new Date(
+                  b.moment_date
+                ).getTime() -
+                new Date(
+                  a.moment_date
+                ).getTime()
             )
           );
         }
@@ -760,25 +1142,35 @@ export default function PersonArchive({
     }
   }
 
-  async function deleteMoment(momentId: string) {
+  async function deleteMoment(
+    momentId: string
+  ) {
     if (!person) return;
 
-    const confirmed = window.confirm(
-      "Delete this moment?"
-    );
+    const confirmed =
+      window.confirm(
+        "Delete this moment?"
+      );
 
     if (!confirmed) return;
 
-    setDeletingMomentId(momentId);
+    setDeletingMomentId(
+      momentId
+    );
 
     try {
-      const supabase = createClient();
+      const supabase =
+        createClient();
 
-      const { error } = await supabase
-        .from("person_moments")
-        .delete()
-        .eq("id", momentId)
-        .eq("person_id", person.id);
+      const { error } =
+        await supabase
+          .from("person_moments")
+          .delete()
+          .eq("id", momentId)
+          .eq(
+            "person_id",
+            person.id
+          );
 
       if (error) {
         console.error(
@@ -789,10 +1181,16 @@ export default function PersonArchive({
       }
 
       setMoments((current) =>
-        current.filter((moment) => moment.id !== momentId)
+        current.filter(
+          (moment) =>
+            moment.id !== momentId
+        )
       );
 
-      if (editingMomentId === momentId) {
+      if (
+        editingMomentId ===
+        momentId
+      ) {
         resetMomentForm();
       }
     } finally {
@@ -846,16 +1244,18 @@ export default function PersonArchive({
       : person.birth_date
   );
 
-  const lifePath = getLifePathNumber(
-    editingBasicInfo
-      ? basicBirthDate || null
-      : person.birth_date
-  );
+  const lifePath =
+    getLifePathNumber(
+      editingBasicInfo
+        ? basicBirthDate || null
+        : person.birth_date
+    );
 
   return (
     <div className="min-h-screen bg-[#f3eee6] px-5 py-8 pb-16">
       <div className="mx-auto max-w-4xl">
         {/* HEADER */}
+
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <button
             type="button"
@@ -877,6 +1277,7 @@ export default function PersonArchive({
         </div>
 
         {/* BASIC INFORMATION */}
+
         <section className="mt-6 rounded-2xl bg-[#f7f2ea] p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -892,7 +1293,9 @@ export default function PersonArchive({
             {!editingBasicInfo && (
               <button
                 type="button"
-                onClick={startEditingBasicInfo}
+                onClick={
+                  startEditingBasicInfo
+                }
                 className="w-fit rounded-xl bg-[#8b6f5a] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#765a46]"
               >
                 Edit
@@ -907,8 +1310,11 @@ export default function PersonArchive({
                   <p className="text-xs uppercase tracking-[0.12em] text-[#9a8c7c]">
                     Name
                   </p>
+
                   <p className="mt-1 text-sm font-medium text-[#3f382f]">
-                    {displayValue(person.name)}
+                    {displayValue(
+                      person.name
+                    )}
                   </p>
                 </div>
 
@@ -916,8 +1322,11 @@ export default function PersonArchive({
                   <p className="text-xs uppercase tracking-[0.12em] text-[#9a8c7c]">
                     Birth Date
                   </p>
+
                   <p className="mt-1 text-sm font-medium text-[#3f382f]">
-                    {formatDate(person.birth_date)}
+                    {formatDate(
+                      person.birth_date
+                    )}
                   </p>
                 </div>
 
@@ -925,8 +1334,11 @@ export default function PersonArchive({
                   <p className="text-xs uppercase tracking-[0.12em] text-[#9a8c7c]">
                     MBTI
                   </p>
+
                   <p className="mt-1 text-sm font-medium text-[#3f382f]">
-                    {displayValue(person.mbti)}
+                    {displayValue(
+                      person.mbti
+                    )}
                   </p>
                 </div>
 
@@ -934,8 +1346,11 @@ export default function PersonArchive({
                   <p className="text-xs uppercase tracking-[0.12em] text-[#9a8c7c]">
                     Blood Type
                   </p>
+
                   <p className="mt-1 text-sm font-medium text-[#3f382f]">
-                    {displayValue(person.blood_type)}
+                    {displayValue(
+                      person.blood_type
+                    )}
                   </p>
                 </div>
 
@@ -943,9 +1358,12 @@ export default function PersonArchive({
                   <p className="text-xs uppercase tracking-[0.12em] text-[#9a8c7c]">
                     Zodiac
                   </p>
+
                   <p className="mt-1 text-sm font-medium text-[#3f382f]">
                     {zodiac
-                      ? `${getZodiacSymbol(zodiac)} ${zodiac}`
+                      ? `${getZodiacSymbol(
+                          zodiac
+                        )} ${zodiac}`
                       : "-"}
                   </p>
                 </div>
@@ -954,9 +1372,12 @@ export default function PersonArchive({
                   <p className="text-xs uppercase tracking-[0.12em] text-[#9a8c7c]">
                     Shio
                   </p>
+
                   <p className="mt-1 text-sm font-medium text-[#3f382f]">
                     {shio
-                      ? `${getShioSymbol(shio)} ${shio}`
+                      ? `${getShioSymbol(
+                          shio
+                        )} ${shio}`
                       : "-"}
                   </p>
                 </div>
@@ -965,6 +1386,7 @@ export default function PersonArchive({
                   <p className="text-xs uppercase tracking-[0.12em] text-[#9a8c7c]">
                     Life Path
                   </p>
+
                   <p className="mt-1 text-sm font-medium text-[#3f382f]">
                     {lifePath ?? "-"}
                   </p>
@@ -974,8 +1396,11 @@ export default function PersonArchive({
                   <p className="text-xs uppercase tracking-[0.12em] text-[#9a8c7c]">
                     Address
                   </p>
+
                   <p className="mt-1 whitespace-pre-wrap text-sm font-medium text-[#3f382f]">
-                    {displayValue(person.address)}
+                    {displayValue(
+                      person.address
+                    )}
                   </p>
                 </div>
               </div>
@@ -985,8 +1410,11 @@ export default function PersonArchive({
                   <p className="text-xs uppercase tracking-[0.12em] text-[#9a8c7c]">
                     Characteristics
                   </p>
+
                   <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-[#3f382f]">
-                    {displayValue(person.characteristics)}
+                    {displayValue(
+                      person.characteristics
+                    )}
                   </p>
                 </div>
 
@@ -999,7 +1427,9 @@ export default function PersonArchive({
                     <div className="mt-2 flex flex-wrap gap-2">
                       {person.tags
                         .split(",")
-                        .map((tag) => tag.trim())
+                        .map((tag) =>
+                          tag.trim()
+                        )
                         .filter(Boolean)
                         .map((tag) => (
                           <span
@@ -1030,7 +1460,9 @@ export default function PersonArchive({
                     type="text"
                     value={basicName}
                     onChange={(event) =>
-                      setBasicName(event.target.value)
+                      setBasicName(
+                        event.target.value
+                      )
                     }
                     className={inputClassName()}
                     placeholder="Name"
@@ -1044,9 +1476,13 @@ export default function PersonArchive({
 
                   <input
                     type="date"
-                    value={basicBirthDate}
+                    value={
+                      basicBirthDate
+                    }
                     onChange={(event) =>
-                      setBasicBirthDate(event.target.value)
+                      setBasicBirthDate(
+                        event.target.value
+                      )
                     }
                     className={inputClassName()}
                   />
@@ -1060,17 +1496,26 @@ export default function PersonArchive({
                   <select
                     value={basicMbti}
                     onChange={(event) =>
-                      setBasicMbti(event.target.value)
+                      setBasicMbti(
+                        event.target.value
+                      )
                     }
                     className={inputClassName()}
                   >
-                    <option value="">Select MBTI</option>
+                    <option value="">
+                      Select MBTI
+                    </option>
 
-                    {MBTI_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    ))}
+                    {MBTI_TYPES.map(
+                      (type) => (
+                        <option
+                          key={type}
+                          value={type}
+                        >
+                          {type}
+                        </option>
+                      )
+                    )}
                   </select>
                 </div>
 
@@ -1080,19 +1525,30 @@ export default function PersonArchive({
                   </label>
 
                   <select
-                    value={basicBloodType}
+                    value={
+                      basicBloodType
+                    }
                     onChange={(event) =>
-                      setBasicBloodType(event.target.value)
+                      setBasicBloodType(
+                        event.target.value
+                      )
                     }
                     className={inputClassName()}
                   >
-                    <option value="">Select Blood Type</option>
+                    <option value="">
+                      Select Blood Type
+                    </option>
 
-                    {BLOOD_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    ))}
+                    {BLOOD_TYPES.map(
+                      (type) => (
+                        <option
+                          key={type}
+                          value={type}
+                        >
+                          {type}
+                        </option>
+                      )
+                    )}
                   </select>
                 </div>
 
@@ -1102,9 +1558,13 @@ export default function PersonArchive({
                   </label>
 
                   <textarea
-                    value={basicAddress}
+                    value={
+                      basicAddress
+                    }
                     onChange={(event) =>
-                      setBasicAddress(event.target.value)
+                      setBasicAddress(
+                        event.target.value
+                      )
                     }
                     rows={3}
                     className={inputClassName()}
@@ -1118,9 +1578,13 @@ export default function PersonArchive({
                   </label>
 
                   <textarea
-                    value={basicCharacteristics}
+                    value={
+                      basicCharacteristics
+                    }
                     onChange={(event) =>
-                      setBasicCharacteristics(event.target.value)
+                      setBasicCharacteristics(
+                        event.target.value
+                      )
                     }
                     rows={4}
                     className={inputClassName()}
@@ -1128,23 +1592,210 @@ export default function PersonArchive({
                   />
                 </div>
 
+                {/* TAGS WITH AUTOCOMPLETE */}
+
                 <div className="sm:col-span-2">
                   <label className="text-xs font-medium uppercase tracking-[0.15em] text-[#8a7e70]">
                     Tags
                   </label>
 
-                  <input
-                    type="text"
-                    value={basicTags}
-                    onChange={(event) =>
-                      setBasicTags(event.target.value)
-                    }
-                    className={inputClassName()}
-                    placeholder="Example: campus, close-friend, gaming"
-                  />
+                  {parseTags(
+                    basicTags
+                  ).length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {parseTags(
+                        basicTags
+                      ).map((tag) => (
+                        <span
+                          key={tag}
+                          className="inline-flex items-center gap-1 rounded-full bg-[#8b6f5a] px-3 py-1.5 text-xs font-medium text-white"
+                        >
+                          {tag}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              removeBasicTag(
+                                tag
+                              )
+                            }
+                            className="ml-1 rounded-full text-white/80 hover:text-white"
+                            aria-label={`Remove ${tag}`}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={
+                        basicTagInput
+                      }
+                      onChange={(
+                        event
+                      ) => {
+                        setBasicTagInput(
+                          event.target.value
+                        );
+
+                        setShowBasicTagSuggestions(
+                          true
+                        );
+                      }}
+                      onFocus={() =>
+                        setShowBasicTagSuggestions(
+                          true
+                        )
+                      }
+                      onKeyDown={(
+                        event
+                      ) => {
+                        if (
+                          event.key ===
+                          "Enter"
+                        ) {
+                          event.preventDefault();
+
+                          if (
+                            basicTagInput.trim()
+                          ) {
+                            addBasicTag(
+                              basicTagInput
+                            );
+                          }
+                        }
+
+                        if (
+                          event.key ===
+                            "Backspace" &&
+                          !basicTagInput &&
+                          parseTags(
+                            basicTags
+                          ).length > 0
+                        ) {
+                          const currentTags =
+                            parseTags(
+                              basicTags
+                            );
+
+                          removeBasicTag(
+                            currentTags[
+                              currentTags.length -
+                                1
+                            ]
+                          );
+                        }
+                      }}
+                      className={inputClassName()}
+                      placeholder="Type to search existing tags..."
+                    />
+
+                    {showBasicTagSuggestions &&
+                      (() => {
+                        const query =
+                          basicTagInput
+                            .trim()
+                            .toLowerCase();
+
+                        const suggestions =
+                          availableBasicTags
+                            .filter(
+                              (tag) =>
+                                !parseTags(
+                                  basicTags
+                                ).some(
+                                  (
+                                    currentTag
+                                  ) =>
+                                    currentTag
+                                      .toLowerCase() ===
+                                    tag.toLowerCase()
+                                )
+                            )
+                            .filter(
+                              (tag) =>
+                                !query ||
+                                tag
+                                  .toLowerCase()
+                                  .includes(
+                                    query
+                                  )
+                            )
+                            .slice(
+                              0,
+                              12
+                            );
+
+                        if (
+                          suggestions.length ===
+                          0
+                        ) {
+                          return null;
+                        }
+
+                        return (
+                          <div className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-xl border border-[#d8cec0] bg-[#f7f2ea] shadow-xl">
+                            <div className="px-4 py-2 text-[11px] font-medium uppercase tracking-[0.15em] text-[#9a8c7c]">
+                              Existing tags
+                            </div>
+
+                            {suggestions.map(
+                              (tag) => (
+                                <button
+                                  type="button"
+                                  key={tag}
+                                  onMouseDown={(
+                                    event
+                                  ) =>
+                                    event.preventDefault()
+                                  }
+                                  onClick={() =>
+                                    addBasicTag(
+                                      tag
+                                    )
+                                  }
+                                  className="block w-full px-4 py-3 text-left text-sm text-[#746a5e] transition hover:bg-[#ebe3d8]"
+                                >
+                                  #{tag}
+                                </button>
+                              )
+                            )}
+                          </div>
+                        );
+                      })()}
+                  </div>
+
+                  {basicTagInput.trim() &&
+                    !availableBasicTags.some(
+                      (tag) =>
+                        tag.toLowerCase() ===
+                        basicTagInput
+                          .trim()
+                          .toLowerCase()
+                    ) && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          addBasicTag(
+                            basicTagInput
+                          )
+                        }
+                        className="mt-2 rounded-lg bg-[#ebe3d8] px-3 py-2 text-xs font-medium text-[#746a5e] hover:bg-[#ddd3c6]"
+                      >
+                        + Add “
+                        {basicTagInput.trim()}
+                        ”
+                      </button>
+                    )}
 
                   <p className="mt-1 text-xs text-[#9a8c7c]">
-                    Separate multiple tags with commas.
+                    Type to search existing
+                    tags, or press Enter to
+                    create a new tag.
                   </p>
                 </div>
               </div>
@@ -1157,12 +1808,15 @@ export default function PersonArchive({
 
                   <p className="mt-1 text-sm font-medium text-[#3f382f]">
                     {zodiac
-                      ? `${getZodiacSymbol(zodiac)} ${zodiac}`
+                      ? `${getZodiacSymbol(
+                          zodiac
+                        )} ${zodiac}`
                       : "-"}
                   </p>
 
                   <p className="mt-1 text-xs text-[#9a8c7c]">
-                    Automatically calculated from birth date.
+                    Automatically calculated
+                    from birth date.
                   </p>
                 </div>
 
@@ -1173,12 +1827,15 @@ export default function PersonArchive({
 
                   <p className="mt-1 text-sm font-medium text-[#3f382f]">
                     {shio
-                      ? `${getShioSymbol(shio)} ${shio}`
+                      ? `${getShioSymbol(
+                          shio
+                        )} ${shio}`
                       : "-"}
                   </p>
 
                   <p className="mt-1 text-xs text-[#9a8c7c]">
-                    Automatically calculated from birth year.
+                    Automatically calculated
+                    from birth year.
                   </p>
                 </div>
 
@@ -1192,7 +1849,8 @@ export default function PersonArchive({
                   </p>
 
                   <p className="mt-1 text-xs text-[#9a8c7c]">
-                    Automatically calculated from birth date.
+                    Automatically calculated
+                    from birth date.
                   </p>
                 </div>
               </div>
@@ -1200,8 +1858,12 @@ export default function PersonArchive({
               <div className="mt-5 flex flex-col justify-end gap-3 sm:flex-row">
                 <button
                   type="button"
-                  onClick={cancelEditingBasicInfo}
-                  disabled={savingBasicInfo}
+                  onClick={
+                    cancelEditingBasicInfo
+                  }
+                  disabled={
+                    savingBasicInfo
+                  }
                   className="rounded-xl border border-[#d8cec0] px-5 py-2.5 text-sm font-medium text-[#746a5e] transition hover:bg-[#ebe3d8] disabled:opacity-50"
                 >
                   Cancel
@@ -1209,19 +1871,25 @@ export default function PersonArchive({
 
                 <button
                   type="button"
-                  onClick={saveBasicInfo}
+                  onClick={
+                    saveBasicInfo
+                  }
                   disabled={
-                    savingBasicInfo || !basicName.trim()
+                    savingBasicInfo ||
+                    !basicName.trim()
                   }
                   className="rounded-xl bg-[#8b6f5a] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#765a46] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {savingBasicInfo ? "Saving..." : "Save Changes"}
+                  {savingBasicInfo
+                    ? "Saving..."
+                    : "Save Changes"}
                 </button>
               </div>
 
               {basicInfoSaved && (
                 <p className="mt-3 text-right text-xs text-[#7c8b68]">
-                  ✓ Basic information saved
+                  ✓ Basic information
+                  saved
                 </p>
               )}
             </>
@@ -1229,6 +1897,7 @@ export default function PersonArchive({
         </section>
 
         {/* RELATIONSHIP */}
+
         <section className="mt-6 rounded-2xl bg-[#f7f2ea] p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -1237,14 +1906,19 @@ export default function PersonArchive({
               </p>
 
               <h2 className="mt-1 text-lg font-semibold text-[#3f382f]">
-                How you know this person
+                How you know this
+                person
               </h2>
             </div>
 
             {!editingRelationship && (
               <button
                 type="button"
-                onClick={() => setEditingRelationship(true)}
+                onClick={() =>
+                  setEditingRelationship(
+                    true
+                  )
+                }
                 className="w-fit rounded-xl bg-[#8b6f5a] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#765a46]"
               >
                 Edit
@@ -1260,7 +1934,9 @@ export default function PersonArchive({
                 </p>
 
                 <p className="mt-1 text-sm font-medium text-[#3f382f]">
-                  {displayValue(person.relationship)}
+                  {displayValue(
+                    person.relationship
+                  )}
                 </p>
               </div>
 
@@ -1270,7 +1946,9 @@ export default function PersonArchive({
                 </p>
 
                 <p className="mt-1 text-sm font-medium text-[#3f382f]">
-                  {person.is_favorite ? "⭐ Yes" : "No"}
+                  {person.is_favorite
+                    ? "⭐ Yes"
+                    : "No"}
                 </p>
               </div>
             </div>
@@ -1284,24 +1962,36 @@ export default function PersonArchive({
                 <select
                   value={relationship}
                   onChange={(event) =>
-                    setRelationship(event.target.value)
+                    setRelationship(
+                      event.target.value
+                    )
                   }
                   className={inputClassName()}
                 >
-                  <option value="">Select relationship</option>
+                  <option value="">
+                    Select relationship
+                  </option>
 
-                  {RELATIONSHIP_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
+                  {RELATIONSHIP_TYPES.map(
+                    (type) => (
+                      <option
+                        key={type}
+                        value={type}
+                      >
+                        {type}
+                      </option>
+                    )
+                  )}
                 </select>
               </div>
 
               <button
                 type="button"
                 onClick={() =>
-                  setIsFavorite((current) => !current)
+                  setIsFavorite(
+                    (current) =>
+                      !current
+                  )
                 }
                 className={`mt-4 flex w-full items-center justify-between rounded-xl border px-4 py-4 text-left transition ${
                   isFavorite
@@ -1315,13 +2005,16 @@ export default function PersonArchive({
                   </p>
 
                   <p className="mt-1 text-xs text-[#746a5e]">
-                    Mark this person as especially important.
+                    Mark this person as
+                    especially important.
                   </p>
                 </div>
 
                 <span
                   className={`text-xl ${
-                    isFavorite ? "opacity-100" : "opacity-30"
+                    isFavorite
+                      ? "opacity-100"
+                      : "opacity-30"
                   }`}
                 >
                   ⭐
@@ -1333,12 +2026,21 @@ export default function PersonArchive({
                   type="button"
                   onClick={() => {
                     setRelationship(
-                      person.relationship ?? ""
+                      person.relationship ??
+                        ""
                     );
-                    setIsFavorite(person.is_favorite);
-                    setEditingRelationship(false);
+
+                    setIsFavorite(
+                      person.is_favorite
+                    );
+
+                    setEditingRelationship(
+                      false
+                    );
                   }}
-                  disabled={savingRelationship}
+                  disabled={
+                    savingRelationship
+                  }
                   className="rounded-xl border border-[#d8cec0] px-4 py-2.5 text-sm font-medium text-[#746a5e] transition hover:bg-[#ebe3d8]"
                 >
                   Cancel
@@ -1346,11 +2048,17 @@ export default function PersonArchive({
 
                 <button
                   type="button"
-                  onClick={saveRelationship}
-                  disabled={savingRelationship}
+                  onClick={
+                    saveRelationship
+                  }
+                  disabled={
+                    savingRelationship
+                  }
                   className="rounded-xl bg-[#8b6f5a] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#765a46] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {savingRelationship ? "Saving..." : "Save"}
+                  {savingRelationship
+                    ? "Saving..."
+                    : "Save"}
                 </button>
               </div>
 
@@ -1364,6 +2072,7 @@ export default function PersonArchive({
         </section>
 
         {/* LIKES / DISLIKES */}
+
         <section className="mt-6 rounded-2xl bg-[#f7f2ea] p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -1372,14 +2081,17 @@ export default function PersonArchive({
               </p>
 
               <h2 className="mt-1 text-lg font-semibold text-[#3f382f]">
-                Things they like and dislike
+                Things they like and
+                dislike
               </h2>
             </div>
 
             {!editingLikes && (
               <button
                 type="button"
-                onClick={() => setEditingLikes(true)}
+                onClick={() =>
+                  setEditingLikes(true)
+                }
                 className="w-fit rounded-xl bg-[#8b6f5a] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#765a46]"
               >
                 Edit
@@ -1395,7 +2107,9 @@ export default function PersonArchive({
                 </p>
 
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#3f382f]">
-                  {displayValue(person.likes)}
+                  {displayValue(
+                    person.likes
+                  )}
                 </p>
               </div>
 
@@ -1405,7 +2119,9 @@ export default function PersonArchive({
                 </p>
 
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#3f382f]">
-                  {displayValue(person.dislikes)}
+                  {displayValue(
+                    person.dislikes
+                  )}
                 </p>
               </div>
             </div>
@@ -1420,7 +2136,9 @@ export default function PersonArchive({
                   <textarea
                     value={likes}
                     onChange={(event) =>
-                      setLikes(event.target.value)
+                      setLikes(
+                        event.target.value
+                      )
                     }
                     rows={5}
                     className={inputClassName()}
@@ -1436,7 +2154,9 @@ export default function PersonArchive({
                   <textarea
                     value={dislikes}
                     onChange={(event) =>
-                      setDislikes(event.target.value)
+                      setDislikes(
+                        event.target.value
+                      )
                     }
                     rows={5}
                     className={inputClassName()}
@@ -1449,11 +2169,23 @@ export default function PersonArchive({
                 <button
                   type="button"
                   onClick={() => {
-                    setLikes(person.likes ?? "");
-                    setDislikes(person.dislikes ?? "");
-                    setEditingLikes(false);
+                    setLikes(
+                      person.likes ??
+                        ""
+                    );
+
+                    setDislikes(
+                      person.dislikes ??
+                        ""
+                    );
+
+                    setEditingLikes(
+                      false
+                    );
                   }}
-                  disabled={savingLikes}
+                  disabled={
+                    savingLikes
+                  }
                   className="rounded-xl border border-[#d8cec0] px-4 py-2.5 text-sm font-medium text-[#746a5e] transition hover:bg-[#ebe3d8]"
                 >
                   Cancel
@@ -1461,17 +2193,24 @@ export default function PersonArchive({
 
                 <button
                   type="button"
-                  onClick={saveLikesDislikes}
-                  disabled={savingLikes}
+                  onClick={
+                    saveLikesDislikes
+                  }
+                  disabled={
+                    savingLikes
+                  }
                   className="rounded-xl bg-[#8b6f5a] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#765a46] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {savingLikes ? "Saving..." : "Save"}
+                  {savingLikes
+                    ? "Saving..."
+                    : "Save"}
                 </button>
               </div>
 
               {likesSaved && (
                 <p className="mt-3 text-right text-xs text-[#7c8b68]">
-                  ✓ Likes & dislikes saved
+                  ✓ Likes & dislikes
+                  saved
                 </p>
               )}
             </>
@@ -1479,6 +2218,7 @@ export default function PersonArchive({
         </section>
 
         {/* NOTES */}
+
         <section className="mt-6 rounded-2xl bg-[#f7f2ea] p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -1494,7 +2234,9 @@ export default function PersonArchive({
             {!editingNotes && (
               <button
                 type="button"
-                onClick={() => setEditingNotes(true)}
+                onClick={() =>
+                  setEditingNotes(true)
+                }
                 className="w-fit rounded-xl bg-[#8b6f5a] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#765a46]"
               >
                 Edit
@@ -1505,7 +2247,9 @@ export default function PersonArchive({
           {!editingNotes ? (
             <div className="mt-5 rounded-xl bg-[#ebe3d8] px-4 py-4">
               <p className="whitespace-pre-wrap text-sm leading-6 text-[#3f382f]">
-                {displayValue(person.notes)}
+                {displayValue(
+                  person.notes
+                )}
               </p>
             </div>
           ) : (
@@ -1513,7 +2257,9 @@ export default function PersonArchive({
               <textarea
                 value={notes}
                 onChange={(event) =>
-                  setNotes(event.target.value)
+                  setNotes(
+                    event.target.value
+                  )
                 }
                 rows={7}
                 className={`${inputClassName()} mt-5`}
@@ -1524,10 +2270,18 @@ export default function PersonArchive({
                 <button
                   type="button"
                   onClick={() => {
-                    setNotes(person.notes ?? "");
-                    setEditingNotes(false);
+                    setNotes(
+                      person.notes ??
+                        ""
+                    );
+
+                    setEditingNotes(
+                      false
+                    );
                   }}
-                  disabled={savingNotes}
+                  disabled={
+                    savingNotes
+                  }
                   className="rounded-xl border border-[#d8cec0] px-4 py-2.5 text-sm font-medium text-[#746a5e] transition hover:bg-[#ebe3d8]"
                 >
                   Cancel
@@ -1535,11 +2289,17 @@ export default function PersonArchive({
 
                 <button
                   type="button"
-                  onClick={saveNotes}
-                  disabled={savingNotes}
+                  onClick={
+                    saveNotes
+                  }
+                  disabled={
+                    savingNotes
+                  }
                   className="rounded-xl bg-[#8b6f5a] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#765a46] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {savingNotes ? "Saving..." : "Save"}
+                  {savingNotes
+                    ? "Saving..."
+                    : "Save"}
                 </button>
               </div>
 
@@ -1553,6 +2313,7 @@ export default function PersonArchive({
         </section>
 
         {/* MOMENTS / TIMELINE */}
+
         <section className="mt-6 rounded-2xl bg-[#f7f2ea] p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -1565,7 +2326,9 @@ export default function PersonArchive({
               </h2>
 
               <p className="mt-1 text-sm text-[#746a5e]">
-                Record important memories or moments you shared with{" "}
+                Record important
+                memories or moments
+                you shared with{" "}
                 {person.name}.
               </p>
             </div>
@@ -1573,7 +2336,9 @@ export default function PersonArchive({
             {!showMomentForm && (
               <button
                 type="button"
-                onClick={openNewMoment}
+                onClick={
+                  openNewMoment
+                }
                 className="w-fit rounded-xl bg-[#8b6f5a] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#765a46]"
               >
                 + Add Moment
@@ -1598,8 +2363,12 @@ export default function PersonArchive({
                   <input
                     type="date"
                     value={momentDate}
-                    onChange={(event) =>
-                      setMomentDate(event.target.value)
+                    onChange={(
+                      event
+                    ) =>
+                      setMomentDate(
+                        event.target.value
+                      )
                     }
                     className={inputClassName()}
                   />
@@ -1612,9 +2381,15 @@ export default function PersonArchive({
 
                   <input
                     type="text"
-                    value={momentTitle}
-                    onChange={(event) =>
-                      setMomentTitle(event.target.value)
+                    value={
+                      momentTitle
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setMomentTitle(
+                        event.target.value
+                      )
                     }
                     className={inputClassName()}
                     placeholder="Example: First time we met"
@@ -1627,9 +2402,15 @@ export default function PersonArchive({
                   </label>
 
                   <textarea
-                    value={momentDescription}
-                    onChange={(event) =>
-                      setMomentDescription(event.target.value)
+                    value={
+                      momentDescription
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setMomentDescription(
+                        event.target.value
+                      )
                     }
                     rows={5}
                     className={inputClassName()}
@@ -1644,9 +2425,15 @@ export default function PersonArchive({
 
                   <input
                     type="text"
-                    value={momentTags}
-                    onChange={(event) =>
-                      setMomentTags(event.target.value)
+                    value={
+                      momentTags
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setMomentTags(
+                        event.target.value
+                      )
                     }
                     className={inputClassName()}
                     placeholder="Example: funny, campus, trip"
@@ -1657,8 +2444,12 @@ export default function PersonArchive({
               <div className="mt-5 flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={resetMomentForm}
-                  disabled={savingMoment}
+                  onClick={
+                    resetMomentForm
+                  }
+                  disabled={
+                    savingMoment
+                  }
                   className="rounded-xl border border-[#d8cec0] px-4 py-2.5 text-sm font-medium text-[#746a5e] transition hover:bg-[#f7f2ea]"
                 >
                   Cancel
@@ -1666,7 +2457,9 @@ export default function PersonArchive({
 
                 <button
                   type="button"
-                  onClick={saveMoment}
+                  onClick={
+                    saveMoment
+                  }
                   disabled={
                     savingMoment ||
                     !momentDate ||
@@ -1689,92 +2482,132 @@ export default function PersonArchive({
               <p className="text-sm text-[#746a5e]">
                 Loading moments...
               </p>
-            ) : moments.length === 0 ? (
+            ) : moments.length ===
+              0 ? (
               <div className="rounded-xl border border-dashed border-[#d8cec0] bg-[#eee7dc] px-5 py-8 text-center">
-                <div className="text-3xl">🕰️</div>
+                <div className="text-3xl">
+                  🕰️
+                </div>
 
                 <p className="mt-3 text-sm font-medium text-[#3f382f]">
-                  No moments recorded yet.
+                  No moments
+                  recorded yet.
                 </p>
 
                 <p className="mt-1 text-xs leading-5 text-[#746a5e]">
-                  Add an important memory or moment you shared with{" "}
+                  Add an important
+                  memory or moment
+                  you shared with{" "}
                   {person.name}.
                 </p>
               </div>
             ) : (
               <div className="space-y-3">
-                {moments.map((moment) => (
-                  <article
-                    key={moment.id}
-                    className="rounded-xl border border-[#d8cec0] bg-[#ebe3d8] px-4 py-4"
-                  >
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-[#8b6f5a]">
-                          {formatDate(moment.moment_date)}
-                        </p>
-
-                        <h4 className="mt-1 text-base font-semibold text-[#3f382f]">
-                          {moment.title}
-                        </h4>
-
-                        {moment.description && (
-                          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#746a5e]">
-                            {moment.description}
+                {moments.map(
+                  (moment) => (
+                    <article
+                      key={
+                        moment.id
+                      }
+                      className="rounded-xl border border-[#d8cec0] bg-[#ebe3d8] px-4 py-4"
+                    >
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-[#8b6f5a]">
+                            {formatDate(
+                              moment.moment_date
+                            )}
                           </p>
-                        )}
 
-                        {moment.tags && (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {moment.tags
-                              .split(",")
-                              .map((tag) => tag.trim())
-                              .filter(Boolean)
-                              .map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="rounded-full bg-[#f7f2ea] px-3 py-1 text-xs font-medium text-[#746a5e]"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                          </div>
-                        )}
+                          <h4 className="mt-1 text-base font-semibold text-[#3f382f]">
+                            {
+                              moment.title
+                            }
+                          </h4>
+
+                          {moment.description && (
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#746a5e]">
+                              {
+                                moment.description
+                              }
+                            </p>
+                          )}
+
+                          {moment.tags && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {moment.tags
+                                .split(
+                                  ","
+                                )
+                                .map(
+                                  (
+                                    tag
+                                  ) =>
+                                    tag.trim()
+                                )
+                                .filter(
+                                  Boolean
+                                )
+                                .map(
+                                  (
+                                    tag
+                                  ) => (
+                                    <span
+                                      key={
+                                        tag
+                                      }
+                                      className="rounded-full bg-[#f7f2ea] px-3 py-1 text-xs font-medium text-[#746a5e]"
+                                    >
+                                      {
+                                        tag
+                                      }
+                                    </span>
+                                  )
+                                )}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex shrink-0 gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openEditMoment(
+                                moment
+                              )
+                            }
+                            disabled={
+                              deletingMomentId ===
+                              moment.id
+                            }
+                            className="rounded-lg border border-[#d8cec0] bg-[#f7f2ea] px-3 py-2 text-xs font-medium text-[#746a5e] transition hover:bg-white disabled:opacity-50"
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              deleteMoment(
+                                moment.id
+                              )
+                            }
+                            disabled={
+                              deletingMomentId ===
+                              moment.id
+                            }
+                            className="rounded-lg border border-[#d8cec0] bg-[#f7f2ea] px-3 py-2 text-xs font-medium text-[#a06f63] transition hover:bg-white disabled:opacity-50"
+                          >
+                            {deletingMomentId ===
+                            moment.id
+                              ? "..."
+                              : "Delete"}
+                          </button>
+                        </div>
                       </div>
-
-                      <div className="flex shrink-0 gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            openEditMoment(moment)
-                          }
-                          disabled={
-                            deletingMomentId === moment.id
-                          }
-                          className="rounded-lg border border-[#d8cec0] bg-[#f7f2ea] px-3 py-2 text-xs font-medium text-[#746a5e] transition hover:bg-white disabled:opacity-50"
-                        >
-                          Edit
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            deleteMoment(moment.id)
-                          }
-                          disabled={
-                            deletingMomentId === moment.id
-                          }
-                          className="rounded-lg border border-[#d8cec0] bg-[#f7f2ea] px-3 py-2 text-xs font-medium text-[#a06f63] transition hover:bg-white disabled:opacity-50"
-                        >
-                          {deletingMomentId === moment.id
-                            ? "..."
-                            : "Delete"}
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                ))}
+                    </article>
+                  )
+                )}
               </div>
             )}
           </div>
