@@ -1,7 +1,5 @@
 "use client";
-
 import { useEffect, useState } from "react";
-
 import Sidebar from "@/components/Sidebar";
 import Stats from "@/components/Stats";
 import Today from "@/components/Today";
@@ -127,9 +125,13 @@ function getMood(activityIds: string[]) {
   }
 
   const hasThesis = activityIds.includes("thesis");
+
   const hasMovement = activityIds.includes("movement");
+
   const hasLearning = activityIds.includes("learning");
+
   const hasSocial = activityIds.includes("social");
+
   const hasLeisure = activityIds.includes("leisure");
 
   const focus =
@@ -801,21 +803,6 @@ export default function Home() {
     }
 
     /*
-     * SCREEN TIME
-     *
-     * Ini yang sebelumnya hilang.
-     * Tanpa ini, ketika Sidebar memilih
-     * "Screen Time", halaman akan jatuh
-     * ke Dashboard karena return default
-     * berada di bawah.
-     */
-    if (
-      activePage === "Screen Time"
-    ) {
-      return <ScreenTime />;
-    }
-
-    /*
      * DASHBOARD
      */
 
@@ -1153,7 +1140,7 @@ export default function Home() {
               </div>
             </header>
 
-            {renderPage()}
+            {activePage === "Screen Time" ? <ScreenTime /> : renderPage()}
 
             <Footer />
           </div>
