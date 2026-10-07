@@ -1,6 +1,6 @@
 "use client";
+
 import { useEffect, useState } from "react";
-import { saveCurrentLifeGameStorage } from "@/lib/life-game-storage";
 
 type StatName =
   | "Energy"
@@ -67,13 +67,6 @@ const durationOptions = [
   30,
   40,
   50,
-  60,
-  90,
-  120,
-];
-
-const leisureOptions = [
-  30,
   60,
   90,
   120,
@@ -397,10 +390,11 @@ function updateXp(
   const currentXp =
     getSafeXp();
 
-  const nextXp = Math.max(
-    0,
-    currentXp + amount
-  );
+  const nextXp =
+    Math.max(
+      0,
+      currentXp + amount
+    );
 
   localStorage.setItem(
     "life-game-xp",
@@ -479,16 +473,13 @@ export default function Today() {
   const [
     pendingActivity,
     setPendingActivity,
-  ] = useState<Activity | null>(null);
+  ] = useState<Activity | null>(
+    null
+  );
 
   const [
     customMinutes,
     setCustomMinutes,
-  ] = useState("");
-
-  const [
-    customLeisureMinutes,
-    setCustomLeisureMinutes,
   ] = useState("");
 
   useEffect(() => {
@@ -515,7 +506,9 @@ export default function Today() {
               savedHabits
             );
 
-          if (Array.isArray(parsed)) {
+          if (
+            Array.isArray(parsed)
+          ) {
             setHabits(parsed);
           } else {
             setHabits([]);
@@ -531,15 +524,47 @@ export default function Today() {
         getSafeGold()
       );
 
+      /*
+       * LEISURE
+       *
+       * Screen Time menjadi sumber
+       * utama untuk usedMinutes.
+       *
+       * Gaming + Entertainment
+       * dari Screen Time akan
+       * ditulis ke:
+       *
+       * life-game-leisure
+       *
+       * extensionMinutes tetap
+       * berasal dari sistem Gold.
+       */
       const savedLeisure =
         loadLeisureData();
 
-      setLeisure(
-        savedLeisure[today] || {
-          extensionMinutes: 0,
-          usedMinutes: 0,
-        }
-      );
+      const todayLeisure =
+        savedLeisure[today];
+
+      setLeisure({
+        extensionMinutes: Math.min(
+          MAX_EXTENSION_MINUTES,
+          Math.max(
+            0,
+            Number(
+              todayLeisure?.extensionMinutes ||
+                0
+            )
+          )
+        ),
+
+        usedMinutes: Math.max(
+          0,
+          Number(
+            todayLeisure?.usedMinutes ||
+              0
+          )
+        ),
+      });
     }
 
     refresh();
@@ -583,37 +608,7 @@ export default function Today() {
     ...customActivities,
   ];
 
-  async function persistStorageKeys(
-    keys: string[]
-  ) {
-    const uniqueKeys = [
-      ...new Set(keys),
-    ];
-
-    const results =
-      await Promise.all(
-        uniqueKeys.map((key) =>
-          saveCurrentLifeGameStorage(
-            key
-          )
-        )
-      );
-
-    const failed =
-      results.find(
-        (result) =>
-          !result.success
-      );
-
-    if (failed) {
-      console.error(
-        "Gagal menyimpan perubahan Today ke Supabase:",
-        failed
-      );
-    }
-  }
-
-  async function saveLeisure(
+  function saveLeisure(
     data: {
       extensionMinutes: number;
       usedMinutes: number;
@@ -625,7 +620,24 @@ export default function Today() {
     const allLeisure =
       loadLeisureData();
 
-    allLeisure[today] = data;
+    allLeisure[today] = {
+      extensionMinutes:
+        Math.max(
+          0,
+          Math.min(
+            MAX_EXTENSION_MINUTES,
+            data.extensionMinutes
+          )
+        ),
+
+      usedMinutes:
+        Math.max(
+          0,
+          Math.floor(
+            data.usedMinutes
+          )
+        ),
+    };
 
     localStorage.setItem(
       "life-game-leisure",
@@ -634,14 +646,12 @@ export default function Today() {
       )
     );
 
-    setLeisure(data);
-
-    await saveCurrentLifeGameStorage(
-      "life-game-leisure"
+    setLeisure(
+      allLeisure[today]
     );
   }
 
-  async function completeActivity(
+  function completeActivity(
     activity: Activity,
     durationMinutes: number
   ) {
@@ -654,7 +664,9 @@ export default function Today() {
       );
 
     const eligible =
-      isGoldEligible(activity);
+      isGoldEligible(
+        activity
+      );
 
     if (
       eligible &&
@@ -706,11 +718,14 @@ export default function Today() {
 
     history.push({
       id: `${Date.now()}-${Math.random()}`,
-      activity: activity.name,
+      activity:
+        activity.name,
       xp: activity.xp,
       stat: activity.stat,
-      activityId: activity.id,
-      date: new Date().toISOString(),
+      activityId:
+        activity.id,
+      date:
+        new Date().toISOString(),
 
       ...(eligible
         ? {
@@ -723,7 +738,9 @@ export default function Today() {
 
     localStorage.setItem(
       "life-game-history",
-      JSON.stringify(history)
+      JSON.stringify(
+        history
+      )
     );
 
     updateXp(
@@ -757,37 +774,36 @@ export default function Today() {
       getSafeGold()
     );
 
-    setPendingActivity(null);
+    setPendingActivity(
+      null
+    );
 
-    setCustomMinutes("");
+    setCustomMinutes(
+      ""
+    );
 
     window.dispatchEvent(
       new Event(
         "life-game-updated"
       )
     );
-
-    await persistStorageKeys([
-      "life-game-daily-activities",
-      "life-game-history",
-      "life-game-xp",
-      "life-game-daily-stats",
-      "life-game-gold",
-      "life-game-gold-ledger",
-    ]);
   }
 
   function addActivity(
     activity: Activity
   ) {
     if (
-      isGoldEligible(activity)
+      isGoldEligible(
+        activity
+      )
     ) {
       setPendingActivity(
         activity
       );
 
-      setCustomMinutes("");
+      setCustomMinutes(
+        ""
+      );
 
       return;
     }
@@ -798,7 +814,7 @@ export default function Today() {
     );
   }
 
-  async function removeActivity(
+  function removeActivity(
     activity: Activity
   ) {
     const today =
@@ -851,12 +867,14 @@ export default function Today() {
     let historyIndex = -1;
 
     for (
-      let i = history.length - 1;
+      let i =
+        history.length - 1;
       i >= 0;
       i--
     ) {
       if (
-        history[i].activityId ===
+        history[i]
+          .activityId ===
         activity.id
       ) {
         historyIndex = i;
@@ -864,14 +882,18 @@ export default function Today() {
       }
     }
 
-    if (historyIndex === -1) {
+    if (
+      historyIndex === -1
+    ) {
       for (
-        let i = history.length - 1;
+        let i =
+          history.length - 1;
         i >= 0;
         i--
       ) {
         if (
-          history[i].activity ===
+          history[i]
+            .activity ===
           activity.name
         ) {
           historyIndex = i;
@@ -880,9 +902,13 @@ export default function Today() {
       }
     }
 
-    if (historyIndex !== -1) {
+    if (
+      historyIndex !== -1
+    ) {
       const removedHistory =
-        history[historyIndex];
+        history[
+          historyIndex
+        ];
 
       const removedGold =
         Number(
@@ -906,7 +932,9 @@ export default function Today() {
 
     localStorage.setItem(
       "life-game-history",
-      JSON.stringify(history)
+      JSON.stringify(
+        history
+      )
     );
 
     updateXp(
@@ -931,18 +959,9 @@ export default function Today() {
         "life-game-updated"
       )
     );
-
-    await persistStorageKeys([
-      "life-game-daily-activities",
-      "life-game-history",
-      "life-game-xp",
-      "life-game-daily-stats",
-      "life-game-gold",
-      "life-game-gold-ledger",
-    ]);
   }
 
-  async function extendLeisure(
+  function extendLeisure(
     goldCost: number,
     minutes: number
   ) {
@@ -983,7 +1002,7 @@ export default function Today() {
         leisure.usedMinutes,
     };
 
-    await saveLeisure(
+    saveLeisure(
       nextLeisure
     );
 
@@ -996,70 +1015,12 @@ export default function Today() {
         "life-game-updated"
       )
     );
-
-    await persistStorageKeys([
-      "life-game-gold",
-      "life-game-gold-ledger",
-      "life-game-leisure",
-    ]);
-  }
-
-  async function useLeisure(
-    minutes: number
-  ) {
-    const totalAvailable =
-      BASE_LEISURE_MINUTES +
-      leisure.extensionMinutes;
-
-    const remaining =
-      totalAvailable -
-      leisure.usedMinutes;
-
-    if (
-      minutes <= 0 ||
-      minutes > remaining
-    ) {
-      return;
-    }
-
-    await saveLeisure({
-      extensionMinutes:
-        leisure.extensionMinutes,
-
-      usedMinutes:
-        leisure.usedMinutes +
-        minutes,
-    });
-
-    setCustomLeisureMinutes("");
-
-    window.dispatchEvent(
-      new Event(
-        "life-game-updated"
-      )
-    );
-  }
-
-  function confirmCustomLeisure() {
-    const minutes =
-      Number(
-        customLeisureMinutes
-      );
-
-    if (
-      !Number.isFinite(minutes) ||
-      minutes < 1
-    ) {
-      return;
-    }
-
-    useLeisure(
-      Math.floor(minutes)
-    );
   }
 
   function confirmCustomDuration() {
-    if (!pendingActivity) {
+    if (
+      !pendingActivity
+    ) {
       return;
     }
 
@@ -1069,7 +1030,9 @@ export default function Today() {
       );
 
     if (
-      !Number.isFinite(minutes) ||
+      !Number.isFinite(
+        minutes
+      ) ||
       minutes < 1
     ) {
       return;
@@ -1081,6 +1044,20 @@ export default function Today() {
     );
   }
 
+  /*
+   * Leisure sekarang dibaca
+   * langsung dari Screen Time.
+   *
+   * Base:
+   * 120 menit
+   *
+   * Extension:
+   * maksimal +120 menit
+   *
+   * Used:
+   * Gaming + Entertainment
+   * dari Screen Time
+   */
   const totalLeisureMinutes =
     BASE_LEISURE_MINUTES +
     leisure.extensionMinutes;
@@ -1099,9 +1076,21 @@ export default function Today() {
         leisure.extensionMinutes
     );
 
+  const leisureUsagePercent =
+    totalLeisureMinutes > 0
+      ? Math.min(
+          100,
+          (leisure.usedMinutes /
+            totalLeisureMinutes) *
+            100
+        )
+      : 0;
+
   return (
     <div className="space-y-4">
+
       {/* GOLD */}
+
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -1114,15 +1103,20 @@ export default function Today() {
             </h2>
 
             <p className="mt-1 text-sm opacity-50">
-              Earn Gold from qualifying activities and exchange it for more leisure time.
+              Earn Gold from qualifying
+              activities and exchange it
+              for more leisure time.
             </p>
           </div>
         </div>
       </section>
 
       {/* LEISURE */}
+
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
+
         <div className="flex flex-wrap items-start justify-between gap-4">
+
           <div>
             <p className="text-xs uppercase tracking-widest opacity-50">
               Leisure budget
@@ -1133,7 +1127,9 @@ export default function Today() {
             </h2>
 
             <p className="mt-1 text-sm opacity-50">
-              Your daily base time is always available. Gold can extend it.
+              Screen Time menentukan
+              pemakaian Leisure hari ini.
+              Gold dapat menambah waktu.
             </p>
           </div>
 
@@ -1146,9 +1142,11 @@ export default function Today() {
               remaining
             </p>
           </div>
+
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
+
           <div className="rounded-2xl bg-[#f5f0e8] p-4">
             <p className="text-xs opacity-50">
               Base
@@ -1177,12 +1175,46 @@ export default function Today() {
             <p className="mt-1 text-xl font-bold">
               {leisure.usedMinutes}m
             </p>
+
+            <p className="mt-1 text-xs opacity-50">
+              from Screen Time
+            </p>
           </div>
+
+        </div>
+
+        {/* SCREEN TIME CONNECTION */}
+
+        <div className="mt-5 rounded-2xl border border-[#cfc3b4] bg-[#f5f0e8] p-4">
+
+          <div className="flex items-start gap-3">
+
+            <span className="text-lg">
+              📱
+            </span>
+
+            <div>
+              <p className="font-semibold">
+                Screen Time connected
+              </p>
+
+              <p className="mt-1 text-xs leading-5 opacity-60">
+                Gaming + Entertainment dari
+                Screen Time otomatis dihitung
+                sebagai Leisure used.
+              </p>
+            </div>
+
+          </div>
+
         </div>
 
         {/* EXTEND */}
+
         <div className="mt-5">
+
           <div className="flex flex-wrap items-end justify-between gap-2">
+
             <div>
               <p className="font-semibold">
                 Extend Leisure
@@ -1194,13 +1226,17 @@ export default function Today() {
             </div>
 
             <p className="text-xs opacity-50">
-              {remainingExtensionMinutes}m extension left
+              {remainingExtensionMinutes}m
+              extension left
             </p>
+
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+
             {goldExtensionOptions.map(
               (option) => {
+
                 const disabled =
                   gold <
                     option.gold ||
@@ -1213,7 +1249,9 @@ export default function Today() {
                       option.gold
                     }
                     type="button"
-                    disabled={disabled}
+                    disabled={
+                      disabled
+                    }
                     onClick={() =>
                       extendLeisure(
                         option.gold,
@@ -1233,124 +1271,71 @@ export default function Today() {
                 );
               }
             )}
+
           </div>
+
         </div>
 
-        {/* USE LEISURE */}
+        {/* USAGE */}
+
         <div className="mt-5 border-t border-[#d8cec0] pt-5">
-          <p className="font-semibold">
-            Use Leisure
-          </p>
 
-          <p className="mt-1 text-xs opacity-50">
-            {remainingLeisureMinutes}m available today.
-          </p>
+          <div className="flex items-center justify-between">
 
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {leisureOptions.map(
-              (minutes) => {
-                const disabled =
-                  minutes >
-                  remainingLeisureMinutes;
+            <div>
+              <p className="font-semibold">
+                Leisure Usage
+              </p>
 
-                return (
-                  <button
-                    key={
-                      minutes
-                    }
-                    type="button"
-                    disabled={disabled}
-                    onClick={() =>
-                      useLeisure(
-                        minutes
-                      )
-                    }
-                    className="rounded-xl bg-[#ddd4c7] px-3 py-3 text-sm font-medium transition hover:bg-[#d4c9ba] disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {minutes}m
-                  </button>
-                );
-              }
-            )}
-          </div>
-
-          <div className="mt-3 rounded-xl border border-[#cfc3b4] bg-white/50 p-3">
-            <label className="text-xs font-semibold">
-              Custom leisure minutes
-            </label>
-
-            <div className="mt-2 flex gap-2">
-              <input
-                type="number"
-                min="1"
-                step="1"
-                value={
-                  customLeisureMinutes
-                }
-                onChange={(
-                  event
-                ) =>
-                  setCustomLeisureMinutes(
-                    event.target.value
-                  )
-                }
-                placeholder="e.g. 45"
-                className="min-w-0 flex-1 rounded-xl border border-[#cfc3b4] bg-white px-3 py-2 text-sm outline-none"
-              />
-
-              <button
-                type="button"
-                onClick={
-                  confirmCustomLeisure
-                }
-                disabled={
-                  !customLeisureMinutes ||
-                  Number(
-                    customLeisureMinutes
-                  ) >
-                    remainingLeisureMinutes
-                }
-                className="rounded-xl bg-[#8f806d] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Use
-              </button>
+              <p className="mt-1 text-xs opacity-50">
+                Automatically synced from
+                Screen Time.
+              </p>
             </div>
+
+            <p className="text-sm font-semibold">
+              {leisure.usedMinutes}m /{" "}
+              {totalLeisureMinutes}m
+            </p>
+
           </div>
 
           <div className="mt-4 h-3 overflow-hidden rounded-full bg-[#ddd4c7]">
+
             <div
               className="h-full rounded-full bg-[#8f806d] transition-all"
               style={{
-                width: `${
-                  totalLeisureMinutes > 0
-                    ? Math.min(
-                        100,
-                        (leisure.usedMinutes /
-                          totalLeisureMinutes) *
-                          100
-                      )
-                    : 0
-                }%`,
+                width: `${leisureUsagePercent}%`,
               }}
             />
+
           </div>
 
           <div className="mt-2 flex justify-between text-xs opacity-50">
+
             <span>
-              {leisure.usedMinutes}m used
+              {leisure.usedMinutes}m
+              used
             </span>
 
             <span>
-              {totalLeisureMinutes}m total
+              {remainingLeisureMinutes}m
+              remaining
             </span>
+
           </div>
+
         </div>
+
       </section>
 
       {/* ACTIVITIES */}
+
       <div className="space-y-3">
+
         {allActivities.map(
           (activity) => {
+
             const count =
               activityLog.filter(
                 (item) =>
@@ -1370,19 +1355,25 @@ export default function Today() {
                 }
                 className="rounded-2xl bg-[#f5f0e8] p-4"
               >
+
                 <div className="flex flex-wrap items-center justify-between gap-3">
+
                   <div className="flex min-w-0 items-center gap-3">
+
                     <span className="text-xl">
                       {activity.icon}
                     </span>
 
                     <div className="min-w-0">
+
                       <p className="truncate font-semibold">
                         {activity.name}
                       </p>
 
                       <p className="text-xs opacity-50">
+
                         +{activity.xp} XP ·{" "}
+
                         {activity.stat ===
                         "Mood"
                           ? "affects mood"
@@ -1390,11 +1381,15 @@ export default function Today() {
 
                         {eligible &&
                           " · earns Gold"}
+
                       </p>
+
                     </div>
+
                   </div>
 
                   <div className="flex shrink-0 items-center gap-2">
+
                     {count > 0 && (
                       <>
                         <button
@@ -1426,13 +1421,18 @@ export default function Today() {
                     >
                       + Add
                     </button>
+
                   </div>
+
                 </div>
 
                 {pendingActivity?.id ===
                   activity.id && (
+
                   <div className="mt-4 border-t border-[#d8cec0] pt-4">
+
                     <div className="mb-3">
+
                       <p className="text-sm font-semibold">
                         How long?
                       </p>
@@ -1440,11 +1440,14 @@ export default function Today() {
                       <p className="mt-1 text-xs opacity-50">
                         10 minutes = 1 Gold.
                       </p>
+
                     </div>
 
                     <div className="grid grid-cols-4 gap-2">
+
                       {durationOptions.map(
                         (minutes) => {
+
                           const earnedGold =
                             calculateGold(
                               minutes
@@ -1464,6 +1467,7 @@ export default function Today() {
                               }
                               className="rounded-xl border border-[#cfc3b4] bg-white/70 px-2 py-3 text-sm font-medium transition hover:bg-white"
                             >
+
                               <span className="block">
                                 {minutes}m
                               </span>
@@ -1471,18 +1475,22 @@ export default function Today() {
                               <span className="mt-1 block text-xs opacity-50">
                                 +{earnedGold} Gold
                               </span>
+
                             </button>
                           );
                         }
                       )}
+
                     </div>
 
                     <div className="mt-3 rounded-xl border border-[#cfc3b4] bg-white/50 p-3">
+
                       <label className="text-xs font-semibold">
                         Custom minutes
                       </label>
 
                       <div className="mt-2 flex gap-2">
+
                         <input
                           type="number"
                           min="1"
@@ -1494,8 +1502,7 @@ export default function Today() {
                             event
                           ) =>
                             setCustomMinutes(
-                              event
-                                .target
+                              event.target
                                 .value
                             )
                           }
@@ -1515,11 +1522,13 @@ export default function Today() {
                         >
                           Add
                         </button>
+
                       </div>
 
                       {Number(
                         customMinutes
                       ) > 0 && (
+
                         <p className="mt-2 text-xs opacity-60">
                           {Math.floor(
                             Number(
@@ -1528,12 +1537,15 @@ export default function Today() {
                           )}{" "}
                           Gold earned
                         </p>
+
                       )}
+
                     </div>
 
                     <button
                       type="button"
                       onClick={() => {
+
                         setPendingActivity(
                           null
                         );
@@ -1541,18 +1553,24 @@ export default function Today() {
                         setCustomMinutes(
                           ""
                         );
+
                       }}
                       className="mt-3 text-xs font-medium opacity-50 underline"
                     >
                       Cancel
                     </button>
+
                   </div>
+
                 )}
+
               </div>
             );
           }
         )}
+
       </div>
+
     </div>
   );
 }
