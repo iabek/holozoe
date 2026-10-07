@@ -27,6 +27,7 @@ type MenuIconName =
   | "projects"
   | "habits"
   | "prayer"
+  | "health"
   | "records"
   | "screen-time"
   | "admin";
@@ -65,6 +66,7 @@ const menuSections: {
     items: [
       { name: "Habits", icon: "habits" },
       { name: "Prayer", icon: "prayer" },
+      { name: "Health", icon: "health" },
     ],
   },
 
@@ -252,6 +254,15 @@ function MenuIcon({
         </svg>
       );
 
+    case "health":
+      return (
+        <svg {...commonProps}>
+          <path d="M20.8 8.6c0 5.5-8.8 11-8.8 11S3.2 14.1 3.2 8.6A4.8 4.8 0 0 1 12 5.4a4.8 4.8 0 0 1 8.8 3.2Z" />
+          <path d="M12 8v5" />
+          <path d="M9.5 10.5h5" />
+        </svg>
+      );
+
     case "records":
       return (
         <svg {...commonProps}>
@@ -275,7 +286,11 @@ function MenuIcon({
           <path d="M9 7h6" />
           <path d="M9 11h6" />
           <path d="M9 15h3" />
-          <circle cx="16" cy="16" r="2.5" />
+          <circle
+            cx="16"
+            cy="16"
+            r="2.5"
+          />
           <path d="M16 14.5V16l1 1" />
         </svg>
       );
@@ -563,9 +578,7 @@ export default function Sidebar({
 
                     return (
                       <button
-                        key={
-                          item.name
-                        }
+                        key={item.name}
                         type="button"
                         onClick={() =>
                           mobile
@@ -598,9 +611,7 @@ export default function Sidebar({
                         </span>
 
                         <span>
-                          {
-                            item.name
-                          }
+                          {item.name}
                         </span>
                       </button>
                     );
@@ -723,9 +734,7 @@ export default function Sidebar({
         <div className="mt-6 border-t border-[#d8cec0] pt-4">
           <button
             type="button"
-            onClick={
-              handleLogout
-            }
+            onClick={handleLogout}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-[#765d55] transition hover:bg-[#e4dbcf]"
           >
             <span className="flex h-5 w-5 shrink-0 items-center justify-center">
@@ -870,9 +879,7 @@ export default function Sidebar({
         <div className="mt-6 border-t border-[#d8cec0] pt-4">
           <button
             type="button"
-            onClick={
-              handleLogout
-            }
+            onClick={handleLogout}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-[#765d55] transition hover:bg-[#e4dbcf]"
           >
             <span className="flex h-5 w-5 shrink-0 items-center justify-center">

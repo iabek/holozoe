@@ -1,5 +1,7 @@
 "use client";
+
 import { useEffect, useState } from "react";
+
 import Sidebar from "@/components/Sidebar";
 import Stats from "@/components/Stats";
 import Today from "@/components/Today";
@@ -16,6 +18,7 @@ import GlobalSearch from "@/components/GlobalSearch";
 import Learning from "@/components/Learning";
 import Flashcard from "@/components/Flashcard";
 import ScreenTime from "@/components/ScreenTime";
+import Health from "@/components/Health";
 
 type DailyStats = {
   Energy: number;
@@ -106,9 +109,7 @@ function getTodayKey() {
   const now = new Date();
 
   const year = now.getFullYear();
-
   const month = String(now.getMonth() + 1).padStart(2, "0");
-
   const day = String(now.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
@@ -125,13 +126,9 @@ function getMood(activityIds: string[]) {
   }
 
   const hasThesis = activityIds.includes("thesis");
-
   const hasMovement = activityIds.includes("movement");
-
   const hasLearning = activityIds.includes("learning");
-
   const hasSocial = activityIds.includes("social");
-
   const hasLeisure = activityIds.includes("leisure");
 
   const focus =
@@ -139,11 +136,8 @@ function getMood(activityIds: string[]) {
     (hasLearning ? 4 : 0);
 
   const energy = hasMovement ? 5 : 0;
-
   const growth = hasLearning ? 5 : 0;
-
   const social = hasSocial ? 1 : 0;
-
   const leisure = hasLeisure ? 1 : 0;
 
   if (
@@ -803,6 +797,16 @@ export default function Home() {
     }
 
     /*
+     * HEALTH
+     */
+
+    if (
+      activePage === "Health"
+    ) {
+      return <Health />;
+    }
+
+    /*
      * DASHBOARD
      */
 
@@ -1140,7 +1144,11 @@ export default function Home() {
               </div>
             </header>
 
-            {activePage === "Screen Time" ? <ScreenTime /> : renderPage()}
+            {activePage === "Screen Time" ? (
+              <ScreenTime />
+            ) : (
+              renderPage()
+            )}
 
             <Footer />
           </div>
