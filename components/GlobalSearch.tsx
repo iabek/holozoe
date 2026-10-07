@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import { createClient } from "@/lib/supabase";
 
 type SearchResult = {
@@ -38,20 +43,31 @@ function stripHtml(html: string) {
 function getStoredData(key: string) {
   try {
     const saved = localStorage.getItem(key);
-    if (!saved) return [];
+
+    if (!saved) {
+      return [];
+    }
 
     const parsed = JSON.parse(saved);
+
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
 }
 
-function getZodiac(birthDate: string | null) {
-  if (!birthDate) return null;
+function getZodiac(
+  birthDate: string | null
+) {
+  if (!birthDate) {
+    return null;
+  }
 
-  const [, monthString, dayString] =
-    birthDate.split("-");
+  const [
+    ,
+    monthString,
+    dayString,
+  ] = birthDate.split("-");
 
   const month = Number(monthString);
   const day = Number(dayString);
@@ -146,7 +162,10 @@ function getZodiac(birthDate: string | null) {
 function getZodiacSymbol(
   zodiac: string | null
 ) {
-  const symbols: Record<string, string> = {
+  const symbols: Record<
+    string,
+    string
+  > = {
     Aries: "♈",
     Taurus: "♉",
     Gemini: "♊",
@@ -169,13 +188,17 @@ function getZodiacSymbol(
 function getShioFromBirthDate(
   birthDate: string | null
 ) {
-  if (!birthDate) return "";
+  if (!birthDate) {
+    return "";
+  }
 
   const year = Number(
     birthDate.split("-")[0]
   );
 
-  if (!year) return "";
+  if (!year) {
+    return "";
+  }
 
   const animals = [
     "Rat",
@@ -200,7 +223,10 @@ function getShioFromBirthDate(
 function getShioSymbol(
   shio: string | null
 ) {
-  const symbols: Record<string, string> = {
+  const symbols: Record<
+    string,
+    string
+  > = {
     Rat: "🐀",
     Ox: "🐂",
     Tiger: "🐅",
@@ -223,7 +249,9 @@ function getShioSymbol(
 function getLifePathNumber(
   birthDate: string | null
 ) {
-  if (!birthDate) return null;
+  if (!birthDate) {
+    return null;
+  }
 
   const digits = birthDate
     .replace(/\D/g, "")
@@ -260,7 +288,9 @@ function getLifePathNumber(
 function parseTags(
   value: string | null
 ) {
-  if (!value) return [];
+  if (!value) {
+    return [];
+  }
 
   return value
     .split(",")
@@ -270,8 +300,10 @@ function parseTags(
 
 export default function GlobalSearch({
   onNavigate,
+  onOpenPerson,
 }: {
   onNavigate: (page: string) => void;
+  onOpenPerson: (personId: string) => void;
 }) {
   const [query, setQuery] =
     useState("");
@@ -388,7 +420,9 @@ export default function GlobalSearch({
             return;
           }
 
-          if (cancelled) return;
+          if (cancelled) {
+            return;
+          }
 
           setPeople(
             (data ?? []).filter(
@@ -447,6 +481,7 @@ export default function GlobalSearch({
 
     return () => {
       cancelled = true;
+
       window.clearTimeout(
         timeout
       );
@@ -933,6 +968,50 @@ export default function GlobalSearch({
     setOpen(false);
   }
 
+  function handleResultClick(
+    result: SearchResult
+  ) {
+    /*
+     * PEOPLE
+     *
+     * Person search results use the
+     * format:
+     *
+     * person-<supabase-person-id>
+     *
+     * Instead of merely navigating to
+     * the People page, open the exact
+     * PersonArchive directly.
+     */
+    if (
+      result.type === "People" &&
+      result.id.startsWith(
+        "person-"
+      )
+    ) {
+      const personId =
+        result.id.replace(
+          "person-",
+          ""
+        );
+
+      onOpenPerson(personId);
+
+      setQuery("");
+      setOpen(false);
+
+      return;
+    }
+
+    /*
+     * Everything else keeps the
+     * existing navigation behavior.
+     */
+    handleNavigate(
+      result.page
+    );
+  }
+
   return (
     <div className="relative w-full max-w-xl">
       <div className="relative">
@@ -947,6 +1026,7 @@ export default function GlobalSearch({
             setQuery(
               event.target.value
             );
+
             setOpen(true);
           }}
           onFocus={() =>
@@ -961,7 +1041,7 @@ export default function GlobalSearch({
         query.trim() && (
           <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[420px] overflow-y-auto rounded-2xl border border-[#d7ccbd] bg-[#f8f3eb] p-2 shadow-xl">
             {results.length ===
-              0 ? (
+            0 ? (
               <div className="px-4 py-8 text-center">
                 <p className="text-2xl">
                   {peopleLoading
@@ -991,8 +1071,8 @@ export default function GlobalSearch({
                       }
                       type="button"
                       onClick={() =>
-                        handleNavigate(
-                          result.page
+                        handleResultClick(
+                          result
                         )
                       }
                       className="flex w-full items-start gap-3 rounded-xl p-3 text-left transition hover:bg-[#e9dfd2]"

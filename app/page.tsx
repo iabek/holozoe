@@ -94,6 +94,11 @@ export default function Home() {
     setActivePage(page);
   }
 
+  function handleOpenPerson(personId: string) {
+    setSelectedPersonId(personId);
+    setActivePage("People");
+  }
+
   function renderPage() {
     if (activePage === "Profile") {
       return (
@@ -247,6 +252,9 @@ export default function Home() {
                   <GlobalSearch
                     onNavigate={
                       handleNavigate
+                    }
+                    onOpenPerson={
+                      handleOpenPerson
                     }
                   />
                 </div>
