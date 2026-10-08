@@ -24,34 +24,13 @@ export default function AuthGate({
 
     const supabase = createClient();
 
-    async function initialize() {
+    async function initializeUser(
+      userId: string
+    ) {
       try {
-        console.log("AUTH GATE: INITIALIZING");
-
-        const {
-          data: { user },
-          error: authError,
-        } = await supabase.auth.getUser();
-
-        console.log("AUTH GATE: USER =", user);
         console.log(
-          "AUTH GATE: ERROR =",
-          authError
-        );
-
-        if (!user) {
-          console.log("AUTH GATE: NO USER");
-
-          if (!cancelled) {
-            setReady(true);
-          }
-
-          return;
-        }
-
-        console.log(
-          "AUTH GATE: USER FOUND =",
-          user.email
+          "AUTH GATE: INITIALIZING USER =",
+          userId
         );
 
         const {
@@ -60,7 +39,7 @@ export default function AuthGate({
         } = await supabase
           .from("profiles")
           .select("status")
-          .eq("id", user.id)
+          .eq("id", userId)
           .single();
 
         console.log(
@@ -86,20 +65,17 @@ export default function AuthGate({
           return;
         }
 
-        if (!cancelled) {
-          setStatus(
-            profile.status as ProfileStatus
-          );
-        }
+        const profileStatus =
+          profile.status as ProfileStatus;
 
         console.log(
           "AUTH GATE: STATUS =",
-          profile.status
+          profileStatus
         );
 
-        if (profile.status === "approved") {
+        if (profileStatus === "approved") {
           console.log(
-            "AUTH GATE: STARTING STORAGE SYNC"
+            "AUTH GATE: WAITING FOR STORAGE SYNC"
           );
 
           try {
@@ -123,8 +99,62 @@ export default function AuthGate({
         }
 
         if (!cancelled) {
+          setStatus(profileStatus);
           setReady(true);
         }
+      } catch (error) {
+        console.error(
+          "AUTH GATE: USER INITIALIZATION ERROR =",
+          error
+        );
+
+        if (!cancelled) {
+          setReady(true);
+        }
+      }
+    }
+
+    async function initialize() {
+      try {
+        console.log(
+          "AUTH GATE: INITIALIZING"
+        );
+
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        console.log(
+          "AUTH GATE: SESSION =",
+          session
+        );
+
+        console.log(
+          "AUTH GATE: SESSION ERROR =",
+          sessionError
+        );
+
+        if (sessionError || !session?.user) {
+          console.log(
+            "AUTH GATE: NO SESSION"
+          );
+
+          if (!cancelled) {
+            setReady(true);
+          }
+
+          return;
+        }
+
+        console.log(
+          "AUTH GATE: SESSION USER =",
+          session.user.email
+        );
+
+        await initializeUser(
+          session.user.id
+        );
       } catch (error) {
         console.error(
           "AUTH GATE: INITIALIZATION ERROR =",
@@ -142,10 +172,10 @@ export default function AuthGate({
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         console.log(
           "AUTH GATE: AUTH EVENT =",
-          _event
+          event
         );
 
         console.log(
@@ -153,10 +183,33 @@ export default function AuthGate({
           session
         );
 
-        if (!session?.user) {
-          console.log(
-            "AUTH GATE: SESSION LOST"
-          );
+        if (
+          session?.user &&
+          (
+            event === "SIGNED_IN" ||
+            event === "INITIAL_SESSION" ||
+            event === "TOKEN_REFRESHED"
+          )
+        ) {
+          setReady(false);
+
+          setTimeout(() => {
+            if (!cancelled) {
+              void initializeUser(
+                session.user.id
+              );
+            }
+          }, 0);
+        }
+
+        if (
+          event === "SIGNED_OUT" ||
+          !session?.user
+        ) {
+          if (!cancelled) {
+            setStatus(null);
+            setReady(true);
+          }
         }
       }
     );
@@ -295,14 +348,10 @@ export default function AuthGate({
     );
   }
 
-  // Hanya akun dengan status "approved"
-  // yang boleh masuk ke Life Game.
   if (status === "approved") {
     return <>{children}</>;
   }
 
-  // Pengaman tambahan apabila suatu hari
-  // ada status baru di database.
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#e8dfd2] text-[#3f382f]">
       <div className="text-center">
