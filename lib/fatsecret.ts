@@ -5,6 +5,9 @@ import { cookies } from "next/headers";
 const FATSECRET_BASE_URL =
   "https://platform.fatsecret.com/rest";
 
+const FATSECRET_SIGNATURE_URL =
+  "https://platform.fatsecret.com/rest/server.api";
+
 type FatSecretConnection = {
   user_id: string;
   fatsecret_access_token: string;
@@ -25,10 +28,9 @@ function createNonce() {
 
 function createSignature(
   method: string,
-  url: string,
+  signatureUrl: string,
   params: Record<string, string>,
-  consumerSecret: string,
-  accessTokenSecret: string
+  consumerSecret: string
 ) {
   const normalizedParams = Object.entries(params)
     .sort(([aKey, aValue], [bKey, bValue]) => {
@@ -48,14 +50,12 @@ function createSignature(
 
   const baseString = [
     method.toUpperCase(),
-    percentEncode(url),
+    percentEncode(signatureUrl),
     percentEncode(normalizedParams),
   ].join("&");
 
   const signingKey =
-    `${percentEncode(consumerSecret)}&${percentEncode(
-      accessTokenSecret
-    )}`;
+    `${percentEncode(consumerSecret)}&`;
 
   return crypto
     .createHmac("sha1", signingKey)
@@ -159,15 +159,12 @@ export async function fatSecretRequest<T>(
     );
   }
 
-  const connection =
-    await getFatSecretConnection();
-
   const cleanEndpoint =
     endpoint
       .trim()
       .replace(/^\/+/, "");
 
-  const url =
+  const requestUrl =
     `${FATSECRET_BASE_URL}/${cleanEndpoint}`;
 
   const oauthParams: Record<string, string> = {
@@ -185,9 +182,6 @@ export async function fatSecretRequest<T>(
         Date.now() / 1000
       ).toString(),
 
-    oauth_token:
-      connection.fatsecret_access_token,
-
     oauth_version:
       "1.0",
   };
@@ -200,10 +194,9 @@ export async function fatSecretRequest<T>(
   const signature =
     createSignature(
       method,
-      url,
+      FATSECRET_SIGNATURE_URL,
       allParams,
-      consumerSecret,
-      connection.fatsecret_access_secret
+      consumerSecret
     );
 
   const requestParams =
@@ -228,7 +221,7 @@ export async function fatSecretRequest<T>(
 
   if (method === "GET") {
     response = await fetch(
-      `${url}?${requestParams.toString()}`,
+      `${requestUrl}?${requestParams.toString()}`,
       {
         method: "GET",
         cache: "no-store",
@@ -236,7 +229,7 @@ export async function fatSecretRequest<T>(
     );
   } else {
     response = await fetch(
-      url,
+      requestUrl,
       {
         method: "POST",
         headers: {
@@ -253,13 +246,13 @@ export async function fatSecretRequest<T>(
   const responseText =
     await response.text();
 
-  if (!response.ok) {
-    console.error(
-      "FatSecret API HTTP error:",
-      response.status,
-      responseText
-    );
+  console.log(
+    "FatSecret response:",
+    response.status,
+    responseText
+  );
 
+  if (!response.ok) {
     throw new Error(
       `FatSecret API request failed (${response.status}).`
     );
@@ -270,11 +263,6 @@ export async function fatSecretRequest<T>(
       responseText
     ) as T;
   } catch {
-    console.error(
-      "FatSecret API non-JSON response:",
-      responseText
-    );
-
     throw new Error(
       "FatSecret API mengembalikan response yang bukan JSON."
     );
