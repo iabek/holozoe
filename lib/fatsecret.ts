@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 const FATSECRET_BASE_URL =
-  "https://platform.fatsecret.com/rest/server.api";
+  "https://platform.fatsecret.com/rest";
 
 type FatSecretConnection = {
   user_id: string;
@@ -61,25 +61,6 @@ function createSignature(
     .digest("base64");
 }
 
-function normalizeFatSecretMethod(endpoint: string) {
-  const cleanEndpoint = endpoint
-    .trim()
-    .replace(/^\/+/, "")
-    .replace(/\/+$/, "");
-
-  if (!cleanEndpoint) {
-    throw new Error(
-      "FatSecret endpoint tidak boleh kosong."
-    );
-  }
-
-  if (cleanEndpoint.includes(".")) {
-    return cleanEndpoint;
-  }
-
-  return cleanEndpoint.replace(/\//g, ".");
-}
-
 async function getAuthenticatedSupabase() {
   const cookieStore = await cookies();
 
@@ -95,11 +76,7 @@ async function getAuthenticatedSupabase() {
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(
-              ({
-                name,
-                value,
-                options,
-              }) => {
+              ({ name, value, options }) => {
                 cookieStore.set(
                   name,
                   value,
@@ -175,10 +152,7 @@ export async function fatSecretRequest<T>(
   const consumerSecret =
     process.env.FATSECRET_CONSUMER_SECRET;
 
-  if (
-    !consumerKey ||
-    !consumerSecret
-  ) {
+  if (!consumerKey || !consumerSecret) {
     throw new Error(
       "FatSecret OAuth credentials belum dikonfigurasi."
     );
@@ -187,16 +161,15 @@ export async function fatSecretRequest<T>(
   const connection =
     await getFatSecretConnection();
 
-  const fatSecretMethod =
-    normalizeFatSecretMethod(endpoint);
+  const cleanEndpoint =
+    endpoint
+      .trim()
+      .replace(/^\/+/, "");
 
   const url =
-    FATSECRET_BASE_URL;
+    `${FATSECRET_BASE_URL}/${cleanEndpoint}`;
 
-  const oauthParams: Record<
-    string,
-    string
-  > = {
+  const oauthParams: Record<string, string> = {
     oauth_consumer_key:
       consumerKey,
 
@@ -218,15 +191,8 @@ export async function fatSecretRequest<T>(
       "1.0",
   };
 
-  const allParams: Record<
-    string,
-    string
-  > = {
-    method:
-      fatSecretMethod,
-
+  const allParams: Record<string, string> = {
     ...parameters,
-
     ...oauthParams,
   };
 
@@ -298,13 +264,10 @@ export async function fatSecretRequest<T>(
     );
   }
 
-  let parsedResponse: T;
-
   try {
-    parsedResponse =
-      JSON.parse(
-        responseText
-      ) as T;
+    return JSON.parse(
+      responseText
+    ) as T;
   } catch {
     console.error(
       "FatSecret API non-JSON response:",
@@ -315,6 +278,4 @@ export async function fatSecretRequest<T>(
       "FatSecret API mengembalikan response yang bukan JSON."
     );
   }
-
-  return parsedResponse;
 }

@@ -8,25 +8,19 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
 
     const query =
-      url.searchParams
-        .get("q")
-        ?.trim() ?? "";
+      url.searchParams.get("q")?.trim() ?? "";
 
     const page =
-      url.searchParams.get("page") ??
-      "0";
+      url.searchParams.get("page") ?? "0";
 
     const maxResults =
-      url.searchParams.get("max_results") ??
-      "20";
+      url.searchParams.get("max_results") ?? "20";
 
     const region =
-      url.searchParams.get("region") ??
-      "ID";
+      url.searchParams.get("region") ?? "ID";
 
     const language =
-      url.searchParams.get("language") ??
-      "en";
+      url.searchParams.get("language") ?? "en";
 
     if (!query) {
       return NextResponse.json(
@@ -52,10 +46,7 @@ export async function GET(request: Request) {
       Number.parseInt(page, 10);
 
     const parsedMaxResults =
-      Number.parseInt(
-        maxResults,
-        10
-      );
+      Number.parseInt(maxResults, 10);
 
     if (
       Number.isNaN(parsedPage) ||
@@ -87,7 +78,7 @@ export async function GET(request: Request) {
     const data =
       await fatSecretRequest(
         "GET",
-        "/foods/search/v5",
+        "foods/search/v5",
         {
           search_expression:
             query,
