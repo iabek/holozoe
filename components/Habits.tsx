@@ -23,6 +23,7 @@ type Habit = {
   earnsGold?: boolean;
   trackQuran?: boolean;
   quranUnit?: QuranUnit;
+  icon?: string;
 };
 
 function loadHabits(): Habit[] {
@@ -36,7 +37,8 @@ function loadHabits(): Habit[] {
   }
 
   try {
-    const parsed = JSON.parse(saved);
+    const parsed =
+      JSON.parse(saved);
 
     if (Array.isArray(parsed)) {
       return parsed;
@@ -58,6 +60,9 @@ export default function Habits() {
   const [name, setName] =
     useState("");
 
+  const [icon, setIcon] =
+    useState("✨");
+
   const [xp, setXp] =
     useState("5");
 
@@ -72,6 +77,12 @@ export default function Habits() {
 
   const [quranUnit, setQuranUnit] =
     useState<QuranUnit>("pages");
+
+  const [draggedHabitId, setDraggedHabitId] =
+    useState<string | null>(null);
+
+  const [dragOverHabitId, setDragOverHabitId] =
+    useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,6 +138,9 @@ export default function Habits() {
     const habitXp =
       Number(xp);
 
+    const habitIcon =
+      icon.trim() || "✨";
+
     if (
       !habitName ||
       !Number.isFinite(habitXp) ||
@@ -142,6 +156,7 @@ export default function Habits() {
       stat,
       earnsGold,
       trackQuran,
+      icon: habitIcon,
       ...(trackQuran
         ? {
             quranUnit,
@@ -155,6 +170,7 @@ export default function Habits() {
     ]);
 
     setName("");
+    setIcon("✨");
     setXp("5");
     setStat("Growth");
     setEarnsGold(false);
@@ -173,6 +189,112 @@ export default function Habits() {
       );
 
     void saveHabits(updated);
+  }
+
+  function handleDragStart(
+    event: React.DragEvent<HTMLDivElement>,
+    id: string
+  ) {
+    setDraggedHabitId(id);
+
+    event.dataTransfer.effectAllowed =
+      "move";
+
+    event.dataTransfer.setData(
+      "text/plain",
+      id
+    );
+  }
+
+  function handleDragOver(
+    event: React.DragEvent<HTMLDivElement>,
+    id: string
+  ) {
+    event.preventDefault();
+
+    event.dataTransfer.dropEffect =
+      "move";
+
+    if (
+      draggedHabitId &&
+      draggedHabitId !== id
+    ) {
+      setDragOverHabitId(id);
+    }
+  }
+
+  function handleDragLeave() {
+    setDragOverHabitId(null);
+  }
+
+  function handleDrop(
+    event: React.DragEvent<HTMLDivElement>,
+    targetId: string
+  ) {
+    event.preventDefault();
+
+    const sourceId =
+      draggedHabitId ||
+      event.dataTransfer.getData(
+        "text/plain"
+      );
+
+    if (
+      !sourceId ||
+      sourceId === targetId
+    ) {
+      setDraggedHabitId(null);
+      setDragOverHabitId(null);
+      return;
+    }
+
+    const sourceIndex =
+      habits.findIndex(
+        (habit) =>
+          habit.id === sourceId
+      );
+
+    const targetIndex =
+      habits.findIndex(
+        (habit) =>
+          habit.id === targetId
+      );
+
+    if (
+      sourceIndex === -1 ||
+      targetIndex === -1
+    ) {
+      setDraggedHabitId(null);
+      setDragOverHabitId(null);
+      return;
+    }
+
+    const updated = [
+      ...habits,
+    ];
+
+    const [
+      movedHabit,
+    ] = updated.splice(
+      sourceIndex,
+      1
+    );
+
+    updated.splice(
+      targetIndex,
+      0,
+      movedHabit
+    );
+
+    setDraggedHabitId(null);
+    setDragOverHabitId(null);
+
+    void saveHabits(updated);
+  }
+
+  function handleDragEnd() {
+    setDraggedHabitId(null);
+    setDragOverHabitId(null);
   }
 
   return (
@@ -203,7 +325,21 @@ export default function Habits() {
 
       {showForm && (
         <div className="mt-5 rounded-2xl bg-[#f5f0e8] p-4">
-          <div className="grid gap-3 sm:grid-cols-[1fr_100px_140px_auto]">
+          <div className="grid gap-3 sm:grid-cols-[70px_1fr_100px_140px_auto]">
+            <input
+              type="text"
+              value={icon}
+              onChange={(event) =>
+                setIcon(
+                  event.target.value
+                )
+              }
+              maxLength={4}
+              placeholder="✨"
+              className="w-full rounded-xl border border-[#d8cec0] bg-white px-3 py-2 text-center text-lg outline-none focus:border-[#8f806d]"
+              aria-label="Habit icon"
+            />
+
             <input
               type="text"
               value={name}
@@ -259,6 +395,11 @@ export default function Habits() {
               Save
             </button>
           </div>
+
+          <p className="mt-2 text-xs opacity-50">
+            Choose an emoji for this habit.
+            It will also appear in Today.
+          </p>
 
           <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-[#d8cec0] bg-white/60 p-3">
             <input
@@ -362,58 +503,119 @@ export default function Habits() {
             </p>
           </div>
         ) : (
-          habits.map((habit) => (
-            <div
-              key={habit.id}
-              className="flex items-center justify-between gap-4 rounded-2xl bg-[#f5f0e8] p-4"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-semibold">
-                  {habit.name}
-                </p>
-
-                <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs opacity-50">
-                  <span>
-                    +{habit.xp} XP
-                  </span>
-
-                  <span>
-                    · +5 {habit.stat}
-                  </span>
-
-                  {habit.earnsGold && (
-                    <span>
-                      · 🪙 earns Gold
-                    </span>
-                  )}
-
-                  {habit.trackQuran && (
-                    <span>
-                      · 📖{" "}
-                      {habit.quranUnit ===
-                      "verses"
-                        ? "Ayat"
-                        : "Halaman"}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  deleteHabit(
+          habits.map(
+            (habit, index) => (
+              <div
+                key={habit.id}
+                draggable
+                onDragStart={(event) =>
+                  handleDragStart(
+                    event,
                     habit.id
                   )
                 }
-                className="shrink-0 rounded-lg bg-[#ddd4c7] px-3 py-2 text-xs font-medium"
+                onDragOver={(event) =>
+                  handleDragOver(
+                    event,
+                    habit.id
+                  )
+                }
+                onDragLeave={
+                  handleDragLeave
+                }
+                onDrop={(event) =>
+                  handleDrop(
+                    event,
+                    habit.id
+                  )
+                }
+                onDragEnd={
+                  handleDragEnd
+                }
+                className={`flex items-center gap-3 rounded-2xl bg-[#f5f0e8] p-4 transition ${
+                  draggedHabitId ===
+                  habit.id
+                    ? "opacity-40"
+                    : ""
+                } ${
+                  dragOverHabitId ===
+                  habit.id
+                    ? "ring-2 ring-[#8f806d]"
+                    : ""
+                }`}
               >
-                Delete
-              </button>
-            </div>
-          ))
+                <div
+                  className="hidden shrink-0 cursor-grab select-none text-lg opacity-40 active:cursor-grabbing sm:block"
+                  title="Drag to reorder"
+                >
+                  ⋮⋮
+                </div>
+
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/70 text-xl">
+                  {habit.icon ||
+                    "✨"}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold opacity-30">
+                      {index + 1}
+                    </span>
+
+                    <p className="truncate font-semibold">
+                      {habit.name}
+                    </p>
+                  </div>
+
+                  <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs opacity-50">
+                    <span>
+                      +{habit.xp} XP
+                    </span>
+
+                    <span>
+                      · +5 {habit.stat}
+                    </span>
+
+                    {habit.earnsGold && (
+                      <span>
+                        · 🪙 earns Gold
+                      </span>
+                    )}
+
+                    {habit.trackQuran && (
+                      <span>
+                        · 📖{" "}
+                        {habit.quranUnit ===
+                        "verses"
+                          ? "Ayat"
+                          : "Halaman"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    deleteHabit(
+                      habit.id
+                    )
+                  }
+                  className="shrink-0 rounded-lg bg-[#ddd4c7] px-3 py-2 text-xs font-medium"
+                >
+                  Delete
+                </button>
+              </div>
+            )
+          )
         )}
       </div>
+
+      {habits.length > 1 && (
+        <p className="mt-3 text-center text-xs opacity-40">
+          ⋮⋮ Drag habits to change their order
+        </p>
+      )}
     </div>
   );
 }

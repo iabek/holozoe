@@ -1,10 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  saveCurrentLifeGameStorage,
-  syncLifeGameStorageFromSupabase,
-} from "@/lib/life-game-storage";
 
 type StatName =
   | "Energy"
@@ -15,10 +11,6 @@ type ActivityStat =
   | StatName
   | "Mood";
 
-type QuranUnit =
-  | "pages"
-  | "verses";
-
 type Activity = {
   id: string;
   name: string;
@@ -26,10 +18,6 @@ type Activity = {
   stat: ActivityStat;
   icon: string;
   earnsGold?: boolean;
-  isHabit?: boolean;
-  habitId?: string;
-  trackQuran?: boolean;
-  quranUnit?: QuranUnit;
 };
 
 type Habit = {
@@ -39,7 +27,7 @@ type Habit = {
   stat: StatName;
   earnsGold?: boolean;
   trackQuran?: boolean;
-  quranUnit?: QuranUnit;
+  icon?: string;
 };
 
 type HistoryItem = {
@@ -63,18 +51,6 @@ type GoldLedgerItem = {
 
 type DailyActivities = {
   [date: string]: string[];
-};
-
-type HabitRecord = {
-  completed?: boolean;
-  progress?: number;
-  unit?: QuranUnit;
-};
-
-type HabitRecords = {
-  [date: string]: {
-    [habitId: string]: HabitRecord;
-  };
 };
 
 type LeisureData = {
@@ -180,34 +156,8 @@ function loadDailyActivities(): DailyActivities {
   }
 
   try {
-    const parsed = JSON.parse(saved);
-
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      !Array.isArray(parsed)
-    ) {
-      return parsed;
-    }
-
-    return {};
-  } catch {
-    return {};
-  }
-}
-
-function loadHabitRecords(): HabitRecords {
-  const saved =
-    localStorage.getItem(
-      "life-game-habit-records"
-    );
-
-  if (!saved) {
-    return {};
-  }
-
-  try {
-    const parsed = JSON.parse(saved);
+    const parsed =
+      JSON.parse(saved);
 
     if (
       parsed &&
@@ -234,7 +184,8 @@ function loadHistory(): HistoryItem[] {
   }
 
   try {
-    const parsed = JSON.parse(saved);
+    const parsed =
+      JSON.parse(saved);
 
     if (Array.isArray(parsed)) {
       return parsed;
@@ -257,7 +208,8 @@ function loadGoldLedger(): GoldLedgerItem[] {
   }
 
   try {
-    const parsed = JSON.parse(saved);
+    const parsed =
+      JSON.parse(saved);
 
     if (Array.isArray(parsed)) {
       return parsed;
@@ -280,7 +232,8 @@ function loadLeisureData(): LeisureData {
   }
 
   try {
-    const parsed = JSON.parse(saved);
+    const parsed =
+      JSON.parse(saved);
 
     if (
       parsed &&
@@ -300,15 +253,6 @@ function isGoldEligible(
   activity: Activity
 ) {
   return activity.earnsGold === true;
-}
-
-function isQuranHabit(
-  activity: Activity
-) {
-  return (
-    activity.isHabit === true &&
-    activity.trackQuran === true
-  );
 }
 
 function calculateGold(
@@ -377,7 +321,8 @@ function updateDailyStat(
 
   if (saved) {
     try {
-      const parsed = JSON.parse(saved);
+      const parsed =
+        JSON.parse(saved);
 
       if (
         parsed &&
@@ -409,6 +354,7 @@ function updateDailyStat(
             : 0)
       )
     ),
+
     Focus: Math.max(
       0,
       Math.min(
@@ -419,6 +365,7 @@ function updateDailyStat(
             : 0)
       )
     ),
+
     Growth: Math.max(
       0,
       Math.min(
@@ -433,7 +380,9 @@ function updateDailyStat(
 
   localStorage.setItem(
     "life-game-daily-stats",
-    JSON.stringify(dailyStats)
+    JSON.stringify(
+      dailyStats
+    )
   );
 }
 
@@ -511,11 +460,6 @@ export default function Today() {
   ] = useState<Habit[]>([]);
 
   const [
-    habitRecords,
-    setHabitRecords,
-  ] = useState<HabitRecords>({});
-
-  const [
     gold,
     setGold,
   ] = useState(0);
@@ -540,134 +484,113 @@ export default function Today() {
     setCustomMinutes,
   ] = useState("");
 
-  const [
-    quranProgressInput,
-    setQuranProgressInput,
-  ] = useState("");
-
   useEffect(() => {
-    let cancelled = false;
+    function refresh() {
+      const today =
+        getTodayKey();
 
-    async function initialize() {
-      await syncLifeGameStorageFromSupabase();
+      const dailyActivities =
+        loadDailyActivities();
 
-      if (cancelled) {
-        return;
-      }
+      setActivityLog(
+        dailyActivities[today] || []
+      );
 
-      function refresh() {
-        const today =
-          getTodayKey();
-
-        const dailyActivities =
-          loadDailyActivities();
-
-        const savedHabits =
-          localStorage.getItem(
-            "life-game-habits"
-          );
-
-        const savedHabitRecords =
-          loadHabitRecords();
-
-        setActivityLog(
-          dailyActivities[today] || []
+      const savedHabits =
+        localStorage.getItem(
+          "life-game-habits"
         );
 
-        if (savedHabits) {
-          try {
-            const parsed =
-              JSON.parse(savedHabits);
+      if (savedHabits) {
+        try {
+          const parsed =
+            JSON.parse(
+              savedHabits
+            );
 
-            if (
-              Array.isArray(parsed)
-            ) {
-              setHabits(parsed);
-            } else {
-              setHabits([]);
-            }
-          } catch {
+          if (
+            Array.isArray(parsed)
+          ) {
+            setHabits(parsed);
+          } else {
             setHabits([]);
           }
-        } else {
+        } catch {
           setHabits([]);
         }
-
-        setHabitRecords(
-          savedHabitRecords
-        );
-
-        setGold(
-          getSafeGold()
-        );
-
-        const savedLeisure =
-          loadLeisureData();
-
-        const todayLeisure =
-          savedLeisure[today];
-
-        setLeisure({
-          extensionMinutes:
-            Math.min(
-              MAX_EXTENSION_MINUTES,
-              Math.max(
-                0,
-                Number(
-                  todayLeisure?.extensionMinutes ||
-                    0
-                )
-              )
-            ),
-          usedMinutes:
-            Math.max(
-              0,
-              Number(
-                todayLeisure?.usedMinutes ||
-                  0
-              )
-            ),
-        });
+      } else {
+        setHabits([]);
       }
 
-      refresh();
+      setGold(
+        getSafeGold()
+      );
 
-      window.addEventListener(
+      /*
+       * LEISURE
+       *
+       * Screen Time menjadi sumber
+       * utama untuk usedMinutes.
+       *
+       * Gaming + Entertainment
+       * dari Screen Time akan
+       * ditulis ke:
+       *
+       * life-game-leisure
+       *
+       * extensionMinutes tetap
+       * berasal dari sistem Gold.
+       */
+      const savedLeisure =
+        loadLeisureData();
+
+      const todayLeisure =
+        savedLeisure[today];
+
+      setLeisure({
+        extensionMinutes: Math.min(
+          MAX_EXTENSION_MINUTES,
+          Math.max(
+            0,
+            Number(
+              todayLeisure?.extensionMinutes ||
+                0
+            )
+          )
+        ),
+
+        usedMinutes: Math.max(
+          0,
+          Number(
+            todayLeisure?.usedMinutes ||
+              0
+          )
+        ),
+      });
+    }
+
+    refresh();
+
+    window.addEventListener(
+      "storage",
+      refresh
+    );
+
+    window.addEventListener(
+      "life-game-updated",
+      refresh
+    );
+
+    return () => {
+      window.removeEventListener(
         "storage",
         refresh
       );
 
-      window.addEventListener(
+      window.removeEventListener(
         "life-game-updated",
         refresh
       );
-
-      return () => {
-        window.removeEventListener(
-          "storage",
-          refresh
-        );
-
-        window.removeEventListener(
-          "life-game-updated",
-          refresh
-        );
-      };
-    }
-
-    let cleanup:
-      | (() => void)
-      | undefined;
-
-    void initialize().then(
-      (result) => {
-        cleanup = result;
-      }
-    );
-
-    return () => {
-      cancelled = true;
-      cleanup?.();
     };
   }, []);
 
@@ -677,17 +600,13 @@ export default function Today() {
       name: habit.name,
       xp: habit.xp,
       stat: habit.stat,
-      icon: habit.trackQuran
-        ? "📖"
-        : "✓",
+      icon:
+        habit.icon ||
+        (habit.trackQuran
+          ? "📖"
+          : "✨"),
       earnsGold:
         habit.earnsGold === true,
-      isHabit: true,
-      habitId: habit.id,
-      trackQuran:
-        habit.trackQuran === true,
-      quranUnit:
-        habit.quranUnit,
     }));
 
   const allActivities: Activity[] = [
@@ -716,6 +635,7 @@ export default function Today() {
             data.extensionMinutes
           )
         ),
+
       usedMinutes:
         Math.max(
           0,
@@ -727,7 +647,9 @@ export default function Today() {
 
     localStorage.setItem(
       "life-game-leisure",
-      JSON.stringify(allLeisure)
+      JSON.stringify(
+        allLeisure
+      )
     );
 
     setLeisure(
@@ -735,266 +657,10 @@ export default function Today() {
     );
   }
 
-  async function saveStorageKeys(
-    keys: string[]
-  ) {
-    const uniqueKeys =
-      Array.from(
-        new Set(keys)
-      );
-
-    const results =
-      await Promise.all(
-        uniqueKeys.map(
-          (key) =>
-            saveCurrentLifeGameStorage(
-              key
-            )
-        )
-      );
-
-    const failed =
-      results.find(
-        (result) =>
-          !result.success
-      );
-
-    if (failed) {
-      console.error(
-        "Gagal menyimpan Today ke Supabase:",
-        failed
-      );
-    }
-  }
-
-  function saveHabitRecords(
-    updated: HabitRecords
-  ) {
-    localStorage.setItem(
-      "life-game-habit-records",
-      JSON.stringify(updated)
-    );
-
-    setHabitRecords(
-      updated
-    );
-  }
-
-  function getHabitRecord(
-    activity: Activity,
-    date = getTodayKey()
-  ) {
-    if (
-      !activity.isHabit ||
-      !activity.habitId
-    ) {
-      return null;
-    }
-
-    return (
-      habitRecords[date]?.[
-        activity.habitId
-      ] || null
-    );
-  }
-
-  function getHabitProgress(
-    activity: Activity
-  ) {
-    const record =
-      getHabitRecord(
-        activity
-      );
-
-    return Math.max(
-      0,
-      Number(
-        record?.progress || 0
-      )
-    );
-  }
-
-  function isHabitCompleted(
-    activity: Activity
-  ) {
-    if (!activity.isHabit) {
-      return false;
-    }
-
-    const record =
-      getHabitRecord(
-        activity
-      );
-
-    return record?.completed === true;
-  }
-
-  async function completeQuranHabit(
-    activity: Activity,
-    progress: number
-  ) {
-    if (
-      !activity.isHabit ||
-      !activity.habitId ||
-      !activity.trackQuran
-    ) {
-      return;
-    }
-
-    const safeProgress =
-      Math.floor(progress);
-
-    if (
-      !Number.isFinite(
-        safeProgress
-      ) ||
-      safeProgress <= 0
-    ) {
-      return;
-    }
-
-    if (
-      isHabitCompleted(
-        activity
-      )
-    ) {
-      return;
-    }
-
-    const today =
-      getTodayKey();
-
-    const records =
-      loadHabitRecords();
-
-    const todayRecords =
-      records[today] || {};
-
-    const updatedRecords: HabitRecords = {
-      ...records,
-      [today]: {
-        ...todayRecords,
-        [activity.habitId]: {
-          completed: true,
-          progress:
-            safeProgress,
-          unit:
-            activity.quranUnit ||
-            "pages",
-        },
-      },
-    };
-
-    saveHabitRecords(
-      updatedRecords
-    );
-
-    const dailyActivities =
-      loadDailyActivities();
-
-    const todayActivities =
-      dailyActivities[today] || [];
-
-    const updatedDailyActivities = {
-      ...dailyActivities,
-      [today]: [
-        ...todayActivities,
-        activity.id,
-      ],
-    };
-
-    localStorage.setItem(
-      "life-game-daily-activities",
-      JSON.stringify(
-        updatedDailyActivities
-      )
-    );
-
-    setActivityLog(
-      updatedDailyActivities[today]
-    );
-
-    const history =
-      loadHistory();
-
-    history.push({
-      id: `${Date.now()}-${Math.random()}`,
-      activity:
-        activity.name,
-      xp: activity.xp,
-      stat:
-        activity.stat,
-      activityId:
-        activity.id,
-      date:
-        new Date().toISOString(),
-    });
-
-    localStorage.setItem(
-      "life-game-history",
-      JSON.stringify(history)
-    );
-
-    updateXp(
-      activity.xp
-    );
-
-    if (
-      activity.stat !==
-      "Mood"
-    ) {
-      updateDailyStat(
-        activity.stat,
-        5
-      );
-    }
-
-    setPendingActivity(
-      null
-    );
-
-    setQuranProgressInput("");
-
-    await saveStorageKeys([
-      "life-game-habit-records",
-      "life-game-daily-activities",
-      "life-game-history",
-      "life-game-xp",
-      "life-game-daily-stats",
-    ]);
-
-    window.dispatchEvent(
-      new Event(
-        "life-game-updated"
-      )
-    );
-  }
-
-  async function completeActivity(
+  function completeActivity(
     activity: Activity,
     durationMinutes: number
   ) {
-    if (
-      activity.isHabit &&
-      activity.trackQuran
-    ) {
-      await completeQuranHabit(
-        activity,
-        durationMinutes
-      );
-
-      return;
-    }
-
-    if (
-      activity.isHabit &&
-      isHabitCompleted(
-        activity
-      )
-    ) {
-      return;
-    }
-
     const safeDuration =
       Math.max(
         0,
@@ -1060,14 +726,13 @@ export default function Today() {
       id: `${Date.now()}-${Math.random()}`,
       activity:
         activity.name,
-      xp:
-        activity.xp,
-      stat:
-        activity.stat,
+      xp: activity.xp,
+      stat: activity.stat,
       activityId:
         activity.id,
       date:
         new Date().toISOString(),
+
       ...(eligible
         ? {
             durationMinutes:
@@ -1079,7 +744,9 @@ export default function Today() {
 
     localStorage.setItem(
       "life-game-history",
-      JSON.stringify(history)
+      JSON.stringify(
+        history
+      )
     );
 
     updateXp(
@@ -1087,8 +754,7 @@ export default function Today() {
     );
 
     if (
-      activity.stat !==
-      "Mood"
+      activity.stat !== "Mood"
     ) {
       updateDailyStat(
         activity.stat,
@@ -1110,32 +776,6 @@ export default function Today() {
       );
     }
 
-    if (activity.isHabit) {
-      const records =
-        loadHabitRecords();
-
-      const todayRecords =
-        records[today] || {};
-
-      const updatedRecords: HabitRecords = {
-        ...records,
-        [today]: {
-          ...todayRecords,
-          ...(activity.habitId
-            ? {
-                [activity.habitId]: {
-                  completed: true,
-                },
-              }
-            : {}),
-        },
-      };
-
-      saveHabitRecords(
-        updatedRecords
-      );
-    }
-
     setGold(
       getSafeGold()
     );
@@ -1148,22 +788,6 @@ export default function Today() {
       ""
     );
 
-    await saveStorageKeys([
-      "life-game-daily-activities",
-      "life-game-history",
-      "life-game-xp",
-      "life-game-daily-stats",
-      ...(goldEarned > 0
-        ? [
-            "life-game-gold",
-            "life-game-gold-ledger",
-          ]
-        : []),
-      ...(activity.isHabit
-        ? ["life-game-habit-records"]
-        : []),
-    ]);
-
     window.dispatchEvent(
       new Event(
         "life-game-updated"
@@ -1174,31 +798,6 @@ export default function Today() {
   function addActivity(
     activity: Activity
   ) {
-    if (
-      activity.isHabit &&
-      isHabitCompleted(
-        activity
-      )
-    ) {
-      return;
-    }
-
-    if (
-      isQuranHabit(
-        activity
-      )
-    ) {
-      setPendingActivity(
-        activity
-      );
-
-      setQuranProgressInput(
-        ""
-      );
-
-      return;
-    }
-
     if (
       isGoldEligible(
         activity
@@ -1215,54 +814,17 @@ export default function Today() {
       return;
     }
 
-    void completeActivity(
+    completeActivity(
       activity,
       0
     );
   }
 
-  async function removeActivity(
+  function removeActivity(
     activity: Activity
   ) {
     const today =
       getTodayKey();
-
-    if (
-      activity.isHabit &&
-      activity.habitId
-    ) {
-      const records =
-        loadHabitRecords();
-
-      const todayRecords =
-        records[today] || {};
-
-      if (
-        !todayRecords[
-          activity.habitId
-        ]
-      ) {
-        return;
-      }
-
-      const updatedTodayRecords = {
-        ...todayRecords,
-      };
-
-      delete updatedTodayRecords[
-        activity.habitId
-      ];
-
-      const updatedRecords: HabitRecords = {
-        ...records,
-        [today]:
-          updatedTodayRecords,
-      };
-
-      saveHabitRecords(
-        updatedRecords
-      );
-    }
 
     const dailyActivities =
       loadDailyActivities();
@@ -1346,8 +908,6 @@ export default function Today() {
       }
     }
 
-    let removedGold = 0;
-
     if (
       historyIndex !== -1
     ) {
@@ -1356,10 +916,10 @@ export default function Today() {
           historyIndex
         ];
 
-      removedGold =
+      const removedGold =
         Number(
-          removedHistory
-            .goldEarned || 0
+          removedHistory.goldEarned ||
+            0
         );
 
       history.splice(
@@ -1378,7 +938,9 @@ export default function Today() {
 
     localStorage.setItem(
       "life-game-history",
-      JSON.stringify(history)
+      JSON.stringify(
+        history
+      )
     );
 
     updateXp(
@@ -1386,8 +948,7 @@ export default function Today() {
     );
 
     if (
-      activity.stat !==
-      "Mood"
+      activity.stat !== "Mood"
     ) {
       updateDailyStat(
         activity.stat,
@@ -1398,23 +959,6 @@ export default function Today() {
     setGold(
       getSafeGold()
     );
-
-    await saveStorageKeys([
-      "life-game-daily-activities",
-      "life-game-history",
-      "life-game-xp",
-      "life-game-daily-stats",
-      ...(removedGold > 0
-        ? [
-            "life-game-gold",
-          ]
-        : []),
-      ...(activity.isHabit
-        ? [
-            "life-game-habit-records",
-          ]
-        : []),
-    ]);
 
     window.dispatchEvent(
       new Event(
@@ -1459,6 +1003,7 @@ export default function Today() {
       extensionMinutes:
         leisure.extensionMinutes +
         minutes,
+
       usedMinutes:
         leisure.usedMinutes,
     };
@@ -1470,12 +1015,6 @@ export default function Today() {
     setGold(
       getSafeGold()
     );
-
-    void saveStorageKeys([
-      "life-game-gold",
-      "life-game-gold-ledger",
-      "life-game-leisure",
-    ]);
 
     window.dispatchEvent(
       new Event(
@@ -1505,42 +1044,26 @@ export default function Today() {
       return;
     }
 
-    void completeActivity(
+    completeActivity(
       pendingActivity,
       minutes
     );
   }
 
-  function confirmQuranProgress() {
-    if (
-      !pendingActivity ||
-      !isQuranHabit(
-        pendingActivity
-      )
-    ) {
-      return;
-    }
-
-    const progress =
-      Number(
-        quranProgressInput
-      );
-
-    if (
-      !Number.isFinite(
-        progress
-      ) ||
-      progress <= 0
-    ) {
-      return;
-    }
-
-    void completeQuranHabit(
-      pendingActivity,
-      progress
-    );
-  }
-
+  /*
+   * Leisure sekarang dibaca
+   * langsung dari Screen Time.
+   *
+   * Base:
+   * 120 menit
+   *
+   * Extension:
+   * maksimal +120 menit
+   *
+   * Used:
+   * Gaming + Entertainment
+   * dari Screen Time
+   */
   const totalLeisureMinutes =
     BASE_LEISURE_MINUTES +
     leisure.extensionMinutes;
@@ -1571,6 +1094,8 @@ export default function Today() {
 
   return (
     <div className="space-y-4">
+      {/* GOLD */}
+
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -1590,6 +1115,8 @@ export default function Today() {
           </div>
         </div>
       </section>
+
+      {/* LEISURE */}
 
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1656,6 +1183,8 @@ export default function Today() {
           </div>
         </div>
 
+        {/* SCREEN TIME CONNECTION */}
+
         <div className="mt-5 rounded-2xl border border-[#cfc3b4] bg-[#f5f0e8] p-4">
           <div className="flex items-start gap-3">
             <span className="text-lg">
@@ -1668,13 +1197,15 @@ export default function Today() {
               </p>
 
               <p className="mt-1 text-xs leading-5 opacity-60">
-                Gaming + Entertainment
-                dari Screen Time otomatis
-                dihitung sebagai Leisure used.
+                Gaming + Entertainment dari
+                Screen Time otomatis dihitung
+                sebagai Leisure used.
               </p>
             </div>
           </div>
         </div>
+
+        {/* EXTEND */}
 
         <div className="mt-5">
           <div className="flex flex-wrap items-end justify-between gap-2">
@@ -1734,6 +1265,8 @@ export default function Today() {
           </div>
         </div>
 
+        {/* USAGE */}
+
         <div className="mt-5 border-t border-[#d8cec0] pt-5">
           <div className="flex items-center justify-between">
             <div>
@@ -1776,47 +1309,22 @@ export default function Today() {
         </div>
       </section>
 
+      {/* ACTIVITIES */}
+
       <div className="space-y-3">
         {allActivities.map(
           (activity) => {
-            const habitRecord =
-              activity.isHabit
-                ? getHabitRecord(
-                    activity
-                  )
-                : null;
-
-            const completed =
-              activity.isHabit
-                ? isHabitCompleted(
-                    activity
-                  )
-                : false;
-
             const count =
-              activity.isHabit
-                ? completed
-                  ? 1
-                  : 0
-                : activityLog.filter(
-                    (item) =>
-                      item ===
-                      activity.id
-                  ).length;
+              activityLog.filter(
+                (item) =>
+                  item ===
+                  activity.id
+              ).length;
 
             const eligible =
               isGoldEligible(
                 activity
               );
-
-            const quranProgress =
-              isQuranHabit(
-                activity
-              )
-                ? getHabitProgress(
-                    activity
-                  )
-                : 0;
 
             return (
               <div
@@ -1845,38 +1353,6 @@ export default function Today() {
                         {eligible &&
                           " · earns Gold"}
                       </p>
-
-                      {isQuranHabit(
-                        activity
-                      ) && (
-                        <div className="mt-2">
-                          <div className="flex items-center gap-2 text-xs">
-                            <span className="font-semibold">
-                              📖 Today:
-                            </span>
-
-                            <span>
-                              {quranProgress}{" "}
-                              {activity.quranUnit ===
-                              "verses"
-                                ? "ayat"
-                                : "halaman"}
-                            </span>
-                          </div>
-
-                          {quranProgress >
-                            0 && (
-                            <div className="mt-2 h-2 w-full max-w-xs overflow-hidden rounded-full bg-[#ddd4c7]">
-                              <div
-                                className="h-full rounded-full bg-[#8f806d]"
-                                style={{
-                                  width: "100%",
-                                }}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </div>
                   </div>
 
@@ -1886,7 +1362,7 @@ export default function Today() {
                         <button
                           type="button"
                           onClick={() =>
-                            void removeActivity(
+                            removeActivity(
                               activity
                             )
                           }
@@ -1903,73 +1379,98 @@ export default function Today() {
 
                     <button
                       type="button"
-                      disabled={
-                        activity.isHabit &&
-                        completed
-                      }
                       onClick={() =>
                         addActivity(
                           activity
                         )
                       }
-                      className="rounded-xl bg-[#8f806d] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+                      className="rounded-xl bg-[#8f806d] px-4 py-2 text-sm font-medium text-white"
                     >
-                      {activity.isHabit &&
-                      completed
-                        ? "Done"
-                        : "+ Add"}
+                      + Add
                     </button>
                   </div>
                 </div>
 
                 {pendingActivity?.id ===
-                  activity.id &&
-                  isQuranHabit(
-                    activity
-                  ) && (
-                    <div className="mt-4 border-t border-[#d8cec0] pt-4">
-                      <div className="mb-3">
-                        <p className="text-sm font-semibold">
-                          📖 Quran Progress
-                        </p>
+                  activity.id && (
+                  <div className="mt-4 border-t border-[#d8cec0] pt-4">
+                    <div className="mb-3">
+                      <p className="text-sm font-semibold">
+                        How long?
+                      </p>
 
-                        <p className="mt-1 text-xs opacity-50">
-                          How much did you read
-                          today?
-                        </p>
-                      </div>
+                      <p className="mt-1 text-xs opacity-50">
+                        10 minutes = 1 Gold.
+                      </p>
+                    </div>
 
-                      <div className="flex gap-2">
+                    <div className="grid grid-cols-4 gap-2">
+                      {durationOptions.map(
+                        (minutes) => {
+                          const earnedGold =
+                            calculateGold(
+                              minutes
+                            );
+
+                          return (
+                            <button
+                              key={
+                                minutes
+                              }
+                              type="button"
+                              onClick={() =>
+                                completeActivity(
+                                  activity,
+                                  minutes
+                                )
+                              }
+                              className="rounded-xl border border-[#cfc3b4] bg-white/70 px-2 py-3 text-sm font-medium transition hover:bg-white"
+                            >
+                              <span className="block">
+                                {minutes}m
+                              </span>
+
+                              <span className="mt-1 block text-xs opacity-50">
+                                +{earnedGold} Gold
+                              </span>
+                            </button>
+                          );
+                        }
+                      )}
+                    </div>
+
+                    <div className="mt-3 rounded-xl border border-[#cfc3b4] bg-white/50 p-3">
+                      <label className="text-xs font-semibold">
+                        Custom minutes
+                      </label>
+
+                      <div className="mt-2 flex gap-2">
                         <input
                           type="number"
                           min="1"
                           step="1"
                           value={
-                            quranProgressInput
+                            customMinutes
                           }
                           onChange={(
                             event
                           ) =>
-                            setQuranProgressInput(
-                              event.target.value
+                            setCustomMinutes(
+                              event.target
+                                .value
                             )
                           }
-                          placeholder={
-                            activity.quranUnit ===
-                            "verses"
-                              ? "e.g. 20"
-                              : "e.g. 5"
-                          }
+                          placeholder="e.g. 35"
                           className="min-w-0 flex-1 rounded-xl border border-[#cfc3b4] bg-white px-3 py-2 text-sm outline-none"
                         />
 
                         <button
                           type="button"
                           onClick={
-                            confirmQuranProgress
+                            confirmCustomDuration
                           }
                           disabled={
-                            !quranProgressInput
+                            !customMinutes
                           }
                           className="rounded-xl bg-[#8f806d] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
                         >
@@ -1977,153 +1478,37 @@ export default function Today() {
                         </button>
                       </div>
 
-                      <p className="mt-2 text-xs opacity-50">
-                        Unit:{" "}
-                        {activity.quranUnit ===
-                        "verses"
-                          ? "Ayat"
-                          : "Halaman"}
-                      </p>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPendingActivity(
-                            null
-                          );
-
-                          setQuranProgressInput(
-                            ""
-                          );
-                        }}
-                        className="mt-3 text-xs font-medium opacity-50 underline"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  )}
-
-                {pendingActivity?.id ===
-                  activity.id &&
-                  !isQuranHabit(
-                    activity
-                  ) &&
-                  eligible && (
-                    <div className="mt-4 border-t border-[#d8cec0] pt-4">
-                      <div className="mb-3">
-                        <p className="text-sm font-semibold">
-                          How long?
-                        </p>
-
-                        <p className="mt-1 text-xs opacity-50">
-                          10 minutes = 1 Gold.
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-4 gap-2">
-                        {durationOptions.map(
-                          (minutes) => {
-                            const earnedGold =
-                              calculateGold(
-                                minutes
-                              );
-
-                            return (
-                              <button
-                                key={
-                                  minutes
-                                }
-                                type="button"
-                                onClick={() =>
-                                  void completeActivity(
-                                    activity,
-                                    minutes
-                                  )
-                                }
-                                className="rounded-xl border border-[#cfc3b4] bg-white/70 px-2 py-3 text-sm font-medium transition hover:bg-white"
-                              >
-                                <span className="block">
-                                  {minutes}m
-                                </span>
-
-                                <span className="mt-1 block text-xs opacity-50">
-                                  +{earnedGold} Gold
-                                </span>
-                              </button>
-                            );
-                          }
-                        )}
-                      </div>
-
-                      <div className="mt-3 rounded-xl border border-[#cfc3b4] bg-white/50 p-3">
-                        <label className="text-xs font-semibold">
-                          Custom minutes
-                        </label>
-
-                        <div className="mt-2 flex gap-2">
-                          <input
-                            type="number"
-                            min="1"
-                            step="1"
-                            value={
+                      {Number(
+                        customMinutes
+                      ) > 0 && (
+                        <p className="mt-2 text-xs opacity-60">
+                          {Math.floor(
+                            Number(
                               customMinutes
-                            }
-                            onChange={(
-                              event
-                            ) =>
-                              setCustomMinutes(
-                                event.target.value
-                              )
-                            }
-                            placeholder="e.g. 35"
-                            className="min-w-0 flex-1 rounded-xl border border-[#cfc3b4] bg-white px-3 py-2 text-sm outline-none"
-                          />
-
-                          <button
-                            type="button"
-                            onClick={
-                              confirmCustomDuration
-                            }
-                            disabled={
-                              !customMinutes
-                            }
-                            className="rounded-xl bg-[#8f806d] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            Add
-                          </button>
-                        </div>
-
-                        {Number(
-                          customMinutes
-                        ) > 0 && (
-                          <p className="mt-2 text-xs opacity-60">
-                            {Math.floor(
-                              Number(
-                                customMinutes
-                              ) / 10
-                            )}{" "}
-                            Gold earned
-                          </p>
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPendingActivity(
-                            null
-                          );
-
-                          setCustomMinutes(
-                            ""
-                          );
-                        }}
-                        className="mt-3 text-xs font-medium opacity-50 underline"
-                      >
-                        Cancel
-                      </button>
+                            ) / 10
+                          )}{" "}
+                          Gold earned
+                        </p>
+                      )}
                     </div>
-                  )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingActivity(
+                          null
+                        );
+
+                        setCustomMinutes(
+                          ""
+                        );
+                      }}
+                      className="mt-3 text-xs font-medium opacity-50 underline"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
               </div>
             );
           }
