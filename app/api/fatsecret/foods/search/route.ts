@@ -76,7 +76,7 @@ export async function GET(request: Request) {
     const data =
       await fatSecretRequest(
         "POST",
-        "foods.search",
+        "foods.search.v5",
         {
           search_expression: query,
           page_number:
@@ -93,7 +93,7 @@ export async function GET(request: Request) {
       {
         success: true,
         query,
-        debug_version: "food-search-v3",
+        debug_version: "food-search-v5-test",
         data,
       },
       {
