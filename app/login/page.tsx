@@ -57,20 +57,57 @@ export default function LoginPage() {
       return;
     }
 
-    const user = loginData.user;
+    console.log(
+      "LOGIN USER:",
+      loginData.user
+    );
 
-    if (!user) {
+    console.log(
+      "LOGIN SESSION:",
+      loginData.session
+    );
+
+    if (!loginData.user || !loginData.session) {
       setError(
-        "Login failed. User session was not found."
+        "Login failed. Supabase session was not created."
       );
       setLoading(false);
       return;
     }
 
+    const user = loginData.user;
+
     console.log(
       "LOGIN SUCCESS:",
       user.email
     );
+
+    // Pastikan session benar-benar bisa dibaca
+    // oleh Supabase client setelah login.
+    const {
+      data: {
+        user: verifiedUser,
+      },
+      error: verifyError,
+    } = await supabase.auth.getUser();
+
+    console.log(
+      "VERIFIED USER:",
+      verifiedUser
+    );
+
+    console.log(
+      "VERIFY SESSION ERROR:",
+      verifyError
+    );
+
+    if (verifyError || !verifiedUser) {
+      setError(
+        "Login succeeded, but the Supabase session could not be verified."
+      );
+      setLoading(false);
+      return;
+    }
 
     // Ambil status akun dari profiles
     const {
@@ -79,7 +116,7 @@ export default function LoginPage() {
     } = await supabase
       .from("profiles")
       .select("status")
-      .eq("id", user.id)
+      .eq("id", verifiedUser.id)
       .single();
 
     console.log(
@@ -170,7 +207,6 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#8b6f5a] px-6 py-10 text-[#3f382f]">
       <div className="w-full max-w-md">
-
         {/* BRAND / ZOE */}
         <div className="mb-7 text-center">
           <div className="mx-auto mb-1 flex h-40 w-56 items-center justify-center">

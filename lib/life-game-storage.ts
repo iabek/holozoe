@@ -9,23 +9,56 @@ type StorageRow = {
 
 const supabase = createClient();
 
+async function getAuthenticatedUser() {
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+
+  if (sessionError) {
+    console.error(
+      "Gagal mengambil Supabase session:",
+      sessionError
+    );
+
+    return {
+      user: null,
+      error: sessionError,
+    };
+  }
+
+  if (!session?.user) {
+    return {
+      user: null,
+      error: null,
+    };
+  }
+
+  return {
+    user: session.user,
+    error: null,
+  };
+}
+
 /**
  * Ambil data Life Game dari Supabase untuk user yang sedang login.
  *
- * Sebelum memasukkan data user yang sedang login,
- * cache Life Game milik user sebelumnya dibersihkan dari localStorage.
- *
- * Data Supabase tetap menjadi sumber data utama,
- * sedangkan localStorage dipakai sebagai cache
- * supaya komponen Life Game yang lama tetap bisa bekerja.
+ * Supabase menjadi sumber data utama.
+ * localStorage digunakan sebagai cache agar komponen
+ * Life Game yang lama tetap bisa bekerja.
  */
 export async function syncLifeGameStorageFromSupabase() {
   const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+    user,
+    error: authError,
+  } = await getAuthenticatedUser();
 
-  if (userError || !user) {
+  if (authError || !user) {
+    console.error(
+      "Life Game storage sync: user belum terautentikasi.",
+      authError
+    );
+
     return {
       success: false,
       reason: "not_authenticated" as const,
@@ -90,7 +123,6 @@ export async function syncLifeGameStorageFromSupabase() {
       continue;
     }
 
-    // Jangan pernah menimpa key session/auth.
     if (
       row.storage_key === "life-game-user-mode" ||
       row.storage_key === "life-game-user-email"
@@ -110,6 +142,12 @@ export async function syncLifeGameStorageFromSupabase() {
     count++;
   }
 
+  console.log(
+    "Life Game storage berhasil disinkronkan:",
+    count,
+    "key"
+  );
+
   return {
     success: true,
     count,
@@ -118,19 +156,22 @@ export async function syncLifeGameStorageFromSupabase() {
 
 /**
  * Simpan satu storage key ke Supabase.
- *
- * localStorage tetap dipakai oleh komponen lama sebagai cache.
  */
 export async function saveLifeGameStorage(
   storageKey: string,
   storageValue: string | null
 ) {
   const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+    user,
+    error: authError,
+  } = await getAuthenticatedUser();
 
-  if (userError || !user) {
+  if (authError || !user) {
+    console.error(
+      "Life Game storage save: user belum terautentikasi.",
+      authError
+    );
+
     return {
       success: false,
       reason: "not_authenticated" as const,
@@ -170,7 +211,7 @@ export async function saveLifeGameStorage(
 
   if (error) {
     console.error(
-      "Gagal menyimpan Life Game storage:",
+      "Gagal menyimpan Life Game storage ke Supabase:",
       error
     );
 
@@ -180,6 +221,11 @@ export async function saveLifeGameStorage(
       error,
     };
   }
+
+  console.log(
+    "Life Game storage berhasil disimpan:",
+    storageKey
+  );
 
   return {
     success: true,
@@ -208,11 +254,16 @@ export async function removeLifeGameStorage(
   storageKey: string
 ) {
   const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+    user,
+    error: authError,
+  } = await getAuthenticatedUser();
 
-  if (userError || !user) {
+  if (authError || !user) {
+    console.error(
+      "Life Game storage remove: user belum terautentikasi.",
+      authError
+    );
+
     return {
       success: false,
       reason: "not_authenticated" as const,
