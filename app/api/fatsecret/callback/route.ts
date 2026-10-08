@@ -56,7 +56,10 @@ function createSignature(
     .digest("base64");
 }
 
-function getCookie(cookieHeader: string, name: string) {
+function getCookie(
+  cookieHeader: string,
+  name: string
+) {
   const cookieMap = Object.fromEntries(
     cookieHeader
       .split(";")
@@ -127,8 +130,12 @@ export async function GET(request: Request) {
     console.error(
       "FatSecret callback missing OAuth parameters:",
       {
-        oauthTokenReceived: Boolean(oauthToken),
-        oauthVerifierReceived: Boolean(oauthVerifier),
+        oauthTokenReceived: Boolean(
+          oauthToken
+        ),
+        oauthVerifierReceived: Boolean(
+          oauthVerifier
+        ),
         pathname: url.pathname,
         searchParams: Array.from(
           url.searchParams.keys()
@@ -141,8 +148,12 @@ export async function GET(request: Request) {
         error:
           "Missing oauth_token or oauth_verifier.",
         received: {
-          oauth_token: Boolean(oauthToken),
-          oauth_verifier: Boolean(oauthVerifier),
+          oauth_token: Boolean(
+            oauthToken
+          ),
+          oauth_verifier: Boolean(
+            oauthVerifier
+          ),
         },
       },
       { status: 400 }
@@ -162,7 +173,10 @@ export async function GET(request: Request) {
     "fatsecret_request_token_secret"
   );
 
-  if (!requestToken || !requestTokenSecret) {
+  if (
+    !requestToken ||
+    !requestTokenSecret
+  ) {
     return NextResponse.json(
       {
         error:
@@ -182,7 +196,10 @@ export async function GET(request: Request) {
     );
   }
 
-  const oauthParams: Record<string, string> = {
+  const oauthParams: Record<
+    string,
+    string
+  > = {
     oauth_consumer_key: consumerKey,
     oauth_nonce: createNonce(),
     oauth_signature_method: "HMAC-SHA1",
@@ -194,18 +211,20 @@ export async function GET(request: Request) {
     oauth_verifier: oauthVerifier,
   };
 
-  const oauthSignature = createSignature(
-    "GET",
-    ACCESS_TOKEN_URL,
-    oauthParams,
-    consumerSecret,
-    requestTokenSecret
-  );
+  const oauthSignature =
+    createSignature(
+      "GET",
+      ACCESS_TOKEN_URL,
+      oauthParams,
+      consumerSecret,
+      requestTokenSecret
+    );
 
   oauthParams.oauth_signature =
     oauthSignature;
 
-  const query = new URLSearchParams();
+  const query =
+    new URLSearchParams();
 
   for (const [key, value] of Object.entries(
     oauthParams
@@ -241,15 +260,22 @@ export async function GET(request: Request) {
     }
 
     const params =
-      new URLSearchParams(responseText);
+      new URLSearchParams(
+        responseText
+      );
 
     const accessToken =
       params.get("oauth_token");
 
     const accessTokenSecret =
-      params.get("oauth_token_secret");
+      params.get(
+        "oauth_token_secret"
+      );
 
-    if (!accessToken || !accessTokenSecret) {
+    if (
+      !accessToken ||
+      !accessTokenSecret
+    ) {
       return NextResponse.json(
         {
           error:
@@ -264,45 +290,50 @@ export async function GET(request: Request) {
     // SUPABASE AUTH
     // =====================================================
 
-    const cookieStore = await cookies();
+    const cookieStore =
+      await cookies();
 
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
+    const supabase =
+      createServerClient(
+        process.env
+          .NEXT_PUBLIC_SUPABASE_URL!,
+        process.env
+          .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+        {
+          cookies: {
+            getAll() {
+              return cookieStore.getAll();
+            },
 
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(
-                ({
-                  name,
-                  value,
-                  options,
-                }) => {
-                  cookieStore.set(
+            setAll(cookiesToSet) {
+              try {
+                cookiesToSet.forEach(
+                  ({
                     name,
                     value,
-                    options
-                  );
-                }
-              );
-            } catch {
-              // Cookie update can fail in some
-              // server contexts.
-            }
+                    options,
+                  }) => {
+                    cookieStore.set(
+                      name,
+                      value,
+                      options
+                    );
+                  }
+                );
+              } catch {
+                // Cookie update can fail
+                // in some server contexts.
+              }
+            },
           },
-        },
-      }
-    );
+        }
+      );
 
     const {
       data: { user },
       error: userError,
-    } = await supabase.auth.getUser();
+    } =
+      await supabase.auth.getUser();
 
     if (userError || !user) {
       console.error(
@@ -323,22 +354,33 @@ export async function GET(request: Request) {
     // SAVE FATSECRET CONNECTION
     // =====================================================
 
-    const { error: saveError } =
-      await supabase
-        .from("fatsecret_connections")
-        .upsert(
-          {
-            user_id: user.id,
-            access_token: accessToken,
-            access_token_secret:
-              accessTokenSecret,
-            updated_at:
-              new Date().toISOString(),
-          },
-          {
-            onConflict: "user_id",
-          }
-        );
+    const now =
+      new Date().toISOString();
+
+    const {
+      error: saveError,
+    } = await supabase
+      .from(
+        "fatsecret_connections"
+      )
+      .upsert(
+        {
+          user_id: user.id,
+
+          fatsecret_access_token:
+            accessToken,
+
+          fatsecret_access_secret:
+            accessTokenSecret,
+
+          connected_at: now,
+
+          updated_at: now,
+        },
+        {
+          onConflict: "user_id",
+        }
+      );
 
     if (saveError) {
       console.error(
@@ -350,7 +392,8 @@ export async function GET(request: Request) {
         {
           error:
             "Access token berhasil diperoleh, tetapi gagal disimpan ke Supabase.",
-          details: saveError.message,
+          details:
+            saveError.message,
         },
         { status: 500 }
       );
@@ -376,7 +419,9 @@ export async function GET(request: Request) {
 
     console.log(
       "Access token secret received:",
-      Boolean(accessTokenSecret)
+      Boolean(
+        accessTokenSecret
+      )
     );
 
     console.log(
@@ -387,11 +432,12 @@ export async function GET(request: Request) {
     // DELETE TEMPORARY OAUTH COOKIES
     // =====================================================
 
-    const result = NextResponse.json({
-      success: true,
-      message:
-        "FatSecret berhasil terhubung dan koneksinya sudah disimpan ke Supabase.",
-    });
+    const result =
+      NextResponse.json({
+        success: true,
+        message:
+          "FatSecret berhasil terhubung dan koneksinya sudah disimpan ke Supabase.",
+      });
 
     result.cookies.delete(
       "fatsecret_request_token"
