@@ -21,6 +21,8 @@ import ScreenTime from "@/components/ScreenTime";
 import Health from "@/components/Health";
 import Admin from "@/components/Admin";
 import Archive from "@/components/Archive";
+import People from "@/components/People";
+import PersonArchive from "@/components/PersonArchive";
 
 type DailyStats = {
   Energy: number;
@@ -112,9 +114,7 @@ function getTodayKey() {
   const now = new Date();
 
   const year = now.getFullYear();
-
   const month = String(now.getMonth() + 1).padStart(2, "0");
-
   const day = String(now.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
@@ -131,13 +131,9 @@ function getMood(activityIds: string[]) {
   }
 
   const hasThesis = activityIds.includes("thesis");
-
   const hasMovement = activityIds.includes("movement");
-
   const hasLearning = activityIds.includes("learning");
-
   const hasSocial = activityIds.includes("social");
-
   const hasLeisure = activityIds.includes("leisure");
 
   const focus =
@@ -145,11 +141,8 @@ function getMood(activityIds: string[]) {
     (hasLearning ? 4 : 0);
 
   const energy = hasMovement ? 5 : 0;
-
   const growth = hasLearning ? 5 : 0;
-
   const social = hasSocial ? 1 : 0;
-
   const leisure = hasLeisure ? 1 : 0;
 
   if (
@@ -219,10 +212,7 @@ function getMood(activityIds: string[]) {
   }
 
   if (
-    focus +
-      energy +
-      growth >
-    0
+    focus + energy + growth > 0
   ) {
     return {
       emoji: "🥰",
@@ -251,218 +241,133 @@ function getMood(activityIds: string[]) {
 }
 
 export default function Home() {
-  const [
-    activePage,
-    setActivePage,
-  ] = useState(
-    "Dashboard"
-  );
+  const [activePage, setActivePage] = useState("Dashboard");
 
-  const [
-    totalXp,
-    setTotalXp,
-  ] = useState(0);
+  const [selectedPersonId, setSelectedPersonId] =
+    useState<string | null>(null);
 
-  const [
-    gold,
-    setGold,
-  ] = useState(0);
+  const [totalXp, setTotalXp] = useState(0);
+  const [gold, setGold] = useState(0);
+  const [goldEarnedToday, setGoldEarnedToday] =
+    useState(0);
 
-  const [
-    goldEarnedToday,
-    setGoldEarnedToday,
-  ] = useState(0);
+  const [leisureUsedToday, setLeisureUsedToday] =
+    useState(0);
 
-  const [
-    leisureUsedToday,
-    setLeisureUsedToday,
-  ] = useState(0);
+  const [leisureExtensionToday, setLeisureExtensionToday] =
+    useState(0);
 
-  const [
-    leisureExtensionToday,
-    setLeisureExtensionToday,
-  ] = useState(0);
+  const [dailyStats, setDailyStats] =
+    useState<DailyStats>({
+      Energy: 0,
+      Focus: 0,
+      Growth: 0,
+    });
 
-  const [
-    dailyStats,
-    setDailyStats,
-  ] = useState<DailyStats>({
-    Energy: 0,
-    Focus: 0,
-    Growth: 0,
-  });
+  const [todayActivities, setTodayActivities] =
+    useState<ActivityItem[]>([]);
 
-  const [
-    todayActivities,
-    setTodayActivities,
-  ] = useState<ActivityItem[]>([]);
-
-  const [
-    habits,
-    setHabits,
-  ] = useState<ActivityItem[]>([]);
+  const [habits, setHabits] =
+    useState<ActivityItem[]>([]);
 
   function loadDashboardData() {
-    const savedXp =
-      Number(
-        localStorage.getItem(
-          "life-game-xp"
-        ) || "0"
-      );
+    const savedXp = Number(
+      localStorage.getItem("life-game-xp") || "0"
+    );
 
     setTotalXp(
-      Number.isFinite(
-        savedXp
-      )
-        ? Math.max(
-            0,
-            savedXp
-          )
+      Number.isFinite(savedXp)
+        ? Math.max(0, savedXp)
         : 0
     );
 
-    const savedGold =
-      Number(
-        localStorage.getItem(
-          "life-game-gold"
-        ) || "0"
-      );
+    const savedGold = Number(
+      localStorage.getItem("life-game-gold") || "0"
+    );
 
     setGold(
-      Number.isFinite(
-        savedGold
-      )
-        ? Math.max(
-            0,
-            Math.floor(
-              savedGold
-            )
-          )
+      Number.isFinite(savedGold)
+        ? Math.max(0, Math.floor(savedGold))
         : 0
     );
 
-    const today =
-      getTodayKey();
+    const today = getTodayKey();
 
-    /*
-     * GOLD EARNED TODAY
-     */
-
-    const savedHistory =
-      localStorage.getItem(
-        "life-game-history"
-      );
+    const savedHistory = localStorage.getItem(
+      "life-game-history"
+    );
 
     if (savedHistory) {
       try {
-        const parsed =
-          JSON.parse(
-            savedHistory
-          );
+        const parsed = JSON.parse(savedHistory);
 
-        if (
-          Array.isArray(
-            parsed
-          )
-        ) {
-          const todayGold =
-            parsed.reduce(
-              (
-                total: number,
-                record: HistoryItem
-              ) => {
-                if (
-                  !record ||
-                  typeof record !==
-                    "object"
-                ) {
-                  return total;
-                }
+        if (Array.isArray(parsed)) {
+          const todayGold = parsed.reduce(
+            (
+              total: number,
+              record: HistoryItem
+            ) => {
+              if (
+                !record ||
+                typeof record !== "object"
+              ) {
+                return total;
+              }
 
-                if (
-                  typeof record.date !==
-                  "string"
-                ) {
-                  return total;
-                }
+              if (
+                typeof record.date !== "string"
+              ) {
+                return total;
+              }
 
-                const recordDate =
-                  new Date(
-                    record.date
-                  );
+              const recordDate = new Date(
+                record.date
+              );
 
-                const recordDateKey =
-                  `${recordDate.getFullYear()}-${String(
-                    recordDate.getMonth() +
-                      1
-                  ).padStart(
-                    2,
-                    "0"
-                  )}-${String(
-                    recordDate.getDate()
-                  ).padStart(
-                    2,
-                    "0"
-                  )}`;
+              const recordDateKey =
+                `${recordDate.getFullYear()}-${String(
+                  recordDate.getMonth() + 1
+                ).padStart(2, "0")}-${String(
+                  recordDate.getDate()
+                ).padStart(2, "0")}`;
 
-                if (
-                  recordDateKey !==
-                  today
-                ) {
-                  return total;
-                }
+              if (
+                recordDateKey !== today
+              ) {
+                return total;
+              }
 
-                const earned =
-                  typeof record.goldEarned ===
-                  "number"
-                    ? record.goldEarned
-                    : 0;
+              const earned =
+                typeof record.goldEarned === "number"
+                  ? record.goldEarned
+                  : 0;
 
-                return (
-                  total +
-                  Math.max(
-                    0,
-                    earned
-                  )
-                );
-              },
-              0
-            );
-
-          setGoldEarnedToday(
-            todayGold
-          );
-        } else {
-          setGoldEarnedToday(
+              return (
+                total +
+                Math.max(0, earned)
+              );
+            },
             0
           );
+
+          setGoldEarnedToday(todayGold);
+        } else {
+          setGoldEarnedToday(0);
         }
       } catch {
-        setGoldEarnedToday(
-          0
-        );
+        setGoldEarnedToday(0);
       }
     } else {
-      setGoldEarnedToday(
-        0
-      );
+      setGoldEarnedToday(0);
     }
 
-    /*
-     * LEISURE TODAY
-     */
-
-    const savedLeisure =
-      localStorage.getItem(
-        "life-game-leisure"
-      );
+    const savedLeisure = localStorage.getItem(
+      "life-game-leisure"
+    );
 
     if (savedLeisure) {
       try {
-        const parsed =
-          JSON.parse(
-            savedLeisure
-          );
+        const parsed = JSON.parse(savedLeisure);
 
         const todayData =
           parsed?.[today] as
@@ -471,15 +376,13 @@ export default function Home() {
 
         if (
           todayData &&
-          typeof todayData ===
-            "object"
+          typeof todayData === "object"
         ) {
           setLeisureUsedToday(
             Math.max(
               0,
               Number(
-                todayData.usedMinutes ||
-                  0
+                todayData.usedMinutes || 0
               )
             )
           );
@@ -490,63 +393,34 @@ export default function Home() {
               Math.max(
                 0,
                 Number(
-                  todayData.extensionMinutes ||
-                    0
+                  todayData.extensionMinutes || 0
                 )
               )
             )
           );
         } else {
-          setLeisureUsedToday(
-            0
-          );
-
-          setLeisureExtensionToday(
-            0
-          );
+          setLeisureUsedToday(0);
+          setLeisureExtensionToday(0);
         }
       } catch {
-        setLeisureUsedToday(
-          0
-        );
-
-        setLeisureExtensionToday(
-          0
-        );
+        setLeisureUsedToday(0);
+        setLeisureExtensionToday(0);
       }
     } else {
-      setLeisureUsedToday(
-        0
-      );
-
-      setLeisureExtensionToday(
-        0
-      );
+      setLeisureUsedToday(0);
+      setLeisureExtensionToday(0);
     }
 
-    /*
-     * DAILY STATS
-     */
-
-    const savedStats =
-      localStorage.getItem(
-        "life-game-daily-stats"
-      );
+    const savedStats = localStorage.getItem(
+      "life-game-daily-stats"
+    );
 
     if (savedStats) {
       try {
-        const parsed =
-          JSON.parse(
-            savedStats
-          );
+        const parsed = JSON.parse(savedStats);
 
-        if (
-          parsed &&
-          parsed[today]
-        ) {
-          setDailyStats(
-            parsed[today]
-          );
+        if (parsed && parsed[today]) {
+          setDailyStats(parsed[today]);
         } else {
           setDailyStats({
             Energy: 0,
@@ -569,57 +443,36 @@ export default function Home() {
       });
     }
 
-    /*
-     * HABITS
-     */
+    const savedHabits = localStorage.getItem(
+      "life-game-habits"
+    );
 
-    const savedHabits =
-      localStorage.getItem(
-        "life-game-habits"
-      );
-
-    let loadedHabits: ActivityItem[] =
-      [];
+    let loadedHabits: ActivityItem[] = [];
 
     if (savedHabits) {
       try {
-        const parsed =
-          JSON.parse(
-            savedHabits
-          );
+        const parsed = JSON.parse(savedHabits);
 
-        if (
-          Array.isArray(
-            parsed
-          )
-        ) {
-          loadedHabits =
-            parsed
-              .filter(
-                (
-                  habit
-                ) =>
-                  habit &&
-                  typeof habit ===
-                    "object" &&
-                  typeof habit.id ===
-                    "string" &&
-                  typeof habit.name ===
-                    "string"
-              )
-              .map(
-                (habit: {
-                  id: string;
-                  name: string;
-                }) => ({
-                  id: habit.id,
-                  name: habit.name,
-                })
-              );
+        if (Array.isArray(parsed)) {
+          loadedHabits = parsed
+            .filter(
+              (habit) =>
+                habit &&
+                typeof habit === "object" &&
+                typeof habit.id === "string" &&
+                typeof habit.name === "string"
+            )
+            .map(
+              (habit: {
+                id: string;
+                name: string;
+              }) => ({
+                id: habit.id,
+                name: habit.name,
+              })
+            );
 
-          setHabits(
-            loadedHabits
-          );
+          setHabits(loadedHabits);
         } else {
           setHabits([]);
         }
@@ -630,62 +483,38 @@ export default function Home() {
       setHabits([]);
     }
 
-    /*
-     * TODAY ACTIVITIES
-     */
-
-    const activities =
-      loadDailyActivities();
+    const activities = loadDailyActivities();
 
     const todayIds =
-      Array.isArray(
-        activities[today]
-      )
+      Array.isArray(activities[today])
         ? activities[today]
         : [];
 
-    const customHabitNames =
-      new Map(
-        loadedHabits.map(
-          (habit) => [
-            habit.id,
-            habit.name,
-          ]
-        )
-      );
-
-    const mappedActivities =
-      todayIds.map(
-        (
-          id: string
-        ) => {
-          const habitId =
-            id.startsWith(
-              "habit-"
-            )
-              ? id.slice(6)
-              : id;
-
-          return {
-            id,
-            name:
-              DEFAULT_ACTIVITY_NAMES[
-                id
-              ] ??
-              customHabitNames.get(
-                habitId
-              ) ??
-              customHabitNames.get(
-                id
-              ) ??
-              id,
-          };
-        }
-      );
-
-    setTodayActivities(
-      mappedActivities
+    const customHabitNames = new Map(
+      loadedHabits.map((habit) => [
+        habit.id,
+        habit.name,
+      ])
     );
+
+    const mappedActivities = todayIds.map(
+      (id: string) => {
+        const habitId = id.startsWith("habit-")
+          ? id.slice(6)
+          : id;
+
+        return {
+          id,
+          name:
+            DEFAULT_ACTIVITY_NAMES[id] ??
+            customHabitNames.get(habitId) ??
+            customHabitNames.get(id) ??
+            id,
+        };
+      }
+    );
+
+    setTodayActivities(mappedActivities);
   }
 
   useEffect(() => {
@@ -718,71 +547,49 @@ export default function Home() {
     activityId: string,
     activityIndex: number
   ) {
-    const today =
-      getTodayKey();
-
-    const activities =
-      loadDailyActivities();
+    const today = getTodayKey();
+    const activities = loadDailyActivities();
 
     const todayIds =
-      Array.isArray(
-        activities[today]
-      )
+      Array.isArray(activities[today])
         ? activities[today]
         : [];
 
     const updatedTodayIds =
       todayIds.filter(
-        (
-          id,
-          index
-        ) =>
+        (id, index) =>
           !(
-            id ===
-              activityId &&
-            index ===
-              activityIndex
+            id === activityId &&
+            index === activityIndex
           )
       );
 
-    activities[today] =
-      updatedTodayIds;
+    activities[today] = updatedTodayIds;
 
     localStorage.setItem(
       "life-game-daily-activities",
-      JSON.stringify(
-        activities
-      )
+      JSON.stringify(activities)
     );
 
-    setTodayActivities(
-      (current) =>
-        current.filter(
-          (
-            activity,
-            index
-          ) =>
-            !(
-              activity.id ===
-                activityId &&
-              index ===
-                activityIndex
-            )
-        )
+    setTodayActivities((current) =>
+      current.filter(
+        (activity, index) =>
+          !(
+            activity.id === activityId &&
+            index === activityIndex
+          )
+      )
     );
 
     window.dispatchEvent(
-      new Event(
-        "life-game-updated"
-      )
+      new Event("life-game-updated")
     );
   }
 
   function resetXp() {
-    const confirmed =
-      window.confirm(
-        "Reset Level & XP ke awal?\n\nXP akan kembali ke 0 dan Level menjadi 1.\n\nStats, Records, Habits, Prayer, dan Gold tidak akan dihapus."
-      );
+    const confirmed = window.confirm(
+      "Reset Level & XP ke awal?\n\nXP akan kembali ke 0 dan Level menjadi 1.\n\nStats, Records, Habits, Prayer, dan Gold tidak akan dihapus."
+    );
 
     if (!confirmed) {
       return;
@@ -796,17 +603,14 @@ export default function Home() {
     setTotalXp(0);
 
     window.dispatchEvent(
-      new Event(
-        "life-game-updated"
-      )
+      new Event("life-game-updated")
     );
   }
 
   function resetGold() {
-    const confirmed =
-      window.confirm(
-        "Reset Gold ke 0?\n\nSaldo Gold saat ini akan dihapus dan dimulai kembali dari 0.\n\nXP, Stats, Records, Habits, Prayer, dan Leisure tidak akan dihapus."
-      );
+    const confirmed = window.confirm(
+      "Reset Gold ke 0?\n\nSaldo Gold saat ini akan dihapus dan dimulai kembali dari 0.\n\nXP, Stats, Records, Habits, Prayer, dan Leisure tidak akan dihapus."
+    );
 
     if (!confirmed) {
       return;
@@ -820,45 +624,31 @@ export default function Home() {
     setGold(0);
 
     window.dispatchEvent(
-      new Event(
-        "life-game-updated"
-      )
+      new Event("life-game-updated")
     );
   }
 
-  const level =
-    calculateLevel(
-      totalXp
-    );
-
+  const level = calculateLevel(totalXp);
   const currentLevelXp =
-    getCurrentLevelXp(
-      totalXp
-    );
-
+    getCurrentLevelXp(totalXp);
   const progress =
-    getLevelProgress(
-      totalXp
-    );
+    getLevelProgress(totalXp);
 
-  const mood =
-    getMood(
-      todayActivities.map(
-        (activity) =>
-          activity.id
-      )
-    );
+  const mood = getMood(
+    todayActivities.map(
+      (activity) => activity.id
+    )
+  );
 
   const activityCount =
     todayActivities.length;
 
-  const totalLeisureToday =
-    Math.min(
-      BASE_LEISURE_MINUTES +
-        leisureExtensionToday,
-      BASE_LEISURE_MINUTES +
-        MAX_EXTENSION_MINUTES
-    );
+  const totalLeisureToday = Math.min(
+    BASE_LEISURE_MINUTES +
+      leisureExtensionToday,
+    BASE_LEISURE_MINUTES +
+      MAX_EXTENSION_MINUTES
+  );
 
   const leisureRemainingToday =
     Math.max(
@@ -868,130 +658,94 @@ export default function Home() {
     );
 
   function renderPage() {
-    if (
-      activePage ===
-      "Today"
-    ) {
+    if (activePage === "Today") {
       return <Today />;
     }
 
-    if (
-      activePage ===
-      "Habits"
-    ) {
+    if (activePage === "Habits") {
       return <Habits />;
     }
 
-    if (
-      activePage ===
-      "Prayer"
-    ) {
+    if (activePage === "Prayer") {
       return <Prayer />;
     }
 
-    if (
-      activePage ===
-      "Records"
-    ) {
+    if (activePage === "Records") {
       return <Records />;
     }
 
-    if (
-      activePage ===
-      "Journal"
-    ) {
+    if (activePage === "Journal") {
       return <Journal />;
     }
 
-    if (
-      activePage ===
-      "Notes"
-    ) {
+    if (activePage === "Notes") {
       return <Notes />;
     }
 
-    if (
-      activePage ===
-      "Finance"
-    ) {
+    if (activePage === "Finance") {
       return <Finance />;
     }
 
-    if (
-      activePage ===
-      "Projects"
-    ) {
+    if (activePage === "Projects") {
       return <Projects />;
     }
 
-    if (
-      activePage ===
-      "Planner"
-    ) {
+    if (activePage === "Planner") {
       return <Planner />;
     }
 
-    if (
-      activePage ===
-      "Learning"
-    ) {
+    if (activePage === "Learning") {
       return <Learning />;
     }
 
-    if (
-      activePage ===
-      "Flashcard"
-    ) {
+    if (activePage === "Flashcard") {
       return <Flashcard />;
     }
 
-    /*
-     * HEALTH
-     */
-
-    if (
-      activePage ===
-      "Health"
-    ) {
+    if (activePage === "Health") {
       return <Health />;
     }
 
-    /*
-     * ADMIN
-     */
-
-    if (
-      activePage ===
-      "Admin"
-    ) {
+    if (activePage === "Admin") {
       return <Admin />;
     }
 
-    /*
-     * ARCHIVE
-     */
-
-    if (
-      activePage ===
-      "Archive"
-    ) {
+    if (activePage === "Archive") {
       return (
         <Archive
-          onNavigate={
-            setActivePage
-          }
+          onNavigate={setActivePage}
         />
       );
     }
 
-    /*
-     * DASHBOARD
-     */
+    if (activePage === "People") {
+      return (
+        <People
+          onOpenPerson={(personId) => {
+            setSelectedPersonId(personId);
+            setActivePage("PersonArchive");
+          }}
+        />
+      );
+    }
+
+    if (
+      activePage === "PersonArchive" &&
+      selectedPersonId
+    ) {
+      return (
+        <PersonArchive
+          personId={selectedPersonId}
+          onBack={() => {
+            setSelectedPersonId(null);
+            setActivePage("People");
+          }}
+        />
+      );
+    }
 
     return (
       <>
-        {/* LEVEL */}
-
         <section className="mb-6 rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -1001,28 +755,21 @@ export default function Home() {
 
               <div className="mt-1 flex items-baseline gap-3">
                 <h2 className="text-4xl font-bold">
-                  Level{" "}
-                  {level}
+                  Level {level}
                 </h2>
 
                 <span className="text-sm opacity-50">
-                  {
-                    currentLevelXp
-                  }{" "}
-                  / 100 XP
+                  {currentLevelXp} / 100 XP
                 </span>
               </div>
             </div>
 
             <button
               type="button"
-              onClick={
-                resetXp
-              }
+              onClick={resetXp}
               className="rounded-xl border border-[#cfc3b4] bg-[#f5f0e8] px-4 py-2 text-sm font-medium transition hover:bg-[#e9e0d5]"
             >
-              Reset Level &
-              XP
+              Reset Level & XP
             </button>
           </div>
 
@@ -1037,20 +784,14 @@ export default function Home() {
 
           <div className="mt-3 flex items-center justify-between text-xs opacity-50">
             <span>
-              Total XP:{" "}
-              {totalXp}
+              Total XP: {totalXp}
             </span>
 
             <span>
-              {100 -
-                currentLevelXp}{" "}
-              XP to next
-              level
+              {100 - currentLevelXp} XP to next level
             </span>
           </div>
         </section>
-
-        {/* GOLD */}
 
         <section className="mb-6 rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-5">
@@ -1064,9 +805,7 @@ export default function Home() {
               </h2>
 
               <p className="mt-1 text-sm opacity-50">
-                Earned from
-                qualifying
-                activities.
+                Earned from qualifying activities.
               </p>
             </div>
 
@@ -1088,10 +827,7 @@ export default function Home() {
               </p>
 
               <p className="mt-1 text-2xl font-bold">
-                +
-                {
-                  goldEarnedToday
-                }
+                +{goldEarnedToday}
               </p>
 
               <p className="mt-1 text-xs opacity-50">
@@ -1105,18 +841,11 @@ export default function Home() {
               </p>
 
               <p className="mt-1 text-2xl font-bold">
-                {
-                  leisureUsedToday
-                }
-                m
+                {leisureUsedToday}m
               </p>
 
               <p className="mt-1 text-xs opacity-50">
-                of{" "}
-                {
-                  totalLeisureToday
-                }
-                m
+                of {totalLeisureToday}m
               </p>
             </div>
 
@@ -1126,19 +855,11 @@ export default function Home() {
               </p>
 
               <p className="mt-1 text-2xl font-bold">
-                {
-                  leisureRemainingToday
-                }
-                m
+                {leisureRemainingToday}m
               </p>
 
               <p className="mt-1 text-xs opacity-50">
-                +
-                {
-                  leisureExtensionToday
-                }
-                m
-                extension
+                +{leisureExtensionToday}m extension
               </p>
             </div>
           </div>
@@ -1150,14 +871,8 @@ export default function Home() {
               </span>
 
               <span>
-                {
-                  leisureUsedToday
-                }{" "}
-                /{" "}
-                {
-                  totalLeisureToday
-                }
-                m
+                {leisureUsedToday} /{" "}
+                {totalLeisureToday}m
               </span>
             </div>
 
@@ -1168,8 +883,7 @@ export default function Home() {
                   width: `${
                     Math.min(
                       100,
-                      totalLeisureToday >
-                        0
+                      totalLeisureToday > 0
                         ? (leisureUsedToday /
                             totalLeisureToday) *
                           100
@@ -1184,9 +898,7 @@ export default function Home() {
           <div className="mt-5 border-t border-[#d8cec0] pt-4">
             <button
               type="button"
-              onClick={
-                resetGold
-              }
+              onClick={resetGold}
               className="rounded-xl border border-[#cfc3b4] bg-[#f5f0e8] px-4 py-2 text-sm font-medium transition hover:bg-[#e9e0d5]"
             >
               Reset Gold
@@ -1194,16 +906,10 @@ export default function Home() {
           </div>
         </section>
 
-        {/* STATS */}
-
         <Stats
-          stats={
-            dailyStats
-          }
+          stats={dailyStats}
           mood={mood}
         />
-
-        {/* TODAY OVERVIEW */}
 
         <section className="mb-6 grid gap-4 md:grid-cols-2">
           <div className="rounded-3xl bg-white/60 p-5 shadow-sm">
@@ -1212,45 +918,33 @@ export default function Home() {
             </p>
 
             <h3 className="mt-1 text-xl font-bold">
-              Activity
-              Overview
+              Activity Overview
             </h3>
 
             <div className="mt-4 flex items-end gap-2">
               <span className="text-4xl font-bold">
-                {
-                  activityCount
-                }
+                {activityCount}
               </span>
 
               <span className="pb-1 text-sm opacity-50">
-                activities
-                completed
+                activities completed
               </span>
             </div>
 
             <div className="mt-4 space-y-2">
-              {todayActivities.length ===
-              0 ? (
+              {todayActivities.length === 0 ? (
                 <p className="text-sm opacity-50">
-                  No activities
-                  completed
-                  yet.
+                  No activities completed yet.
                 </p>
               ) : (
                 todayActivities.map(
-                  (
-                    activity,
-                    index
-                  ) => (
+                  (activity, index) => (
                     <div
                       key={`${activity.id}-${index}`}
                       className="flex items-center justify-between gap-3 rounded-xl bg-[#f5f0e8] px-3 py-2 text-sm"
                     >
                       <span className="min-w-0 flex-1">
-                        {
-                          activity.name
-                        }
+                        {activity.name}
                       </span>
 
                       <button
@@ -1283,44 +977,26 @@ export default function Home() {
             </h3>
 
             <div className="mt-4">
-              {habits.length ===
-              0 ? (
+              {habits.length === 0 ? (
                 <p className="text-sm opacity-50">
-                  No custom
-                  habits yet.
+                  No custom habits yet.
                 </p>
               ) : (
                 <div className="space-y-2">
                   {habits
-                    .slice(
-                      0,
-                      5
-                    )
-                    .map(
-                      (
-                        habit
-                      ) => (
-                        <div
-                          key={
-                            habit.id
-                          }
-                          className="rounded-xl bg-[#f5f0e8] px-3 py-2 text-sm"
-                        >
-                          {
-                            habit.name
-                          }
-                        </div>
-                      )
-                    )}
+                    .slice(0, 5)
+                    .map((habit) => (
+                      <div
+                        key={habit.id}
+                        className="rounded-xl bg-[#f5f0e8] px-3 py-2 text-sm"
+                      >
+                        {habit.name}
+                      </div>
+                    ))}
 
-                  {habits.length >
-                    5 && (
+                  {habits.length > 5 && (
                     <p className="pt-1 text-xs opacity-50">
-                      +
-                      {habits.length -
-                        5}{" "}
-                      more
-                      habits
+                      +{habits.length - 5} more habits
                     </p>
                   )}
                 </div>
@@ -1328,8 +1004,6 @@ export default function Home() {
             </div>
           </div>
         </section>
-
-        {/* DAILY PRAYERS */}
 
         <section className="rounded-3xl bg-white/60 p-5 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1346,9 +1020,7 @@ export default function Home() {
             <button
               type="button"
               onClick={() =>
-                setActivePage(
-                  "Prayer"
-                )
+                setActivePage("Prayer")
               }
               className="rounded-xl bg-[#ddd4c7] px-4 py-2 text-sm font-medium"
             >
@@ -1357,10 +1029,7 @@ export default function Home() {
           </div>
 
           <p className="mt-3 text-sm opacity-50">
-            Track your five
-            daily prayers
-            and personal
-            worship.
+            Track your five daily prayers and personal worship.
           </p>
         </section>
       </>
@@ -1371,12 +1040,16 @@ export default function Home() {
     <main className="min-h-screen bg-[#e8dfd2] text-[#3f382f]">
       <div className="flex min-h-screen">
         <Sidebar
-          activePage={
-            activePage
-          }
-          onNavigate={
-            setActivePage
-          }
+          activePage={activePage}
+          onNavigate={(page) => {
+            if (
+              page !== "PersonArchive"
+            ) {
+              setSelectedPersonId(null);
+            }
+
+            setActivePage(page);
+          }}
         />
 
         <div className="min-w-0 flex-1 p-5 sm:p-8">
@@ -1389,22 +1062,17 @@ export default function Home() {
                   </p>
 
                   <h1 className="mt-1 text-3xl font-bold">
-                    {
-                      activePage
-                    }
+                    {activePage}
                   </h1>
                 </div>
 
                 <GlobalSearch
-                  onNavigate={
-                    setActivePage
-                  }
+                  onNavigate={setActivePage}
                 />
               </div>
             </header>
 
-            {activePage ===
-            "Screen Time" ? (
+            {activePage === "Screen Time" ? (
               <ScreenTime />
             ) : (
               renderPage()
