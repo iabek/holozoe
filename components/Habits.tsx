@@ -78,6 +78,9 @@ export default function Habits() {
   const [quranUnit, setQuranUnit] =
     useState<QuranUnit>("pages");
 
+  const [editingHabitId, setEditingHabitId] =
+    useState<string | null>(null);
+
   const [draggedHabitId, setDraggedHabitId] =
     useState<string | null>(null);
 
@@ -131,44 +134,7 @@ export default function Habits() {
     }
   }
 
-  function addHabit() {
-    const habitName =
-      name.trim();
-
-    const habitXp =
-      Number(xp);
-
-    const habitIcon =
-      icon.trim() || "✨";
-
-    if (
-      !habitName ||
-      !Number.isFinite(habitXp) ||
-      habitXp <= 0
-    ) {
-      return;
-    }
-
-    const newHabit: Habit = {
-      id: `${Date.now()}-${Math.random()}`,
-      name: habitName,
-      xp: Math.floor(habitXp),
-      stat,
-      earnsGold,
-      trackQuran,
-      icon: habitIcon,
-      ...(trackQuran
-        ? {
-            quranUnit,
-          }
-        : {}),
-    };
-
-    void saveHabits([
-      ...habits,
-      newHabit,
-    ]);
-
+  function resetForm() {
     setName("");
     setIcon("✨");
     setXp("5");
@@ -176,7 +142,147 @@ export default function Habits() {
     setEarnsGold(false);
     setTrackQuran(false);
     setQuranUnit("pages");
+    setEditingHabitId(null);
+  }
+
+  function openAddForm() {
+    resetForm();
+    setShowForm(true);
+  }
+
+  function openEditForm(
+    habit: Habit
+  ) {
+    setEditingHabitId(
+      habit.id
+    );
+
+    setName(
+      habit.name
+    );
+
+    setIcon(
+      habit.icon ||
+        "✨"
+    );
+
+    setXp(
+      String(
+        habit.xp
+      )
+    );
+
+    setStat(
+      habit.stat
+    );
+
+    setEarnsGold(
+      habit.earnsGold === true
+    );
+
+    setTrackQuran(
+      habit.trackQuran === true
+    );
+
+    setQuranUnit(
+      habit.quranUnit ||
+        "pages"
+    );
+
+    setShowForm(true);
+  }
+
+  function closeForm() {
+    resetForm();
     setShowForm(false);
+  }
+
+  function saveHabit() {
+    const habitName =
+      name.trim();
+
+    const habitXp =
+      Number(xp);
+
+    const habitIcon =
+      icon.trim() ||
+      "✨";
+
+    if (
+      !habitName ||
+      !Number.isFinite(
+        habitXp
+      ) ||
+      habitXp <= 0
+    ) {
+      return;
+    }
+
+    if (
+      editingHabitId
+    ) {
+      const updated =
+        habits.map(
+          (habit) => {
+            if (
+              habit.id !==
+              editingHabitId
+            ) {
+              return habit;
+            }
+
+            return {
+              ...habit,
+              name: habitName,
+              xp: Math.floor(
+                habitXp
+              ),
+              stat,
+              earnsGold,
+              trackQuran,
+              icon:
+                habitIcon,
+              ...(trackQuran
+                ? {
+                    quranUnit,
+                  }
+                : {
+                    quranUnit:
+                      undefined,
+                  }),
+            };
+          }
+        );
+
+      void saveHabits(
+        updated
+      );
+    } else {
+      const newHabit: Habit = {
+        id: `${Date.now()}-${Math.random()}`,
+        name: habitName,
+        xp: Math.floor(
+          habitXp
+        ),
+        stat,
+        earnsGold,
+        trackQuran,
+        icon:
+          habitIcon,
+        ...(trackQuran
+          ? {
+              quranUnit,
+            }
+          : {}),
+      };
+
+      void saveHabits([
+        ...habits,
+        newHabit,
+      ]);
+    }
+
+    closeForm();
   }
 
   function deleteHabit(
@@ -185,17 +291,29 @@ export default function Habits() {
     const updated =
       habits.filter(
         (habit) =>
-          habit.id !== id
+          habit.id !==
+          id
       );
 
-    void saveHabits(updated);
+    void saveHabits(
+      updated
+    );
+
+    if (
+      editingHabitId ===
+      id
+    ) {
+      closeForm();
+    }
   }
 
   function handleDragStart(
     event: React.DragEvent<HTMLDivElement>,
     id: string
   ) {
-    setDraggedHabitId(id);
+    setDraggedHabitId(
+      id
+    );
 
     event.dataTransfer.effectAllowed =
       "move";
@@ -219,12 +337,16 @@ export default function Habits() {
       draggedHabitId &&
       draggedHabitId !== id
     ) {
-      setDragOverHabitId(id);
+      setDragOverHabitId(
+        id
+      );
     }
   }
 
   function handleDragLeave() {
-    setDragOverHabitId(null);
+    setDragOverHabitId(
+      null
+    );
   }
 
   function handleDrop(
@@ -241,31 +363,48 @@ export default function Habits() {
 
     if (
       !sourceId ||
-      sourceId === targetId
+      sourceId ===
+        targetId
     ) {
-      setDraggedHabitId(null);
-      setDragOverHabitId(null);
+      setDraggedHabitId(
+        null
+      );
+
+      setDragOverHabitId(
+        null
+      );
+
       return;
     }
 
     const sourceIndex =
       habits.findIndex(
         (habit) =>
-          habit.id === sourceId
+          habit.id ===
+          sourceId
       );
 
     const targetIndex =
       habits.findIndex(
         (habit) =>
-          habit.id === targetId
+          habit.id ===
+          targetId
       );
 
     if (
-      sourceIndex === -1 ||
-      targetIndex === -1
+      sourceIndex ===
+        -1 ||
+      targetIndex ===
+        -1
     ) {
-      setDraggedHabitId(null);
-      setDragOverHabitId(null);
+      setDraggedHabitId(
+        null
+      );
+
+      setDragOverHabitId(
+        null
+      );
+
       return;
     }
 
@@ -286,15 +425,27 @@ export default function Habits() {
       movedHabit
     );
 
-    setDraggedHabitId(null);
-    setDragOverHabitId(null);
+    setDraggedHabitId(
+      null
+    );
 
-    void saveHabits(updated);
+    setDragOverHabitId(
+      null
+    );
+
+    void saveHabits(
+      updated
+    );
   }
 
   function handleDragEnd() {
-    setDraggedHabitId(null);
-    setDragOverHabitId(null);
+    setDraggedHabitId(
+      null
+    );
+
+    setDragOverHabitId(
+      null
+    );
   }
 
   return (
@@ -312,8 +463,10 @@ export default function Habits() {
 
         <button
           type="button"
-          onClick={() =>
-            setShowForm(!showForm)
+          onClick={
+            showForm
+              ? closeForm
+              : openAddForm
           }
           className="rounded-xl bg-[#8f806d] px-4 py-2 text-sm font-medium text-white"
         >
@@ -325,16 +478,29 @@ export default function Habits() {
 
       {showForm && (
         <div className="mt-5 rounded-2xl bg-[#f5f0e8] p-4">
-          <div className="grid gap-3 sm:grid-cols-[70px_1fr_100px_140px_auto]">
+          <div className="mb-4">
+            <p className="font-semibold">
+              {editingHabitId
+                ? "Edit Habit"
+                : "New Habit"}
+            </p>
+
+            <p className="mt-1 text-xs opacity-50">
+              Customize the emoji, name,
+              XP, and other settings.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-[80px_1fr_100px_140px_auto]">
             <input
               type="text"
               value={icon}
               onChange={(event) =>
                 setIcon(
-                  event.target.value
+                  event.target
+                    .value
                 )
               }
-              maxLength={4}
               placeholder="✨"
               className="w-full rounded-xl border border-[#d8cec0] bg-white px-3 py-2 text-center text-lg outline-none focus:border-[#8f806d]"
               aria-label="Habit icon"
@@ -345,7 +511,8 @@ export default function Habits() {
               value={name}
               onChange={(event) =>
                 setName(
-                  event.target.value
+                  event.target
+                    .value
                 )
               }
               placeholder="Habit name"
@@ -359,7 +526,8 @@ export default function Habits() {
               value={xp}
               onChange={(event) =>
                 setXp(
-                  event.target.value
+                  event.target
+                    .value
                 )
               }
               className="rounded-xl border border-[#d8cec0] bg-white px-3 py-2 text-sm outline-none focus:border-[#8f806d]"
@@ -369,7 +537,8 @@ export default function Habits() {
               value={stat}
               onChange={(event) =>
                 setStat(
-                  event.target.value as StatName
+                  event.target
+                    .value as StatName
                 )
               }
               className="rounded-xl border border-[#d8cec0] bg-white px-3 py-2 text-sm outline-none focus:border-[#8f806d]"
@@ -389,25 +558,40 @@ export default function Habits() {
 
             <button
               type="button"
-              onClick={addHabit}
+              onClick={
+                saveHabit
+              }
               className="rounded-xl bg-[#8f806d] px-4 py-2 text-sm font-medium text-white"
             >
-              Save
+              {editingHabitId
+                ? "Update"
+                : "Save"}
             </button>
           </div>
 
-          <p className="mt-2 text-xs opacity-50">
-            Choose an emoji for this habit.
-            It will also appear in Today.
-          </p>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs opacity-50">
+            <span>
+              Example: 📚 📖 🏃 💧 🧠
+              🎮 🧘 ☕
+            </span>
+
+            <span>
+              · Leave empty for ✨
+            </span>
+          </div>
 
           <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-[#d8cec0] bg-white/60 p-3">
             <input
               type="checkbox"
-              checked={earnsGold}
-              onChange={(event) =>
+              checked={
+                earnsGold
+              }
+              onChange={(
+                event
+              ) =>
                 setEarnsGold(
-                  event.target.checked
+                  event.target
+                    .checked
                 )
               }
               className="mt-0.5 h-4 w-4"
@@ -419,7 +603,9 @@ export default function Habits() {
               </span>
 
               <span className="mt-1 block text-xs opacity-50">
-                If enabled, this habit earns 1 Gold every 10 minutes.
+                If enabled, this habit
+                earns 1 Gold every 10
+                minutes.
               </span>
             </span>
           </label>
@@ -427,10 +613,15 @@ export default function Habits() {
           <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-[#d8cec0] bg-white/60 p-3">
             <input
               type="checkbox"
-              checked={trackQuran}
-              onChange={(event) =>
+              checked={
+                trackQuran
+              }
+              onChange={(
+                event
+              ) =>
                 setTrackQuran(
-                  event.target.checked
+                  event.target
+                    .checked
                 )
               }
               className="mt-0.5 h-4 w-4"
@@ -442,7 +633,9 @@ export default function Habits() {
               </span>
 
               <span className="mt-1 block text-xs opacity-50">
-                Use this for habits such as Ngaji to record how much you read each day.
+                Use this for habits such as
+                Ngaji to record how much
+                you read each day.
               </span>
             </span>
           </label>
@@ -457,10 +650,13 @@ export default function Habits() {
                 <button
                   type="button"
                   onClick={() =>
-                    setQuranUnit("pages")
+                    setQuranUnit(
+                      "pages"
+                    )
                   }
                   className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
-                    quranUnit === "pages"
+                    quranUnit ===
+                    "pages"
                       ? "border-[#8f806d] bg-[#8f806d] text-white"
                       : "border-[#cfc3b4] bg-white"
                   }`}
@@ -471,10 +667,13 @@ export default function Habits() {
                 <button
                   type="button"
                   onClick={() =>
-                    setQuranUnit("verses")
+                    setQuranUnit(
+                      "verses"
+                    )
                   }
                   className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
-                    quranUnit === "verses"
+                    quranUnit ===
+                    "verses"
                       ? "border-[#8f806d] bg-[#8f806d] text-white"
                       : "border-[#cfc3b4] bg-white"
                   }`}
@@ -484,7 +683,8 @@ export default function Habits() {
               </div>
 
               <p className="mt-2 text-xs opacity-50">
-                You can change the amount every day from Today.
+                You can change the amount
+                every day from Today.
               </p>
             </div>
           )}
@@ -492,29 +692,40 @@ export default function Habits() {
       )}
 
       <div className="mt-5 space-y-3">
-        {habits.length === 0 ? (
+        {habits.length ===
+        0 ? (
           <div className="rounded-2xl bg-[#f5f0e8] p-6 text-center">
             <p className="text-sm opacity-50">
               No habits yet.
             </p>
 
             <p className="mt-1 font-semibold">
-              Add your first habit above.
+              Add your first habit
+              above.
             </p>
           </div>
         ) : (
           habits.map(
-            (habit, index) => (
+            (
+              habit,
+              index
+            ) => (
               <div
-                key={habit.id}
+                key={
+                  habit.id
+                }
                 draggable
-                onDragStart={(event) =>
+                onDragStart={(
+                  event
+                ) =>
                   handleDragStart(
                     event,
                     habit.id
                   )
                 }
-                onDragOver={(event) =>
+                onDragOver={(
+                  event
+                ) =>
                   handleDragOver(
                     event,
                     habit.id
@@ -523,7 +734,9 @@ export default function Habits() {
                 onDragLeave={
                   handleDragLeave
                 }
-                onDrop={(event) =>
+                onDrop={(
+                  event
+                ) =>
                   handleDrop(
                     event,
                     habit.id
@@ -551,7 +764,7 @@ export default function Habits() {
                   ⋮⋮
                 </div>
 
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/70 text-xl">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center text-xl">
                   {habit.icon ||
                     "✨"}
                 </div>
@@ -559,7 +772,8 @@ export default function Habits() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold opacity-30">
-                      {index + 1}
+                      {index +
+                        1}
                     </span>
 
                     <p className="truncate font-semibold">
@@ -569,16 +783,24 @@ export default function Habits() {
 
                   <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs opacity-50">
                     <span>
-                      +{habit.xp} XP
+                      +
+                      {
+                        habit.xp
+                      }{" "}
+                      XP
                     </span>
 
                     <span>
-                      · +5 {habit.stat}
+                      · +5{" "}
+                      {
+                        habit.stat
+                      }
                     </span>
 
                     {habit.earnsGold && (
                       <span>
-                        · 🪙 earns Gold
+                        · 🪙 earns
+                        Gold
                       </span>
                     )}
 
@@ -594,26 +816,42 @@ export default function Habits() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    deleteHabit(
-                      habit.id
-                    )
-                  }
-                  className="shrink-0 rounded-lg bg-[#ddd4c7] px-3 py-2 text-xs font-medium"
-                >
-                  Delete
-                </button>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openEditForm(
+                        habit
+                      )
+                    }
+                    className="rounded-lg bg-[#ddd4c7] px-3 py-2 text-xs font-medium"
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      deleteHabit(
+                        habit.id
+                      )
+                    }
+                    className="rounded-lg bg-[#ddd4c7] px-3 py-2 text-xs font-medium"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             )
           )
         )}
       </div>
 
-      {habits.length > 1 && (
+      {habits.length >
+        1 && (
         <p className="mt-3 text-center text-xs opacity-40">
-          ⋮⋮ Drag habits to change their order
+          ⋮⋮ Drag habits to change
+          their order
         </p>
       )}
     </div>
