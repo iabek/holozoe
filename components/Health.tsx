@@ -445,16 +445,8 @@ export default function Health() {
           activityLevel || ""
         );
 
-        /*
-         * Data sudah ada:
-         * tampilkan mode compact.
-         */
         setEditingHealth(false);
       } else {
-        /*
-         * Belum ada data:
-         * langsung buka form.
-         */
         setEditingHealth(true);
       }
 
@@ -670,10 +662,6 @@ export default function Health() {
         "Health data saved."
       );
 
-      /*
-       * Setelah berhasil disimpan,
-       * tutup form agar tidak makan tempat.
-       */
       setEditingHealth(false);
     } finally {
       setSaving(false);
@@ -1105,14 +1093,9 @@ export default function Health() {
         </p>
       </section>
 
-      {/* =====================================================
-          BODY PROFILE
-          BASIC INFORMATION + YOUR NUMBERS
-          ===================================================== */}
+      {/* BODY PROFILE */}
 
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
-
-        {/* SECTION HEADER */}
 
         <div className="flex items-start justify-between gap-4">
 
@@ -1141,19 +1124,15 @@ export default function Health() {
 
         </div>
 
-        {/* =================================================
-            COMPACT VIEW
-            ================================================= */}
+        {/* COMPACT VIEW */}
 
         {!loading &&
           !editingHealth && (
             <>
 
-              {/* BASIC INFO COMPACT */}
-
               <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 
-                <div className="rounded-2xl bg-[#f5f0e8] px-4 py-3">
+                <div className="rounded-2xl bg-[#eee7dc] px-4 py-3">
                   <p className="text-xs uppercase tracking-wider opacity-40">
                     Height
                   </p>
@@ -1165,7 +1144,7 @@ export default function Health() {
                   </p>
                 </div>
 
-                <div className="rounded-2xl bg-[#f5f0e8] px-4 py-3">
+                <div className="rounded-2xl bg-[#eee7dc] px-4 py-3">
                   <p className="text-xs uppercase tracking-wider opacity-40">
                     Weight
                   </p>
@@ -1177,7 +1156,7 @@ export default function Health() {
                   </p>
                 </div>
 
-                <div className="rounded-2xl bg-[#f5f0e8] px-4 py-3">
+                <div className="rounded-2xl bg-[#eee7dc] px-4 py-3">
                   <p className="text-xs uppercase tracking-wider opacity-40">
                     Sex
                   </p>
@@ -1193,7 +1172,7 @@ export default function Health() {
                   </p>
                 </div>
 
-                <div className="rounded-2xl bg-[#f5f0e8] px-4 py-3">
+                <div className="rounded-2xl bg-[#eee7dc] px-4 py-3">
                   <p className="text-xs uppercase tracking-wider opacity-40">
                     Activity
                   </p>
@@ -1205,8 +1184,9 @@ export default function Health() {
 
               </div>
 
-              <div className="mt-3 rounded-2xl bg-[#f5f0e8] px-4 py-3">
+              <div className="mt-3 rounded-2xl bg-[#eee7dc] px-4 py-3">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+
                   <p className="text-xs uppercase tracking-wider opacity-40">
                     Birth date
                   </p>
@@ -1225,6 +1205,7 @@ export default function Health() {
                         )
                       : "—"}
                   </p>
+
                 </div>
               </div>
 
@@ -1244,14 +1225,14 @@ export default function Health() {
 
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 
-                  {/* IMT */}
+                  <div className="rounded-2xl bg-[#eee7dc] p-4">
 
-                  <div className="rounded-2xl bg-[#f5f0e8] p-4">
                     <p className="text-xs uppercase tracking-widest opacity-50">
                       IMT
                     </p>
 
                     <div className="mt-2 flex items-end gap-2">
+
                       <span className="text-3xl font-bold">
                         {formattedBmi}
                       </span>
@@ -1262,6 +1243,7 @@ export default function Health() {
                           kg/m²
                         </span>
                       )}
+
                     </div>
 
                     <p className="mt-2 text-sm font-semibold">
@@ -1275,16 +1257,17 @@ export default function Health() {
                         bmiStatus.description
                       }
                     </p>
+
                   </div>
 
-                  {/* AGE */}
+                  <div className="rounded-2xl bg-[#eee7dc] p-4">
 
-                  <div className="rounded-2xl bg-[#f5f0e8] p-4">
                     <p className="text-xs uppercase tracking-widest opacity-50">
                       AGE
                     </p>
 
                     <div className="mt-2 flex items-end gap-2">
+
                       <span className="text-3xl font-bold">
                         {age !==
                         null
@@ -1298,21 +1281,23 @@ export default function Health() {
                           years
                         </span>
                       )}
+
                     </div>
 
                     <p className="mt-2 text-xs leading-5 opacity-50">
                       Calculated from your birth date.
                     </p>
+
                   </div>
 
-                  {/* BMR */}
+                  <div className="rounded-2xl bg-[#eee7dc] p-4">
 
-                  <div className="rounded-2xl bg-[#f5f0e8] p-4">
                     <p className="text-xs uppercase tracking-widest opacity-50">
                       BMR
                     </p>
 
                     <div className="mt-2 flex items-end gap-2">
+
                       <span className="text-3xl font-bold">
                         {formattedBmr !==
                         null
@@ -1326,21 +1311,23 @@ export default function Health() {
                           kcal/day
                         </span>
                       )}
+
                     </div>
 
                     <p className="mt-2 text-xs leading-5 opacity-50">
                       Energy needed at complete rest.
                     </p>
+
                   </div>
 
-                  {/* TDEE */}
+                  <div className="rounded-2xl bg-[#eee7dc] p-4">
 
-                  <div className="rounded-2xl bg-[#f5f0e8] p-4">
                     <p className="text-xs uppercase tracking-widest opacity-50">
                       TDEE
                     </p>
 
                     <div className="mt-2 flex items-end gap-2">
+
                       <span className="text-3xl font-bold">
                         {formattedTdee !==
                         null
@@ -1354,11 +1341,13 @@ export default function Health() {
                           kcal/day
                         </span>
                       )}
+
                     </div>
 
                     <p className="mt-2 text-xs leading-5 opacity-50">
                       Estimated daily energy expenditure.
                     </p>
+
                   </div>
 
                 </div>
@@ -1367,9 +1356,7 @@ export default function Health() {
             </>
           )}
 
-        {/* =================================================
-            EDIT MODE
-            ================================================= */}
+        {/* EDIT MODE */}
 
         {!loading &&
           editingHealth && (
@@ -1377,14 +1364,14 @@ export default function Health() {
 
               <div className="grid gap-4 md:grid-cols-2">
 
-                {/* HEIGHT */}
-
                 <label className="block">
+
                   <span className="mb-2 block text-sm font-medium">
                     Height
                   </span>
 
                   <div className="relative">
+
                     <input
                       type="number"
                       inputMode="decimal"
@@ -1409,17 +1396,19 @@ export default function Health() {
                     <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs opacity-40">
                       cm
                     </span>
+
                   </div>
+
                 </label>
 
-                {/* WEIGHT */}
-
                 <label className="block">
+
                   <span className="mb-2 block text-sm font-medium">
                     Weight
                   </span>
 
                   <div className="relative">
+
                     <input
                       type="number"
                       inputMode="decimal"
@@ -1444,12 +1433,13 @@ export default function Health() {
                     <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs opacity-40">
                       kg
                     </span>
+
                   </div>
+
                 </label>
 
-                {/* BIRTH DATE */}
-
                 <label className="block">
+
                   <span className="mb-2 block text-sm font-medium">
                     Birth date
                   </span>
@@ -1470,11 +1460,11 @@ export default function Health() {
                     }
                     className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 text-sm outline-none transition focus:border-[#a99b8a]"
                   />
+
                 </label>
 
-                {/* SEX */}
-
                 <label className="block">
+
                   <span className="mb-2 block text-sm font-medium">
                     Sex
                   </span>
@@ -1508,11 +1498,11 @@ export default function Health() {
                       Female
                     </option>
                   </select>
+
                 </label>
 
-                {/* ACTIVITY */}
-
                 <label className="block md:col-span-2">
+
                   <span className="mb-2 block text-sm font-medium">
                     Activity level
                   </span>
@@ -1560,12 +1550,12 @@ export default function Health() {
                         </option>
                       )
                     )}
+
                   </select>
+
                 </label>
 
               </div>
-
-              {/* ERROR */}
 
               {error && (
                 <div className="mt-5 rounded-2xl border border-[#dec5bd] bg-[#f7ebe7] px-4 py-3 text-sm text-[#7a5147]">
@@ -1573,15 +1563,11 @@ export default function Health() {
                 </div>
               )}
 
-              {/* MESSAGE */}
-
               {message && (
                 <div className="mt-5 rounded-2xl border border-[#c8d7c5] bg-[#eef5eb] px-4 py-3 text-sm text-[#53654f]">
                   {message}
                 </div>
               )}
-
-              {/* SAVE / CANCEL */}
 
               <div className="mt-5 flex justify-end gap-3">
 
@@ -1628,21 +1614,15 @@ export default function Health() {
             </div>
           )}
 
-        {/* =================================================
-            LOADING
-            ================================================= */}
-
         {loading && (
-          <div className="mt-5 rounded-2xl bg-[#f5f0e8] p-4 text-sm opacity-60">
+          <div className="mt-5 rounded-2xl bg-[#eee7dc] p-4 text-sm opacity-60">
             Loading health data...
           </div>
         )}
 
       </section>
 
-      {/* =====================================================
-          ESTIMATED CALORIE NEEDS
-          ===================================================== */}
+      {/* ESTIMATED CALORIE NEEDS */}
 
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
 
@@ -1657,7 +1637,8 @@ export default function Health() {
         {tdee !== null ? (
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
 
-            <div className="rounded-2xl bg-[#f5f0e8] p-4">
+            <div className="rounded-2xl bg-[#eee7dc] p-4">
+
               <p className="text-xs opacity-50">
                 Maintain
               </p>
@@ -1671,9 +1652,11 @@ export default function Health() {
               <p className="mt-1 text-xs opacity-50">
                 kcal/day
               </p>
+
             </div>
 
-            <div className="rounded-2xl bg-[#f5f0e8] p-4">
+            <div className="rounded-2xl bg-[#eee7dc] p-4">
+
               <p className="text-xs opacity-50">
                 Mild deficit
               </p>
@@ -1687,9 +1670,11 @@ export default function Health() {
               <p className="mt-1 text-xs opacity-50">
                 ~10% below maintenance
               </p>
+
             </div>
 
-            <div className="rounded-2xl bg-[#f5f0e8] p-4">
+            <div className="rounded-2xl bg-[#eee7dc] p-4">
+
               <p className="text-xs opacity-50">
                 Mild surplus
               </p>
@@ -1703,11 +1688,12 @@ export default function Health() {
               <p className="mt-1 text-xs opacity-50">
                 ~10% above maintenance
               </p>
+
             </div>
 
           </div>
         ) : (
-          <div className="mt-5 rounded-2xl bg-[#f5f0e8] p-4 text-sm leading-6 opacity-60">
+          <div className="mt-5 rounded-2xl bg-[#eee7dc] p-4 text-sm leading-6 opacity-60">
             Lengkapi tanggal lahir,
             jenis kelamin, tinggi, berat,
             dan activity level untuk
@@ -1723,15 +1709,14 @@ export default function Health() {
 
       </section>
 
-      {/* =====================================================
-          DAILY NUTRITION
-          ===================================================== */}
+      {/* DAILY NUTRITION */}
 
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 
           <div>
+
             <p className="text-xs uppercase tracking-widest opacity-50">
               NUTRITION
             </p>
@@ -1744,6 +1729,7 @@ export default function Health() {
               Automatically synced from your
               FatSecret Food Diary.
             </p>
+
           </div>
 
           <button
@@ -1775,11 +1761,10 @@ export default function Health() {
           </div>
         )}
 
-        {/* SUMMARY */}
-
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 
-          <div className="rounded-2xl bg-[#f5f0e8] p-4">
+          <div className="rounded-2xl bg-[#eee7dc] p-4">
+
             <p className="text-xs opacity-50">
               Consumed
             </p>
@@ -1793,9 +1778,11 @@ export default function Health() {
             <p className="mt-1 text-xs opacity-50">
               kcal
             </p>
+
           </div>
 
-          <div className="rounded-2xl bg-[#f5f0e8] p-4">
+          <div className="rounded-2xl bg-[#eee7dc] p-4">
+
             <p className="text-xs opacity-50">
               TDEE
             </p>
@@ -1808,9 +1795,11 @@ export default function Health() {
             <p className="mt-1 text-xs opacity-50">
               kcal/day
             </p>
+
           </div>
 
-          <div className="rounded-2xl bg-[#f5f0e8] p-4">
+          <div className="rounded-2xl bg-[#eee7dc] p-4">
+
             <p className="text-xs opacity-50">
               Remaining
             </p>
@@ -1830,9 +1819,11 @@ export default function Health() {
             <p className="mt-1 text-xs opacity-50">
               kcal
             </p>
+
           </div>
 
-          <div className="rounded-2xl bg-[#f5f0e8] p-4">
+          <div className="rounded-2xl bg-[#eee7dc] p-4">
+
             <p className="text-xs opacity-50">
               Entries
             </p>
@@ -1846,15 +1837,15 @@ export default function Health() {
             <p className="mt-1 text-xs opacity-50">
               today
             </p>
+
           </div>
 
         </div>
 
-        {/* CALORIE PROGRESS */}
-
         <div className="mt-5">
 
           <div className="mb-2 flex items-center justify-between text-xs opacity-50">
+
             <span>
               Daily calorie progress
             </span>
@@ -1865,24 +1856,26 @@ export default function Health() {
               )}
               %
             </span>
+
           </div>
 
           <div className="h-2 overflow-hidden rounded-full bg-[#e6ddd1]">
+
             <div
               className="h-full rounded-full bg-[#4f473e] transition-all"
               style={{
                 width: `${calorieProgress}%`,
               }}
             />
+
           </div>
 
         </div>
 
-        {/* MACROS */}
-
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
 
-          <div className="rounded-2xl border border-[#e0d7cc] p-4">
+          <div className="rounded-2xl border border-[#e0d7cc] bg-[#eee7dc] p-4">
+
             <p className="text-xs opacity-50">
               Protein
             </p>
@@ -1893,9 +1886,11 @@ export default function Health() {
               )}{" "}
               g
             </p>
+
           </div>
 
-          <div className="rounded-2xl border border-[#e0d7cc] p-4">
+          <div className="rounded-2xl border border-[#e0d7cc] bg-[#eee7dc] p-4">
+
             <p className="text-xs opacity-50">
               Carbs
             </p>
@@ -1906,9 +1901,11 @@ export default function Health() {
               )}{" "}
               g
             </p>
+
           </div>
 
-          <div className="rounded-2xl border border-[#e0d7cc] p-4">
+          <div className="rounded-2xl border border-[#e0d7cc] bg-[#eee7dc] p-4">
+
             <p className="text-xs opacity-50">
               Fat
             </p>
@@ -1919,21 +1916,21 @@ export default function Health() {
               )}{" "}
               g
             </p>
+
           </div>
 
         </div>
 
       </section>
 
-      {/* =====================================================
-          TODAY'S FOOD LOG
-          ===================================================== */}
+      {/* TODAY'S FOOD LOG */}
 
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
 
         <div className="flex items-start justify-between gap-3">
 
           <div>
+
             <p className="text-xs uppercase tracking-widest opacity-50">
               TODAY
             </p>
@@ -1941,10 +1938,11 @@ export default function Health() {
             <h3 className="mt-1 text-xl font-bold">
               Today's Food Log
             </h3>
+
           </div>
 
           {!foodLoading && (
-            <span className="rounded-full bg-[#f5f0e8] px-3 py-1 text-xs opacity-60">
+            <span className="rounded-full bg-[#eee7dc] px-3 py-1 text-xs opacity-60">
               {
                 todayEntries.length
               }{" "}
@@ -1955,13 +1953,13 @@ export default function Health() {
         </div>
 
         {foodLoading ? (
-          <div className="mt-5 rounded-2xl bg-[#f5f0e8] p-4 text-sm opacity-60">
+          <div className="mt-5 rounded-2xl bg-[#eee7dc] p-4 text-sm opacity-60">
             Syncing today's food
             diary...
           </div>
         ) : todayEntries.length ===
           0 ? (
-          <div className="mt-5 rounded-2xl border border-dashed border-[#cfc3b4] p-5 text-sm leading-6 opacity-50">
+          <div className="mt-5 rounded-2xl border border-dashed border-[#cfc3b4] bg-[#eee7dc] p-5 text-sm leading-6 opacity-50">
             Belum ada makanan tercatat
             hari ini di FatSecret.
           </div>
@@ -1972,7 +1970,7 @@ export default function Health() {
               (entry) => (
                 <div
                   key={entry.id}
-                  className="rounded-2xl bg-[#f5f0e8] p-4"
+                  className="rounded-2xl bg-[#eee7dc] p-4"
                 >
 
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
