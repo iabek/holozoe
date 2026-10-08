@@ -1,6 +1,11 @@
 "use client";
+
 import { useEffect, useMemo, useState } from "react";
-import { saveCurrentLifeGameStorage } from "@/lib/life-game-storage";
+
+import {
+  saveCurrentLifeGameStorage,
+  syncLifeGameStorageFromSupabase,
+} from "@/lib/life-game-storage";
 
 type PrayerName =
 | "Subuh"
@@ -211,7 +216,6 @@ selectedDate: string
 ) {
 const history =
 loadHistory();
-
 const item: HistoryItem = {
 id: `${Date.now()}-${Math.random()}`,
 activityId,
@@ -220,7 +224,6 @@ xp,
 stat: "Growth",
 date: `${selectedDate}T12:00:00`,
 };
-
 saveHistory([
 ...history,
 item,
@@ -232,9 +235,7 @@ activityId: string
 ) {
 const history =
 loadHistory();
-
 let foundIndex = -1;
-
 for (
 let index = history.length - 1;
 index >= 0;
@@ -248,17 +249,14 @@ foundIndex = index;
 break;
 }
 }
-
 if (foundIndex === -1) {
 return;
 }
-
 const updatedHistory =
 history.filter(
 (_, index) =>
 index !== foundIndex
 );
-
 saveHistory(
 updatedHistory
 );
@@ -273,12 +271,10 @@ localStorage.getItem(
 "life-game-xp"
 ) || "0"
 );
-
 const newXp = Math.max(
 0,
 currentXp + amount
 );
-
 localStorage.setItem(
 "life-game-xp",
 String(newXp)
@@ -293,7 +289,6 @@ const saved =
 localStorage.getItem(
 "life-game-daily-stats"
 );
-
 let dailyStats: Record<
 string,
 {
@@ -302,11 +297,9 @@ Focus: number;
 Growth: number;
 }
 > = {};
-
 if (saved) {
 try {
 const parsed = JSON.parse(saved);
-
 if (
 parsed &&
 typeof parsed === "object" &&
@@ -318,14 +311,12 @@ dailyStats = parsed;
 dailyStats = {};
 }
 }
-
 const current =
 dailyStats[selectedDate] || {
 Energy: 0,
 Focus: 0,
 Growth: 0,
 };
-
 const updated = {
 ...dailyStats,
 [selectedDate]: {
@@ -339,7 +330,6 @@ current.Growth + amount
 ),
 },
 };
-
 localStorage.setItem(
 "life-game-daily-stats",
 JSON.stringify(updated)
@@ -349,7 +339,6 @@ JSON.stringify(updated)
 function getLastSevenDays() {
 const days: string[] = [];
 const today = new Date();
-
 for (
 let index = 6;
 index >= 0;
@@ -358,16 +347,13 @@ index--
 const date = new Date(
 today
 );
-
 date.setDate(
 today.getDate() - index
 );
-
 days.push(
 getDateKey(date)
 );
 }
-
 return days;
 }
 
@@ -410,17 +396,14 @@ prayer: PrayerName
 ) {
 const days =
 getLastSevenDays();
-
 if (days.length === 0) {
 return 0;
 }
-
 const completed =
 days.filter(
 (day) =>
 records[day]?.[prayer]
 ).length;
-
 return Math.round(
 (completed /
 days.length) *
@@ -459,17 +442,25 @@ const [hoveredDate, setHoveredDate] =
 useState<string | null>(null);
 
 useEffect(() => {
-setRecords(
-loadPrayerRecords()
-);
+  let cancelled = false;
 
-setCustomPrayers(
-loadCustomPrayers()
-);
+  async function initializePrayer() {
+    await syncLifeGameStorageFromSupabase();
 
-setCustomRecords(
-loadCustomRecords()
-);
+    if (cancelled) {
+      return;
+    }
+
+    setRecords(loadPrayerRecords());
+    setCustomPrayers(loadCustomPrayers());
+    setCustomRecords(loadCustomRecords());
+  }
+
+  initializePrayer();
+
+  return () => {
+    cancelled = true;
+  };
 }, []);
 
 const currentRecord =
