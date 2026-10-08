@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 const FATSECRET_BASE_URL =
-  "https://platform.fatsecret.com/rest";
+  "https://platform.fatsecret.com/rest/server.api";
 
 type FatSecretConnection = {
   user_id: string;
@@ -59,6 +59,25 @@ function createSignature(
     .createHmac("sha1", signingKey)
     .update(baseString)
     .digest("base64");
+}
+
+function normalizeFatSecretMethod(endpoint: string) {
+  const cleanEndpoint = endpoint
+    .trim()
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+
+  if (!cleanEndpoint) {
+    throw new Error(
+      "FatSecret endpoint tidak boleh kosong."
+    );
+  }
+
+  if (cleanEndpoint.includes(".")) {
+    return cleanEndpoint;
+  }
+
+  return cleanEndpoint.replace(/\//g, ".");
 }
 
 async function getAuthenticatedSupabase() {
@@ -168,8 +187,11 @@ export async function fatSecretRequest<T>(
   const connection =
     await getFatSecretConnection();
 
+  const fatSecretMethod =
+    normalizeFatSecretMethod(endpoint);
+
   const url =
-    `${FATSECRET_BASE_URL}${endpoint}`;
+    FATSECRET_BASE_URL;
 
   const oauthParams: Record<
     string,
@@ -196,8 +218,15 @@ export async function fatSecretRequest<T>(
       "1.0",
   };
 
-  const allParams = {
+  const allParams: Record<
+    string,
+    string
+  > = {
+    method:
+      fatSecretMethod,
+
     ...parameters,
+
     ...oauthParams,
   };
 
@@ -210,13 +239,22 @@ export async function fatSecretRequest<T>(
       connection.fatsecret_access_secret
     );
 
-  const requestParams = new URLSearchParams(
-    {
-      ...parameters,
-      ...oauthParams,
-      oauth_signature:
-        signature,
-    }
+  const requestParams =
+    new URLSearchParams();
+
+  for (
+    const [key, value]
+    of Object.entries(allParams)
+  ) {
+    requestParams.set(
+      key,
+      value
+    );
+  }
+
+  requestParams.set(
+    "oauth_signature",
+    signature
   );
 
   let response: Response;
@@ -250,7 +288,8 @@ export async function fatSecretRequest<T>(
 
   if (!response.ok) {
     console.error(
-      "FatSecret API error:",
+      "FatSecret API HTTP error:",
+      response.status,
       responseText
     );
 
@@ -259,13 +298,23 @@ export async function fatSecretRequest<T>(
     );
   }
 
+  let parsedResponse: T;
+
   try {
-    return JSON.parse(
-      responseText
-    ) as T;
+    parsedResponse =
+      JSON.parse(
+        responseText
+      ) as T;
   } catch {
+    console.error(
+      "FatSecret API non-JSON response:",
+      responseText
+    );
+
     throw new Error(
       "FatSecret API mengembalikan response yang bukan JSON."
     );
   }
+
+  return parsedResponse;
 }
