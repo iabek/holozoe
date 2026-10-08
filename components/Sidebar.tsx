@@ -28,7 +28,7 @@ type MenuIconName =
   | "habits"
   | "prayer"
   | "health"
-  | "records"
+  | "history"
   | "screen-time"
   | "admin";
 
@@ -42,39 +42,81 @@ const menuSections: {
   {
     title: "MAIN",
     items: [
-      { name: "Dashboard", icon: "home" },
-      { name: "Today", icon: "clipboard" },
-      { name: "Planner", icon: "calendar" },
+      {
+        name: "Dashboard",
+        icon: "home",
+      },
+      {
+        name: "Today",
+        icon: "clipboard",
+      },
+      {
+        name: "Planner",
+        icon: "calendar",
+      },
     ],
   },
-
   {
     title: "PERSONAL",
     items: [
-      { name: "Journal", icon: "journal" },
-      { name: "Notes", icon: "notes" },
-      { name: "Archive", icon: "archive" },
-      { name: "Learning", icon: "learning" },
-      { name: "Flashcard", icon: "flashcard" },
-      { name: "Finance", icon: "finance" },
-      { name: "Projects", icon: "projects" },
+      {
+        name: "Journal",
+        icon: "journal",
+      },
+      {
+        name: "Notes",
+        icon: "notes",
+      },
+      {
+        name: "Archive",
+        icon: "archive",
+      },
+      {
+        name: "Learning",
+        icon: "learning",
+      },
+      {
+        name: "Flashcard",
+        icon: "flashcard",
+      },
+      {
+        name: "Finance",
+        icon: "finance",
+      },
+      {
+        name: "Projects",
+        icon: "projects",
+      },
     ],
   },
-
   {
     title: "LIFE",
     items: [
-      { name: "Habits", icon: "habits" },
-      { name: "Prayer", icon: "prayer" },
-      { name: "Health", icon: "health" },
+      {
+        name: "Habits",
+        icon: "habits",
+      },
+      {
+        name: "Prayer",
+        icon: "prayer",
+      },
+      {
+        name: "Health",
+        icon: "health",
+      },
     ],
   },
-
   {
     title: "TRACKING",
     items: [
-      { name: "Records", icon: "records" },
-      { name: "Screen Time", icon: "screen-time" },
+      {
+        name: "History",
+        icon: "history",
+      },
+      {
+        name: "Screen Time",
+        icon: "screen-time",
+      },
     ],
   },
 ];
@@ -263,13 +305,12 @@ function MenuIcon({
         </svg>
       );
 
-    case "records":
+    case "history":
       return (
         <svg {...commonProps}>
-          <path d="M4 19V9" />
-          <path d="M10 19V5" />
-          <path d="M16 19v-7" />
-          <path d="M22 19H2" />
+          <path d="M3.5 12a8.5 8.5 0 1 0 2.5-6" />
+          <path d="M3.5 5v5h5" />
+          <path d="M12 7v5l3 2" />
         </svg>
       );
 
@@ -320,7 +361,7 @@ function ProfileIcon() {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth={1.8}
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -342,7 +383,7 @@ function LogoutIcon() {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth={1.8}
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -361,7 +402,7 @@ function MenuButtonIcon() {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth={1.8}
       strokeLinecap="round"
     >
       <path d="M4 7h16" />
@@ -379,7 +420,7 @@ function CloseIcon() {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth={1.8}
       strokeLinecap="round"
     >
       <path d="M6 6l12 12" />
@@ -396,7 +437,7 @@ function SearchIcon() {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth={1.8}
       strokeLinecap="round"
     >
       <circle
@@ -430,14 +471,17 @@ export default function Sidebar({
     async function loadProfile() {
       const {
         data: { user },
-      } = await supabase.auth.getUser();
+      } =
+        await supabase.auth.getUser();
 
       if (!user) return;
 
       const { data, error } =
         await supabase
           .from("profiles")
-          .select("display_name, is_admin")
+          .select(
+            "display_name, is_admin"
+          )
           .eq("id", user.id)
           .single();
 
@@ -474,7 +518,9 @@ export default function Sidebar({
         customEvent.detail?.displayName?.trim();
 
       if (newName) {
-        setDisplayName(newName);
+        setDisplayName(
+          newName
+        );
       }
     }
 
@@ -501,7 +547,10 @@ export default function Sidebar({
     function handleEscape(
       event: KeyboardEvent
     ) {
-      if (event.key === "Escape") {
+      if (
+        event.key ===
+        "Escape"
+      ) {
         setMobileOpen(false);
       }
     }
@@ -511,7 +560,8 @@ export default function Sidebar({
       handleEscape
     );
 
-    document.body.style.overflow = "hidden";
+    document.body.style.overflow =
+      "hidden";
 
     return () => {
       document.removeEventListener(
@@ -519,14 +569,16 @@ export default function Sidebar({
         handleEscape
       );
 
-      document.body.style.overflow = "";
+      document.body.style.overflow =
+        "";
     };
   }, [mobileOpen]);
 
   async function handleLogout() {
-    const confirmed = window.confirm(
-      "Logout dari HOLOZOE?\n\nProgress kamu tetap tersimpan."
-    );
+    const confirmed =
+      window.confirm(
+        "Logout dari HOLOZOE?\n\nProgress kamu tetap tersimpan."
+      );
 
     if (!confirmed) return;
 
@@ -563,7 +615,9 @@ export default function Sidebar({
         {menuSections.map(
           (section) => (
             <div
-              key={section.title}
+              key={
+                section.title
+              }
             >
               <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest text-[#8a7e70]">
                 {section.title}
@@ -578,7 +632,9 @@ export default function Sidebar({
 
                     return (
                       <button
-                        key={item.name}
+                        key={
+                          item.name
+                        }
                         type="button"
                         onClick={() =>
                           mobile
@@ -606,12 +662,16 @@ export default function Sidebar({
                             name={
                               item.icon
                             }
-                            size={17}
+                            size={
+                              17
+                            }
                           />
                         </span>
 
                         <span>
-                          {item.name}
+                          {
+                            item.name
+                          }
                         </span>
                       </button>
                     );
@@ -734,7 +794,9 @@ export default function Sidebar({
         <div className="mt-6 border-t border-[#d8cec0] pt-4">
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={
+              handleLogout
+            }
             className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-[#765d55] transition hover:bg-[#e4dbcf]"
           >
             <span className="flex h-5 w-5 shrink-0 items-center justify-center">
@@ -879,7 +941,9 @@ export default function Sidebar({
         <div className="mt-6 border-t border-[#d8cec0] pt-4">
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={
+              handleLogout
+            }
             className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-[#765d55] transition hover:bg-[#e4dbcf]"
           >
             <span className="flex h-5 w-5 shrink-0 items-center justify-center">
