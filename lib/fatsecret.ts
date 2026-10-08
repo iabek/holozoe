@@ -5,9 +5,6 @@ import { cookies } from "next/headers";
 const FATSECRET_BASE_URL =
   "https://platform.fatsecret.com/rest";
 
-const FATSECRET_METHOD_URL =
-  "https://platform.fatsecret.com/rest/server.api";
-
 type FatSecretConnection = {
   user_id: string;
   fatsecret_access_token: string;
@@ -170,12 +167,8 @@ export async function fatSecretRequest<T>(
       .trim()
       .replace(/^\/+/, "");
 
-  const isMethodBased =
-    cleanEndpoint.includes(".");
-
-  const url = isMethodBased
-    ? FATSECRET_METHOD_URL
-    : `${FATSECRET_BASE_URL}/${cleanEndpoint}`;
+  const url =
+    `${FATSECRET_BASE_URL}/${cleanEndpoint}`;
 
   const oauthParams: Record<string, string> = {
     oauth_consumer_key:
@@ -199,17 +192,8 @@ export async function fatSecretRequest<T>(
       "1.0",
   };
 
-  const apiParameters: Record<string, string> = {
-    ...parameters,
-  };
-
-  if (isMethodBased) {
-    apiParameters.method =
-      cleanEndpoint;
-  }
-
   const allParams: Record<string, string> = {
-    ...apiParameters,
+    ...parameters,
     ...oauthParams,
   };
 
