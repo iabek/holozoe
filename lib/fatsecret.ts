@@ -159,7 +159,10 @@ async function getFatSecretConnection(): Promise<FatSecretConnection> {
 export async function fatSecretRequest<T>(
   method: "GET" | "POST",
   endpoint: string,
-  parameters: Record<string, string> = {}
+  parameters: Record<string, string> = {},
+  options: {
+    delegated?: boolean;
+  } = {}
 ): Promise<T> {
   const consumerKey =
     process.env.FATSECRET_CONSUMER_KEY;
@@ -177,6 +180,11 @@ export async function fatSecretRequest<T>(
     endpoint
       .trim()
       .replace(/^\/+/, "");
+
+  const connection =
+    options.delegated
+      ? await getFatSecretConnection()
+      : null;
 
   const oauthParams: Record<string, string> = {
     oauth_consumer_key:
@@ -197,6 +205,11 @@ export async function fatSecretRequest<T>(
       "1.0",
   };
 
+  if (connection) {
+    oauthParams.oauth_token =
+      connection.fatsecret_access_token;
+  }
+
   const apiParameters: Record<string, string> = {
     ...parameters,
     method: cleanEndpoint,
@@ -212,7 +225,8 @@ export async function fatSecretRequest<T>(
       method,
       FATSECRET_SERVER_URL,
       allParams,
-      consumerSecret
+      consumerSecret,
+      connection?.fatsecret_access_secret ?? ""
     );
 
   const requestParams =

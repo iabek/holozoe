@@ -82,6 +82,9 @@ export async function GET(request: Request) {
             parsedMaxResults.toString(),
           region,
           format: "json",
+        },
+        {
+          delegated: true,
         }
       );
 
@@ -89,7 +92,7 @@ export async function GET(request: Request) {
       {
         success: true,
         query,
-        debug_version: "food-search-v5",
+        debug_version: "food-search-v6-delegated",
         data,
       },
       {
