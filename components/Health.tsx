@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { createClient } from "@/lib/supabase";
+import { createBrowserClient } from "@supabase/ssr";
 
 type Sex = "male" | "female";
 
@@ -11,14 +11,6 @@ type ActivityLevel =
   | "moderate"
   | "very_active"
   | "extra_active";
-
-type HealthData = {
-  height_cm: number | null;
-  weight_kg: number | null;
-  birth_date: string | null;
-  sex: Sex | null;
-  activity_level: ActivityLevel | null;
-};
 
 type FatSecretFoodEntry = {
   food_entry_id: string;
@@ -46,6 +38,11 @@ type FoodLog = {
   total_fat_g: number | null;
   total_carbohydrate_g: number | null;
   created_at: string;
+};
+
+type ExistingFoodLog = {
+  id: string;
+  ai_result: Record<string, unknown> | null;
 };
 
 const activityOptions: {
@@ -86,6 +83,13 @@ const activityOptions: {
   },
 ];
 
+function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+  );
+}
+
 function calculateAge(birthDate: string | null) {
   if (!birthDate) return null;
 
@@ -107,10 +111,8 @@ function calculateAge(birthDate: string | null) {
 
   if (
     monthDifference < 0 ||
-    (
-      monthDifference === 0 &&
-      today.getDate() < birth.getDate()
-    )
+    (monthDifference === 0 &&
+      today.getDate() < birth.getDate())
   ) {
     age -= 1;
   }
@@ -150,9 +152,7 @@ function calculateBmr(
   );
 }
 
-function getBmiStatus(
-  bmi: number | null
-) {
+function getBmiStatus(bmi: number | null) {
   if (bmi === null) {
     return {
       label: "Belum dihitung",
@@ -192,16 +192,11 @@ function getBmiStatus(
   };
 }
 
-function getLocalDateString(
-  date = new Date()
-) {
-  const year =
-    date.getFullYear();
-
+function getLocalDateString(date = new Date()) {
+  const year = date.getFullYear();
   const month = String(
     date.getMonth() + 1
   ).padStart(2, "0");
-
   const day = String(
     date.getDate()
   ).padStart(2, "0");
@@ -209,17 +204,11 @@ function getLocalDateString(
   return `${year}-${month}-${day}`;
 }
 
-function dateToFatSecretDate(
-  date: string
-) {
+function dateToFatSecretDate(date: string) {
   const match =
-    /^(\d{4})-(\d{2})-(\d{2})$/.exec(
-      date
-    );
+    /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
 
-  if (!match) {
-    return null;
-  }
+  if (!match) return null;
 
   const year = Number(match[1]);
   const month = Number(match[2]);
@@ -231,8 +220,7 @@ function dateToFatSecretDate(
     day
   );
 
-  const parsed =
-    new Date(timestamp);
+  const parsed = new Date(timestamp);
 
   if (
     parsed.getUTCFullYear() !== year ||
@@ -248,18 +236,14 @@ function dateToFatSecretDate(
 }
 
 function asNumber(value: unknown) {
-  const number = Number(
-    value ?? 0
-  );
+  const number = Number(value ?? 0);
 
   return Number.isFinite(number)
     ? number
     : 0;
 }
 
-function getMealLabel(
-  value: unknown
-) {
+function getMealLabel(value: unknown) {
   const meal = String(
     value ?? "Other"
   ).toLowerCase();
@@ -279,52 +263,38 @@ function getMealLabel(
   return "Other";
 }
 
-function getEntryFromLog(
-  log: FoodLog
-) {
-  const result =
-    log.ai_result ?? {};
+function getEntryFromLog(log: FoodLog) {
+  const result = log.ai_result ?? {};
 
   return {
     id: String(
       result.fatsecret_food_entry_id ??
-      log.id
+        log.id
     ),
-
     name: String(
       result.food_entry_name ??
-      log.raw_input ??
-      "Food"
+        log.raw_input ??
+        "Food"
     ),
-
     description: String(
       result.food_entry_description ??
-      log.raw_input ??
-      ""
+        log.raw_input ??
+        ""
     ),
-
-    meal: getMealLabel(
-      result.meal
-    ),
-
+    meal: getMealLabel(result.meal),
     calories: asNumber(
       log.total_calories_kcal
     ),
-
     protein: asNumber(
       log.total_protein_g
     ),
-
     carbs: asNumber(
       log.total_carbohydrate_g
     ),
-
     fat: asNumber(
       log.total_fat_g
     ),
-
-    createdAt:
-      log.created_at,
+    createdAt: log.created_at,
   };
 }
 
@@ -376,19 +346,17 @@ export default function Health() {
       setLoading(true);
       setError("");
 
-      const supabase =
-        createClient();
+      const supabase = createClient();
 
       const {
         data: { user },
-      } =
-        await supabase.auth.getUser();
+        error: userError,
+      } = await supabase.auth.getUser();
 
-      if (!user) {
+      if (userError || !user) {
         setError(
           "Kamu harus login untuk menggunakan Health."
         );
-
         setLoading(false);
         return;
       }
@@ -396,17 +364,13 @@ export default function Health() {
       const {
         data,
         error: fetchError,
-      } =
-        await supabase
-          .from("health_profiles")
-          .select(
-            "height_cm, weight_kg, birth_date, sex, activity_level"
-          )
-          .eq(
-            "user_id",
-            user.id
-          )
-          .maybeSingle();
+      } = await supabase
+        .from("health_profiles")
+        .select(
+          "height_cm, weight_kg, birth_date, sex, activity_level"
+        )
+        .eq("user_id", user.id)
+        .maybeSingle();
 
       if (fetchError) {
         console.error(
@@ -436,19 +400,19 @@ export default function Health() {
         const birthDate =
           data.birth_date || null;
 
-        const sex =
+        const sex: Sex | null =
           data.sex === "male" ||
           data.sex === "female"
             ? data.sex
             : null;
 
-        const activityLevel =
+        const activityLevel: ActivityLevel | null =
           activityOptions.some(
             (item) =>
               item.value ===
               data.activity_level
           )
-            ? data.activity_level
+            ? (data.activity_level as ActivityLevel)
             : null;
 
         setHeightInput(
@@ -467,9 +431,7 @@ export default function Health() {
           birthDate || ""
         );
 
-        setSexInput(
-          sex || ""
-        );
+        setSexInput(sex || "");
 
         setActivityInput(
           activityLevel || ""
@@ -479,18 +441,14 @@ export default function Health() {
       setLoading(false);
     }
 
-    loadHealth();
+    void loadHealth();
   }, []);
 
   const height =
-    Number.parseFloat(
-      heightInput
-    );
+    Number.parseFloat(heightInput);
 
   const weight =
-    Number.parseFloat(
-      weightInput
-    );
+    Number.parseFloat(weightInput);
 
   const validHeight =
     Number.isFinite(height) &&
@@ -513,10 +471,7 @@ export default function Health() {
 
     return (
       weight /
-      (
-        heightMeters *
-        heightMeters
-      )
+      (heightMeters * heightMeters)
     );
   }, [
     height,
@@ -525,10 +480,9 @@ export default function Health() {
     validWeight,
   ]);
 
-  const age =
-    calculateAge(
-      birthDateInput || null
-    );
+  const age = calculateAge(
+    birthDateInput || null
+  );
 
   const bmr = useMemo(
     () =>
@@ -555,8 +509,7 @@ export default function Health() {
   const selectedActivity =
     activityOptions.find(
       (item) =>
-        item.value ===
-        activityInput
+        item.value === activityInput
     );
 
   const tdee = useMemo(() => {
@@ -634,39 +587,38 @@ export default function Health() {
 
     setSaving(true);
 
-    const supabase =
-      createClient();
+    try {
+      const supabase =
+        createClient();
 
-    const {
-      data: { user },
-    } =
-      await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: userError,
+      } =
+        await supabase.auth.getUser();
 
-    if (!user) {
-      setError(
-        "Kamu harus login terlebih dahulu."
-      );
+      if (userError || !user) {
+        setError(
+          "Kamu harus login terlebih dahulu."
+        );
+        return;
+      }
 
-      setSaving(false);
-      return;
-    }
+      const healthData = {
+        user_id: user.id,
+        height_cm: parsedHeight,
+        weight_kg: parsedWeight,
+        birth_date:
+          birthDateInput || null,
+        sex:
+          sexInput || null,
+        activity_level:
+          activityInput || null,
+      };
 
-    const healthData = {
-      user_id: user.id,
-      height_cm: parsedHeight,
-      weight_kg: parsedWeight,
-      birth_date:
-        birthDateInput || null,
-      sex:
-        sexInput || null,
-      activity_level:
-        activityInput || null,
-    };
-
-    const {
-      error: upsertError,
-    } =
-      await supabase
+      const {
+        error: upsertError,
+      } = await supabase
         .from("health_profiles")
         .upsert(
           healthData,
@@ -676,22 +628,25 @@ export default function Health() {
           }
         );
 
-    if (upsertError) {
-      console.error(
-        "HEALTH SAVE ERROR:",
-        upsertError
-      );
+      if (upsertError) {
+        console.error(
+          "HEALTH SAVE ERROR:",
+          upsertError
+        );
 
-      setError(
-        "Data Health belum berhasil disimpan."
-      );
-    } else {
+        setError(
+          "Data Health belum berhasil disimpan."
+        );
+
+        return;
+      }
+
       setMessage(
         "Health data saved."
       );
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
   }
 
   async function loadFoodLogs() {
@@ -703,14 +658,14 @@ export default function Health() {
 
     const {
       data: { user },
+      error: userError,
     } =
       await supabase.auth.getUser();
 
-    if (!user) {
+    if (userError || !user) {
       setFoodError(
         "Kamu harus login untuk melihat Food Log."
       );
-
       setFoodLogs([]);
       setFoodLoading(false);
       return;
@@ -719,13 +674,11 @@ export default function Health() {
     const today =
       getLocalDateString();
 
-    const start =
-      new Date(
-        `${today}T00:00:00`
-      );
+    const start = new Date(
+      `${today}T00:00:00`
+    );
 
-    const end =
-      new Date(start);
+    const end = new Date(start);
 
     end.setDate(
       end.getDate() + 1
@@ -734,30 +687,26 @@ export default function Health() {
     const {
       data,
       error: fetchError,
-    } =
-      await supabase
-        .from("food_logs")
-        .select(
-          "id, raw_input, ai_result, total_calories_kcal, total_protein_g, total_fat_g, total_carbohydrate_g, created_at"
-        )
-        .eq(
-          "user_id",
-          user.id
-        )
-        .gte(
-          "created_at",
-          start.toISOString()
-        )
-        .lt(
-          "created_at",
-          end.toISOString()
-        )
-        .order(
-          "created_at",
-          {
-            ascending: false,
-          }
-        );
+    } = await supabase
+      .from("food_logs")
+      .select(
+        "id, raw_input, ai_result, total_calories_kcal, total_protein_g, total_fat_g, total_carbohydrate_g, created_at"
+      )
+      .eq("user_id", user.id)
+      .gte(
+        "created_at",
+        start.toISOString()
+      )
+      .lt(
+        "created_at",
+        end.toISOString()
+      )
+      .order(
+        "created_at",
+        {
+          ascending: false,
+        }
+      );
 
     if (fetchError) {
       console.error(
@@ -771,19 +720,15 @@ export default function Health() {
 
       setFoodLogs([]);
     } else {
-      const syncedLogs =
-        (
-          (data ?? []) as FoodLog[]
-        ).filter((log) => {
-          const source =
-            log.ai_result
-              ?.source;
+      const logs =
+        (data ?? []) as FoodLog[];
 
-          return (
-            source ===
+      const syncedLogs =
+        logs.filter(
+          (log: FoodLog) =>
+            log.ai_result?.source ===
             "fatsecret"
-          );
-        });
+        );
 
       setFoodLogs(
         syncedLogs
@@ -803,14 +748,14 @@ export default function Health() {
 
     const {
       data: { user },
+      error: userError,
     } =
       await supabase.auth.getUser();
 
-    if (!user) {
+    if (userError || !user) {
       setFoodError(
         "Kamu harus login untuk sinkronisasi Food Diary."
       );
-
       setFoodSyncing(false);
       return;
     }
@@ -819,15 +764,12 @@ export default function Health() {
       getLocalDateString();
 
     const dateInt =
-      dateToFatSecretDate(
-        date
-      );
+      dateToFatSecretDate(date);
 
     if (dateInt === null) {
       setFoodError(
         "Tanggal hari ini tidak valid."
       );
-
       setFoodSyncing(false);
       return;
     }
@@ -837,8 +779,7 @@ export default function Health() {
         await fetch(
           `/api/fatsecret/food-entries?date=${date}`,
           {
-            cache:
-              "no-store",
+            cache: "no-store",
           }
         );
 
@@ -860,8 +801,7 @@ export default function Health() {
           ?.food_entries
           ?.food_entry;
 
-      const entries:
-        FatSecretFoodEntry[] =
+      const entries: FatSecretFoodEntry[] =
         Array.isArray(
           rawEntries
         )
@@ -873,48 +813,49 @@ export default function Health() {
       const {
         data: existingData,
         error: existingError,
-      } =
-        await supabase
-          .from("food_logs")
-          .select(
-            "id, ai_result"
-          )
-          .eq(
-            "user_id",
-            user.id
-          );
+      } = await supabase
+        .from("food_logs")
+        .select(
+          "id, ai_result"
+        )
+        .eq(
+          "user_id",
+          user.id
+        );
 
       if (existingError) {
         throw existingError;
       }
 
-      const existingIds =
-        new Set(
-          (
-            existingData ?? []
-          )
-            .map((row) => {
-              const result =
-                row.ai_result as
-                  | Record<
-                      string,
-                      unknown
-                    >
-                  | null;
+      const existingRows =
+        (existingData ?? []) as ExistingFoodLog[];
 
-              return result
-                ?.fatsecret_food_entry_id
-                ? String(
-                    result.fatsecret_food_entry_id
-                  )
-                : null;
-            })
-            .filter(Boolean)
-        );
+      const existingIds =
+        new Set<string>();
+
+      for (
+        const row of existingRows
+      ) {
+        const foodEntryId =
+          row.ai_result
+            ?.fatsecret_food_entry_id;
+
+        if (
+          foodEntryId !==
+          undefined &&
+          foodEntryId !== null
+        ) {
+          existingIds.add(
+            String(foodEntryId)
+          );
+        }
+      }
 
       const newEntries =
         entries.filter(
-          (entry) =>
+          (
+            entry: FatSecretFoodEntry
+          ) =>
             !existingIds.has(
               String(
                 entry.food_entry_id
@@ -927,10 +868,10 @@ export default function Health() {
       ) {
         const rows =
           newEntries.map(
-            (entry) => ({
-              user_id:
-                user.id,
-
+            (
+              entry: FatSecretFoodEntry
+            ) => ({
+              user_id: user.id,
               raw_input:
                 entry.food_entry_description ||
                 entry.food_entry_name,
@@ -1002,14 +943,9 @@ export default function Health() {
 
         const {
           error: insertError,
-        } =
-          await supabase
-            .from(
-              "food_logs"
-            )
-            .insert(
-              rows
-            );
+        } = await supabase
+          .from("food_logs")
+          .insert(rows);
 
         if (insertError) {
           throw insertError;
@@ -1019,8 +955,7 @@ export default function Health() {
       setFoodMessage(
         newEntries.length > 0
           ? `${newEntries.length} food ${
-              newEntries.length ===
-              1
+              newEntries.length === 1
                 ? "entry"
                 : "entries"
             } synced from FatSecret.`
@@ -1045,9 +980,8 @@ export default function Health() {
   }
 
   useEffect(() => {
-    loadFoodLogs().then(
-      () =>
-        syncFatSecretFoodDiary()
+    void loadFoodLogs().then(
+      () => syncFatSecretFoodDiary()
     );
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1108,9 +1042,7 @@ export default function Health() {
   return (
     <div className="space-y-6">
 
-      {/* ================================================= */}
       {/* HEADER */}
-      {/* ================================================= */}
 
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
         <p className="text-xs uppercase tracking-widest opacity-50">
@@ -1122,18 +1054,15 @@ export default function Health() {
         </h2>
 
         <p className="mt-2 max-w-2xl text-sm leading-6 opacity-60">
-          Data tubuh, kebutuhan energi,
-          dan Food Diary kamu tersusun
-          otomatis di sini.
+          Simpan data dasar tubuhmu untuk
+          menghitung IMT, BMR, dan estimasi
+          kebutuhan energi harian.
         </p>
       </section>
 
-      {/* ================================================= */}
-      {/* BODY PROFILE + YOUR NUMBERS */}
-      {/* ================================================= */}
+      {/* BASIC INFORMATION */}
 
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
-
         <div className="mb-5">
           <p className="text-xs uppercase tracking-widest opacity-50">
             BODY PROFILE
@@ -1149,360 +1078,316 @@ export default function Health() {
             Loading health data...
           </div>
         ) : (
-          <>
-            <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2">
 
-              {/* HEIGHT */}
+            {/* HEIGHT */}
 
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium">
-                  Height
-                </span>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">
+                Height
+              </span>
 
-                <div className="relative">
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    min="1"
-                    step="0.1"
-                    value={
-                      heightInput
-                    }
-                    onChange={(event) =>
-                      setHeightInput(
-                        event.target.value
-                      )
-                    }
-                    placeholder="e.g. 170"
-                    className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 pr-16 text-sm outline-none transition focus:border-[#a99b8a]"
-                  />
-
-                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs opacity-40">
-                    cm
-                  </span>
-                </div>
-              </label>
-
-              {/* WEIGHT */}
-
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium">
-                  Weight
-                </span>
-
-                <div className="relative">
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    min="1"
-                    step="0.1"
-                    value={
-                      weightInput
-                    }
-                    onChange={(event) =>
-                      setWeightInput(
-                        event.target.value
-                      )
-                    }
-                    placeholder="e.g. 60"
-                    className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 pr-16 text-sm outline-none transition focus:border-[#a99b8a]"
-                  />
-
-                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs opacity-40">
-                    kg
-                  </span>
-                </div>
-              </label>
-
-              {/* BIRTH DATE */}
-
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium">
-                  Birth date
-                </span>
-
+              <div className="relative">
                 <input
-                  type="date"
-                  value={
-                    birthDateInput
-                  }
+                  type="number"
+                  inputMode="decimal"
+                  min="1"
+                  step="0.1"
+                  value={heightInput}
                   onChange={(event) =>
-                    setBirthDateInput(
+                    setHeightInput(
                       event.target.value
                     )
                   }
-                  className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 text-sm outline-none transition focus:border-[#a99b8a]"
+                  placeholder="e.g. 170"
+                  className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 pr-16 text-sm outline-none transition focus:border-[#a99b8a]"
                 />
-              </label>
 
-              {/* SEX */}
-
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium">
-                  Sex
+                <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs opacity-40">
+                  cm
                 </span>
+              </div>
+            </label>
 
-                <select
-                  value={
-                    sexInput
-                  }
+            {/* WEIGHT */}
+
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">
+                Weight
+              </span>
+
+              <div className="relative">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="1"
+                  step="0.1"
+                  value={weightInput}
                   onChange={(event) =>
-                    setSexInput(
-                      event.target
-                        .value as
-                        | ""
-                        | Sex
+                    setWeightInput(
+                      event.target.value
                     )
                   }
-                  className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 text-sm outline-none transition focus:border-[#a99b8a]"
-                >
-                  <option value="">
-                    Select sex
-                  </option>
+                  placeholder="e.g. 60"
+                  className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 pr-16 text-sm outline-none transition focus:border-[#a99b8a]"
+                />
 
-                  <option value="male">
-                    Male
-                  </option>
-
-                  <option value="female">
-                    Female
-                  </option>
-                </select>
-              </label>
-
-              {/* ACTIVITY */}
-
-              <label className="block md:col-span-2">
-                <span className="mb-2 block text-sm font-medium">
-                  Activity level
+                <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs opacity-40">
+                  kg
                 </span>
-
-                <select
-                  value={
-                    activityInput
-                  }
-                  onChange={(event) =>
-                    setActivityInput(
-                      event.target
-                        .value as
-                        | ""
-                        | ActivityLevel
-                    )
-                  }
-                  className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 text-sm outline-none transition focus:border-[#a99b8a]"
-                >
-                  <option value="">
-                    Select activity level
-                  </option>
-
-                  {activityOptions.map(
-                    (option) => (
-                      <option
-                        key={
-                          option.value
-                        }
-                        value={
-                          option.value
-                        }
-                      >
-                        {
-                          option.label
-                        }{" "}
-                        —{" "}
-                        {
-                          option.description
-                        }
-                      </option>
-                    )
-                  )}
-                </select>
-              </label>
-            </div>
-
-            {error && (
-              <div className="mt-5 rounded-2xl border border-[#dec5bd] bg-[#f7ebe7] px-4 py-3 text-sm text-[#7a5147]">
-                {error}
               </div>
-            )}
+            </label>
 
-            {message && (
-              <div className="mt-5 rounded-2xl border border-[#c8d7c5] bg-[#eef5eb] px-4 py-3 text-sm text-[#53654f]">
-                {message}
-              </div>
-            )}
+            {/* BIRTH DATE */}
 
-            <div className="mt-5 flex justify-end">
-              <button
-                type="button"
-                onClick={
-                  saveHealth
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">
+                Birth date
+              </span>
+
+              <input
+                type="date"
+                value={birthDateInput}
+                onChange={(event) =>
+                  setBirthDateInput(
+                    event.target.value
+                  )
                 }
-                disabled={
-                  loading ||
-                  saving
+                className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 text-sm outline-none transition focus:border-[#a99b8a]"
+              />
+            </label>
+
+            {/* SEX */}
+
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">
+                Sex
+              </span>
+
+              <select
+                value={sexInput}
+                onChange={(event) =>
+                  setSexInput(
+                    event.target.value as
+                      | ""
+                      | Sex
+                  )
                 }
-                className="rounded-2xl bg-[#4f473e] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#3f382f] disabled:cursor-not-allowed disabled:opacity-40"
+                className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 text-sm outline-none transition focus:border-[#a99b8a]"
               >
-                {saving
-                  ? "Saving..."
-                  : "Save Health"}
-              </button>
-            </div>
-          </>
+                <option value="">
+                  Select sex
+                </option>
+
+                <option value="male">
+                  Male
+                </option>
+
+                <option value="female">
+                  Female
+                </option>
+              </select>
+            </label>
+
+            {/* ACTIVITY */}
+
+            <label className="block md:col-span-2">
+              <span className="mb-2 block text-sm font-medium">
+                Activity level
+              </span>
+
+              <select
+                value={activityInput}
+                onChange={(event) =>
+                  setActivityInput(
+                    event.target.value as
+                      | ""
+                      | ActivityLevel
+                  )
+                }
+                className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 text-sm outline-none transition focus:border-[#a99b8a]"
+              >
+                <option value="">
+                  Select activity level
+                </option>
+
+                {activityOptions.map(
+                  (option) => (
+                    <option
+                      key={option.value}
+                      value={option.value}
+                    >
+                      {option.label} —{" "}
+                      {option.description}
+                    </option>
+                  )
+                )}
+              </select>
+            </label>
+
+          </div>
         )}
 
-        {/* ================================================= */}
-        {/* YOUR NUMBERS */}
-        {/* ================================================= */}
-
-        <div className="mt-6 border-t border-[#ded4c7] pt-6">
-
-          <div className="mb-4">
-            <p className="text-xs uppercase tracking-widest opacity-50">
-              YOUR NUMBERS
-            </p>
-
-            <h3 className="mt-1 text-xl font-bold">
-              Body Metrics
-            </h3>
+        {error && (
+          <div className="mt-5 rounded-2xl border border-[#dec5bd] bg-[#f7ebe7] px-4 py-3 text-sm text-[#7a5147]">
+            {error}
           </div>
+        )}
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
-            {/* BMI */}
-
-            <div className="rounded-3xl bg-[#f5f0e8] p-5">
-              <p className="text-xs uppercase tracking-widest opacity-50">
-                IMT
-              </p>
-
-              <div className="mt-3 flex items-end gap-2">
-                <span className="text-4xl font-bold">
-                  {
-                    formattedBmi
-                  }
-                </span>
-
-                {bmi !== null && (
-                  <span className="pb-1 text-xs opacity-40">
-                    kg/m²
-                  </span>
-                )}
-              </div>
-
-              <p className="mt-3 text-sm font-semibold">
-                {
-                  bmiStatus.label
-                }
-              </p>
-
-              <p className="mt-1 text-xs leading-5 opacity-50">
-                {
-                  bmiStatus.description
-                }
-              </p>
-            </div>
-
-            {/* AGE */}
-
-            <div className="rounded-3xl bg-[#f5f0e8] p-5">
-              <p className="text-xs uppercase tracking-widest opacity-50">
-                AGE
-              </p>
-
-              <div className="mt-3 flex items-end gap-2">
-                <span className="text-4xl font-bold">
-                  {age !== null
-                    ? age
-                    : "—"}
-                </span>
-
-                {age !== null && (
-                  <span className="pb-1 text-xs opacity-40">
-                    years
-                  </span>
-                )}
-              </div>
-
-              <p className="mt-3 text-xs leading-5 opacity-50">
-                Calculated from
-                your birth date.
-              </p>
-            </div>
-
-            {/* BMR */}
-
-            <div className="rounded-3xl bg-[#f5f0e8] p-5">
-              <p className="text-xs uppercase tracking-widest opacity-50">
-                BMR
-              </p>
-
-              <div className="mt-3 flex items-end gap-2">
-                <span className="text-4xl font-bold">
-                  {
-                    formattedBmr !==
-                    null
-                      ? formattedBmr
-                      : "—"
-                  }
-                </span>
-
-                {formattedBmr !==
-                  null && (
-                    <span className="pb-1 text-xs opacity-40">
-                      kcal/day
-                    </span>
-                  )}
-              </div>
-
-              <p className="mt-3 text-xs leading-5 opacity-50">
-                Estimated energy
-                needed at complete
-                rest.
-              </p>
-            </div>
-
-            {/* TDEE */}
-
-            <div className="rounded-3xl bg-[#f5f0e8] p-5">
-              <p className="text-xs uppercase tracking-widest opacity-50">
-                TDEE
-              </p>
-
-              <div className="mt-3 flex items-end gap-2">
-                <span className="text-4xl font-bold">
-                  {
-                    formattedTdee !==
-                    null
-                      ? formattedTdee
-                      : "—"
-                  }
-                </span>
-
-                {formattedTdee !==
-                  null && (
-                    <span className="pb-1 text-xs opacity-40">
-                      kcal/day
-                    </span>
-                  )}
-              </div>
-
-              <p className="mt-3 text-xs leading-5 opacity-50">
-                Estimated daily
-                energy expenditure.
-              </p>
-            </div>
-
+        {message && (
+          <div className="mt-5 rounded-2xl border border-[#c8d7c5] bg-[#eef5eb] px-4 py-3 text-sm text-[#53654f]">
+            {message}
           </div>
+        )}
+
+        <div className="mt-5 flex justify-end">
+          <button
+            type="button"
+            onClick={saveHealth}
+            disabled={
+              loading || saving
+            }
+            className="rounded-2xl bg-[#4f473e] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#3f382f] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {saving
+              ? "Saving..."
+              : "Save Health"}
+          </button>
         </div>
       </section>
 
-      {/* ================================================= */}
+      {/* YOUR NUMBERS */}
+
+      <section>
+        <div className="mb-4">
+          <p className="text-xs uppercase tracking-widest opacity-50">
+            BODY METRICS
+          </p>
+
+          <h3 className="mt-1 text-xl font-bold">
+            Your Numbers
+          </h3>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+          {/* IMT */}
+
+          <div className="rounded-3xl bg-white/60 p-5 shadow-sm">
+            <p className="text-xs uppercase tracking-widest opacity-50">
+              IMT
+            </p>
+
+            <div className="mt-3 flex items-end gap-2">
+              <span className="text-4xl font-bold">
+                {formattedBmi}
+              </span>
+
+              {bmi !== null && (
+                <span className="pb-1 text-xs opacity-40">
+                  kg/m²
+                </span>
+              )}
+            </div>
+
+            <p className="mt-3 text-sm font-semibold">
+              {bmiStatus.label}
+            </p>
+
+            <p className="mt-1 text-xs leading-5 opacity-50">
+              {bmiStatus.description}
+            </p>
+          </div>
+
+          {/* AGE */}
+
+          <div className="rounded-3xl bg-white/60 p-5 shadow-sm">
+            <p className="text-xs uppercase tracking-widest opacity-50">
+              AGE
+            </p>
+
+            <div className="mt-3 flex items-end gap-2">
+              <span className="text-4xl font-bold">
+                {age !== null
+                  ? age
+                  : "—"}
+              </span>
+
+              {age !== null && (
+                <span className="pb-1 text-xs opacity-40">
+                  years
+                </span>
+              )}
+            </div>
+
+            <p className="mt-3 text-xs leading-5 opacity-50">
+              Calculated from your birth
+              date.
+            </p>
+          </div>
+
+          {/* BMR */}
+
+          <div className="rounded-3xl bg-white/60 p-5 shadow-sm">
+            <p className="text-xs uppercase tracking-widest opacity-50">
+              BMR
+            </p>
+
+            <div className="mt-3 flex items-end gap-2">
+              <span className="text-4xl font-bold">
+                {formattedBmr !== null
+                  ? formattedBmr
+                  : "—"}
+              </span>
+
+              {formattedBmr !==
+                null && (
+                <span className="pb-1 text-xs opacity-40">
+                  kcal/day
+                </span>
+              )}
+            </div>
+
+            <p className="mt-3 text-xs leading-5 opacity-50">
+              Estimated energy needed at
+              complete rest.
+            </p>
+          </div>
+
+          {/* TDEE */}
+
+          <div className="rounded-3xl bg-white/60 p-5 shadow-sm">
+            <p className="text-xs uppercase tracking-widest opacity-50">
+              TDEE
+            </p>
+
+            <div className="mt-3 flex items-end gap-2">
+              <span className="text-4xl font-bold">
+                {formattedTdee !== null
+                  ? formattedTdee
+                  : "—"}
+              </span>
+
+              {formattedTdee !==
+                null && (
+                <span className="pb-1 text-xs opacity-40">
+                  kcal/day
+                </span>
+              )}
+            </div>
+
+            <p className="mt-3 text-xs leading-5 opacity-50">
+              Estimated daily energy
+              expenditure.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
       {/* ESTIMATED CALORIE NEEDS */}
-      {/* ================================================= */}
 
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
-
         <p className="text-xs uppercase tracking-widest opacity-50">
           DAILY ENERGY
         </p>
@@ -1520,11 +1405,7 @@ export default function Health() {
               </p>
 
               <p className="mt-1 text-2xl font-bold">
-                {
-                  Math.round(
-                    tdee
-                  )
-                }
+                {Math.round(tdee)}
               </p>
 
               <p className="mt-1 text-xs opacity-50">
@@ -1538,16 +1419,13 @@ export default function Health() {
               </p>
 
               <p className="mt-1 text-2xl font-bold">
-                {
-                  Math.round(
-                    tdee * 0.9
-                  )
-                }
+                {Math.round(
+                  tdee * 0.9
+                )}
               </p>
 
               <p className="mt-1 text-xs opacity-50">
-                ~10% below
-                maintenance
+                ~10% below maintenance
               </p>
             </div>
 
@@ -1557,16 +1435,13 @@ export default function Health() {
               </p>
 
               <p className="mt-1 text-2xl font-bold">
-                {
-                  Math.round(
-                    tdee * 1.1
-                  )
-                }
+                {Math.round(
+                  tdee * 1.1
+                )}
               </p>
 
               <p className="mt-1 text-xs opacity-50">
-                ~10% above
-                maintenance
+                ~10% above maintenance
               </p>
             </div>
 
@@ -1574,29 +1449,23 @@ export default function Health() {
         ) : (
           <div className="mt-5 rounded-2xl bg-[#f5f0e8] p-4 text-sm leading-6 opacity-60">
             Lengkapi tanggal lahir,
-            jenis kelamin, tinggi,
-            berat, dan activity
-            level untuk menghitung
-            estimasi kebutuhan
+            jenis kelamin, tinggi, berat,
+            dan activity level untuk
+            menghitung estimasi kebutuhan
             energi.
           </div>
         )}
 
         <p className="mt-4 text-xs leading-5 opacity-40">
-          Angka ini merupakan
-          estimasi dan bukan diagnosis
-          medis.
+          Angka ini merupakan estimasi dan
+          bukan diagnosis medis.
         </p>
       </section>
 
-      {/* ================================================= */}
       {/* DAILY NUTRITION */}
-      {/* ================================================= */}
 
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
-
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-
           <div>
             <p className="text-xs uppercase tracking-widest opacity-50">
               NUTRITION
@@ -1607,9 +1476,8 @@ export default function Health() {
             </h3>
 
             <p className="mt-1 text-sm opacity-50">
-              Automatically synced
-              from your FatSecret
-              Food Diary.
+              Automatically synced from your
+              FatSecret Food Diary.
             </p>
           </div>
 
@@ -1618,9 +1486,7 @@ export default function Health() {
             onClick={
               syncFatSecretFoodDiary
             }
-            disabled={
-              foodSyncing
-            }
+            disabled={foodSyncing}
             className="rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-2.5 text-sm font-semibold transition hover:bg-[#eee7dc] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {foodSyncing
@@ -1651,11 +1517,9 @@ export default function Health() {
             </p>
 
             <p className="mt-1 text-2xl font-bold">
-              {
-                Math.round(
-                  nutritionTotals.calories
-                )
-              }
+              {Math.round(
+                nutritionTotals.calories
+              )}
             </p>
 
             <p className="mt-1 text-xs opacity-50">
@@ -1669,10 +1533,7 @@ export default function Health() {
             </p>
 
             <p className="mt-1 text-2xl font-bold">
-              {
-                formattedTdee ??
-                "—"
-              }
+              {formattedTdee ?? "—"}
             </p>
 
             <p className="mt-1 text-xs opacity-50">
@@ -1708,9 +1569,7 @@ export default function Health() {
             </p>
 
             <p className="mt-1 text-2xl font-bold">
-              {
-                todayEntries.length
-              }
+              {todayEntries.length}
             </p>
 
             <p className="mt-1 text-xs opacity-50">
@@ -1723,19 +1582,15 @@ export default function Health() {
         {/* CALORIE PROGRESS */}
 
         <div className="mt-5">
-
           <div className="mb-2 flex items-center justify-between text-xs opacity-50">
             <span>
-              Daily calorie
-              progress
+              Daily calorie progress
             </span>
 
             <span>
-              {
-                Math.round(
-                  calorieProgress
-                )
-              }
+              {Math.round(
+                calorieProgress
+              )}
               %
             </span>
           </div>
@@ -1748,7 +1603,6 @@ export default function Health() {
               }}
             />
           </div>
-
         </div>
 
         {/* MACROS */}
@@ -1761,11 +1615,9 @@ export default function Health() {
             </p>
 
             <p className="mt-1 text-xl font-bold">
-              {
-                nutritionTotals.protein.toFixed(
-                  1
-                )
-              }{" "}
+              {nutritionTotals.protein.toFixed(
+                1
+              )}{" "}
               g
             </p>
           </div>
@@ -1776,11 +1628,9 @@ export default function Health() {
             </p>
 
             <p className="mt-1 text-xl font-bold">
-              {
-                nutritionTotals.carbs.toFixed(
-                  1
-                )
-              }{" "}
+              {nutritionTotals.carbs.toFixed(
+                1
+              )}{" "}
               g
             </p>
           </div>
@@ -1791,11 +1641,9 @@ export default function Health() {
             </p>
 
             <p className="mt-1 text-xl font-bold">
-              {
-                nutritionTotals.fat.toFixed(
-                  1
-                )
-              }{" "}
+              {nutritionTotals.fat.toFixed(
+                1
+              )}{" "}
               g
             </p>
           </div>
@@ -1803,12 +1651,9 @@ export default function Health() {
         </div>
       </section>
 
-      {/* ================================================= */}
       {/* TODAY'S FOOD LOG */}
-      {/* ================================================= */}
 
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
-
         <div className="flex items-start justify-between gap-3">
 
           <div>
@@ -1823,9 +1668,7 @@ export default function Health() {
 
           {!foodLoading && (
             <span className="rounded-full bg-[#f5f0e8] px-3 py-1 text-xs opacity-60">
-              {
-                todayEntries.length
-              }{" "}
+              {todayEntries.length}{" "}
               entries
             </span>
           )}
@@ -1834,15 +1677,14 @@ export default function Health() {
 
         {foodLoading ? (
           <div className="mt-5 rounded-2xl bg-[#f5f0e8] p-4 text-sm opacity-60">
-            Syncing today's
-            food diary...
+            Syncing today's food
+            diary...
           </div>
         ) : todayEntries.length ===
           0 ? (
           <div className="mt-5 rounded-2xl border border-dashed border-[#cfc3b4] p-5 text-sm leading-6 opacity-50">
-            Belum ada makanan
-            tercatat hari ini di
-            FatSecret.
+            Belum ada makanan tercatat
+            hari ini di FatSecret.
           </div>
         ) : (
           <div className="mt-5 space-y-3">
@@ -1853,22 +1695,15 @@ export default function Health() {
                   key={entry.id}
                   className="rounded-2xl bg-[#f5f0e8] p-4"
                 >
-
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 
                     <div className="min-w-0">
-
                       <p className="font-semibold">
-                        {
-                          entry.name
-                        }
+                        {entry.name}
                       </p>
 
                       <p className="mt-1 text-xs opacity-50">
-                        {
-                          entry.meal
-                        }{" "}
-                        ·{" "}
+                        {entry.meal} ·{" "}
                         {new Date(
                           entry.createdAt
                         ).toLocaleTimeString(
@@ -1880,53 +1715,40 @@ export default function Health() {
                           }
                         )}
                       </p>
-
                     </div>
 
                     <div className="text-left sm:text-right">
-
                       <p className="font-semibold">
-                        {
-                          Math.round(
-                            entry.calories
-                          )
-                        }{" "}
+                        {Math.round(
+                          entry.calories
+                        )}{" "}
                         kcal
                       </p>
 
                       <p className="mt-1 text-xs opacity-50">
                         P{" "}
-                        {
-                          entry.protein.toFixed(
-                            1
-                          )
-                        }{" "}
+                        {entry.protein.toFixed(
+                          1
+                        )}{" "}
                         g · C{" "}
-                        {
-                          entry.carbs.toFixed(
-                            1
-                          )
-                        }{" "}
+                        {entry.carbs.toFixed(
+                          1
+                        )}{" "}
                         g · F{" "}
-                        {
-                          entry.fat.toFixed(
-                            1
-                          )
-                        }{" "}
+                        {entry.fat.toFixed(
+                          1
+                        )}{" "}
                         g
                       </p>
-
                     </div>
 
                   </div>
-
                 </div>
               )
             )}
 
           </div>
         )}
-
       </section>
 
     </div>
