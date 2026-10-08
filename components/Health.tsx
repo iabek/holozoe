@@ -320,6 +320,9 @@ export default function Health() {
   const [saving, setSaving] =
     useState(false);
 
+  const [editingHealth, setEditingHealth] =
+    useState(true);
+
   const [message, setMessage] =
     useState("");
 
@@ -351,12 +354,14 @@ export default function Health() {
       const {
         data: { user },
         error: userError,
-      } = await supabase.auth.getUser();
+      } =
+        await supabase.auth.getUser();
 
       if (userError || !user) {
         setError(
           "Kamu harus login untuk menggunakan Health."
         );
+
         setLoading(false);
         return;
       }
@@ -364,13 +369,14 @@ export default function Health() {
       const {
         data,
         error: fetchError,
-      } = await supabase
-        .from("health_profiles")
-        .select(
-          "height_cm, weight_kg, birth_date, sex, activity_level"
-        )
-        .eq("user_id", user.id)
-        .maybeSingle();
+      } =
+        await supabase
+          .from("health_profiles")
+          .select(
+            "height_cm, weight_kg, birth_date, sex, activity_level"
+          )
+          .eq("user_id", user.id)
+          .maybeSingle();
 
       if (fetchError) {
         console.error(
@@ -431,11 +437,25 @@ export default function Health() {
           birthDate || ""
         );
 
-        setSexInput(sex || "");
+        setSexInput(
+          sex || ""
+        );
 
         setActivityInput(
           activityLevel || ""
         );
+
+        /*
+         * Data sudah ada:
+         * tampilkan mode compact.
+         */
+        setEditingHealth(false);
+      } else {
+        /*
+         * Belum ada data:
+         * langsung buka form.
+         */
+        setEditingHealth(true);
       }
 
       setLoading(false);
@@ -547,6 +567,10 @@ export default function Health() {
       ? Math.round(tdee)
       : null;
 
+  const selectedActivityLabel =
+    selectedActivity?.label ??
+    "Not set";
+
   async function saveHealth() {
     setMessage("");
     setError("");
@@ -618,15 +642,16 @@ export default function Health() {
 
       const {
         error: upsertError,
-      } = await supabase
-        .from("health_profiles")
-        .upsert(
-          healthData,
-          {
-            onConflict:
-              "user_id",
-          }
-        );
+      } =
+        await supabase
+          .from("health_profiles")
+          .upsert(
+            healthData,
+            {
+              onConflict:
+                "user_id",
+            }
+          );
 
       if (upsertError) {
         console.error(
@@ -644,9 +669,21 @@ export default function Health() {
       setMessage(
         "Health data saved."
       );
+
+      /*
+       * Setelah berhasil disimpan,
+       * tutup form agar tidak makan tempat.
+       */
+      setEditingHealth(false);
     } finally {
       setSaving(false);
     }
+  }
+
+  function startEditingHealth() {
+    setMessage("");
+    setError("");
+    setEditingHealth(true);
   }
 
   async function loadFoodLogs() {
@@ -666,6 +703,7 @@ export default function Health() {
       setFoodError(
         "Kamu harus login untuk melihat Food Log."
       );
+
       setFoodLogs([]);
       setFoodLoading(false);
       return;
@@ -687,26 +725,27 @@ export default function Health() {
     const {
       data,
       error: fetchError,
-    } = await supabase
-      .from("food_logs")
-      .select(
-        "id, raw_input, ai_result, total_calories_kcal, total_protein_g, total_fat_g, total_carbohydrate_g, created_at"
-      )
-      .eq("user_id", user.id)
-      .gte(
-        "created_at",
-        start.toISOString()
-      )
-      .lt(
-        "created_at",
-        end.toISOString()
-      )
-      .order(
-        "created_at",
-        {
-          ascending: false,
-        }
-      );
+    } =
+      await supabase
+        .from("food_logs")
+        .select(
+          "id, raw_input, ai_result, total_calories_kcal, total_protein_g, total_fat_g, total_carbohydrate_g, created_at"
+        )
+        .eq("user_id", user.id)
+        .gte(
+          "created_at",
+          start.toISOString()
+        )
+        .lt(
+          "created_at",
+          end.toISOString()
+        )
+        .order(
+          "created_at",
+          {
+            ascending: false,
+          }
+        );
 
     if (fetchError) {
       console.error(
@@ -756,6 +795,7 @@ export default function Health() {
       setFoodError(
         "Kamu harus login untuk sinkronisasi Food Diary."
       );
+
       setFoodSyncing(false);
       return;
     }
@@ -770,6 +810,7 @@ export default function Health() {
       setFoodError(
         "Tanggal hari ini tidak valid."
       );
+
       setFoodSyncing(false);
       return;
     }
@@ -813,15 +854,16 @@ export default function Health() {
       const {
         data: existingData,
         error: existingError,
-      } = await supabase
-        .from("food_logs")
-        .select(
-          "id, ai_result"
-        )
-        .eq(
-          "user_id",
-          user.id
-        );
+      } =
+        await supabase
+          .from("food_logs")
+          .select(
+            "id, ai_result"
+          )
+          .eq(
+            "user_id",
+            user.id
+          );
 
       if (existingError) {
         throw existingError;
@@ -842,7 +884,7 @@ export default function Health() {
 
         if (
           foodEntryId !==
-          undefined &&
+            undefined &&
           foodEntryId !== null
         ) {
           existingIds.add(
@@ -872,6 +914,7 @@ export default function Health() {
               entry: FatSecretFoodEntry
             ) => ({
               user_id: user.id,
+
               raw_input:
                 entry.food_entry_description ||
                 entry.food_entry_name,
@@ -943,9 +986,10 @@ export default function Health() {
 
         const {
           error: insertError,
-        } = await supabase
-          .from("food_logs")
-          .insert(rows);
+        } =
+          await supabase
+            .from("food_logs")
+            .insert(rows);
 
         if (insertError) {
           throw insertError;
@@ -981,7 +1025,8 @@ export default function Health() {
 
   useEffect(() => {
     void loadFoodLogs().then(
-      () => syncFatSecretFoodDiary()
+      () =>
+        syncFatSecretFoodDiary()
     );
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1060,334 +1105,547 @@ export default function Health() {
         </p>
       </section>
 
-      {/* BASIC INFORMATION */}
+      {/* =====================================================
+          BODY PROFILE
+          BASIC INFORMATION + YOUR NUMBERS
+          ===================================================== */}
 
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
-        <div className="mb-5">
-          <p className="text-xs uppercase tracking-widest opacity-50">
-            BODY PROFILE
-          </p>
 
-          <h3 className="mt-1 text-xl font-bold">
-            Basic Information
-          </h3>
+        {/* SECTION HEADER */}
+
+        <div className="flex items-start justify-between gap-4">
+
+          <div>
+            <p className="text-xs uppercase tracking-widest opacity-50">
+              BODY PROFILE
+            </p>
+
+            <h3 className="mt-1 text-xl font-bold">
+              Basic Information
+            </h3>
+          </div>
+
+          {!loading &&
+            !editingHealth && (
+              <button
+                type="button"
+                onClick={
+                  startEditingHealth
+                }
+                className="rounded-xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-2 text-sm font-semibold transition hover:bg-[#eee7dc]"
+              >
+                ✎ Edit
+              </button>
+            )}
+
         </div>
 
-        {loading ? (
-          <div className="rounded-2xl bg-[#f5f0e8] p-4 text-sm opacity-60">
+        {/* =================================================
+            COMPACT VIEW
+            ================================================= */}
+
+        {!loading &&
+          !editingHealth && (
+            <>
+
+              {/* BASIC INFO COMPACT */}
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
+                <div className="rounded-2xl bg-[#f5f0e8] px-4 py-3">
+                  <p className="text-xs uppercase tracking-wider opacity-40">
+                    Height
+                  </p>
+
+                  <p className="mt-1 text-lg font-semibold">
+                    {validHeight
+                      ? `${height} cm`
+                      : "—"}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-[#f5f0e8] px-4 py-3">
+                  <p className="text-xs uppercase tracking-wider opacity-40">
+                    Weight
+                  </p>
+
+                  <p className="mt-1 text-lg font-semibold">
+                    {validWeight
+                      ? `${weight} kg`
+                      : "—"}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-[#f5f0e8] px-4 py-3">
+                  <p className="text-xs uppercase tracking-wider opacity-40">
+                    Sex
+                  </p>
+
+                  <p className="mt-1 text-lg font-semibold">
+                    {sexInput ===
+                    "male"
+                      ? "Male"
+                      : sexInput ===
+                        "female"
+                        ? "Female"
+                        : "—"}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-[#f5f0e8] px-4 py-3">
+                  <p className="text-xs uppercase tracking-wider opacity-40">
+                    Activity
+                  </p>
+
+                  <p className="mt-1 text-lg font-semibold">
+                    {selectedActivityLabel}
+                  </p>
+                </div>
+
+              </div>
+
+              <div className="mt-3 rounded-2xl bg-[#f5f0e8] px-4 py-3">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs uppercase tracking-wider opacity-40">
+                    Birth date
+                  </p>
+
+                  <p className="text-sm font-semibold">
+                    {birthDateInput
+                      ? new Date(
+                          `${birthDateInput}T00:00:00`
+                        ).toLocaleDateString(
+                          "id-ID",
+                          {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                          }
+                        )
+                      : "—"}
+                  </p>
+                </div>
+              </div>
+
+              {/* YOUR NUMBERS */}
+
+              <div className="mt-6 border-t border-[#ded4c7] pt-6">
+
+                <div className="mb-4">
+                  <p className="text-xs uppercase tracking-widest opacity-50">
+                    YOUR NUMBERS
+                  </p>
+
+                  <h3 className="mt-1 text-xl font-bold">
+                    Body Metrics
+                  </h3>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
+                  {/* IMT */}
+
+                  <div className="rounded-2xl bg-[#f5f0e8] p-4">
+                    <p className="text-xs uppercase tracking-widest opacity-50">
+                      IMT
+                    </p>
+
+                    <div className="mt-2 flex items-end gap-2">
+                      <span className="text-3xl font-bold">
+                        {formattedBmi}
+                      </span>
+
+                      {bmi !==
+                        null && (
+                        <span className="pb-1 text-xs opacity-40">
+                          kg/m²
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="mt-2 text-sm font-semibold">
+                      {
+                        bmiStatus.label
+                      }
+                    </p>
+
+                    <p className="mt-1 text-xs leading-5 opacity-50">
+                      {
+                        bmiStatus.description
+                      }
+                    </p>
+                  </div>
+
+                  {/* AGE */}
+
+                  <div className="rounded-2xl bg-[#f5f0e8] p-4">
+                    <p className="text-xs uppercase tracking-widest opacity-50">
+                      AGE
+                    </p>
+
+                    <div className="mt-2 flex items-end gap-2">
+                      <span className="text-3xl font-bold">
+                        {age !==
+                        null
+                          ? age
+                          : "—"}
+                      </span>
+
+                      {age !==
+                        null && (
+                        <span className="pb-1 text-xs opacity-40">
+                          years
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="mt-2 text-xs leading-5 opacity-50">
+                      Calculated from your birth date.
+                    </p>
+                  </div>
+
+                  {/* BMR */}
+
+                  <div className="rounded-2xl bg-[#f5f0e8] p-4">
+                    <p className="text-xs uppercase tracking-widest opacity-50">
+                      BMR
+                    </p>
+
+                    <div className="mt-2 flex items-end gap-2">
+                      <span className="text-3xl font-bold">
+                        {formattedBmr !==
+                        null
+                          ? formattedBmr
+                          : "—"}
+                      </span>
+
+                      {formattedBmr !==
+                        null && (
+                        <span className="pb-1 text-xs opacity-40">
+                          kcal/day
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="mt-2 text-xs leading-5 opacity-50">
+                      Energy needed at complete rest.
+                    </p>
+                  </div>
+
+                  {/* TDEE */}
+
+                  <div className="rounded-2xl bg-[#f5f0e8] p-4">
+                    <p className="text-xs uppercase tracking-widest opacity-50">
+                      TDEE
+                    </p>
+
+                    <div className="mt-2 flex items-end gap-2">
+                      <span className="text-3xl font-bold">
+                        {formattedTdee !==
+                        null
+                          ? formattedTdee
+                          : "—"}
+                      </span>
+
+                      {formattedTdee !==
+                        null && (
+                        <span className="pb-1 text-xs opacity-40">
+                          kcal/day
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="mt-2 text-xs leading-5 opacity-50">
+                      Estimated daily energy expenditure.
+                    </p>
+                  </div>
+
+                </div>
+              </div>
+
+            </>
+          )}
+
+        {/* =================================================
+            EDIT MODE
+            ================================================= */}
+
+        {!loading &&
+          editingHealth && (
+            <div className="mt-5">
+
+              <div className="grid gap-4 md:grid-cols-2">
+
+                {/* HEIGHT */}
+
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium">
+                    Height
+                  </span>
+
+                  <div className="relative">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min="1"
+                      step="0.1"
+                      value={
+                        heightInput
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setHeightInput(
+                          event
+                            .target
+                            .value
+                        )
+                      }
+                      placeholder="e.g. 170"
+                      className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 pr-16 text-sm outline-none transition focus:border-[#a99b8a]"
+                    />
+
+                    <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs opacity-40">
+                      cm
+                    </span>
+                  </div>
+                </label>
+
+                {/* WEIGHT */}
+
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium">
+                    Weight
+                  </span>
+
+                  <div className="relative">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min="1"
+                      step="0.1"
+                      value={
+                        weightInput
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setWeightInput(
+                          event
+                            .target
+                            .value
+                        )
+                      }
+                      placeholder="e.g. 60"
+                      className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 pr-16 text-sm outline-none transition focus:border-[#a99b8a]"
+                    />
+
+                    <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs opacity-40">
+                      kg
+                    </span>
+                  </div>
+                </label>
+
+                {/* BIRTH DATE */}
+
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium">
+                    Birth date
+                  </span>
+
+                  <input
+                    type="date"
+                    value={
+                      birthDateInput
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setBirthDateInput(
+                        event
+                          .target
+                          .value
+                      )
+                    }
+                    className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 text-sm outline-none transition focus:border-[#a99b8a]"
+                  />
+                </label>
+
+                {/* SEX */}
+
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium">
+                    Sex
+                  </span>
+
+                  <select
+                    value={
+                      sexInput
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setSexInput(
+                        event
+                          .target
+                          .value as
+                          | ""
+                          | Sex
+                      )
+                    }
+                    className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 text-sm outline-none transition focus:border-[#a99b8a]"
+                  >
+                    <option value="">
+                      Select sex
+                    </option>
+
+                    <option value="male">
+                      Male
+                    </option>
+
+                    <option value="female">
+                      Female
+                    </option>
+                  </select>
+                </label>
+
+                {/* ACTIVITY */}
+
+                <label className="block md:col-span-2">
+                  <span className="mb-2 block text-sm font-medium">
+                    Activity level
+                  </span>
+
+                  <select
+                    value={
+                      activityInput
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setActivityInput(
+                        event
+                          .target
+                          .value as
+                          | ""
+                          | ActivityLevel
+                      )
+                    }
+                    className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 text-sm outline-none transition focus:border-[#a99b8a]"
+                  >
+                    <option value="">
+                      Select activity level
+                    </option>
+
+                    {activityOptions.map(
+                      (
+                        option
+                      ) => (
+                        <option
+                          key={
+                            option.value
+                          }
+                          value={
+                            option.value
+                          }
+                        >
+                          {
+                            option.label
+                          }{" "}
+                          —{" "}
+                          {
+                            option.description
+                          }
+                        </option>
+                      )
+                    )}
+                  </select>
+                </label>
+
+              </div>
+
+              {/* ERROR */}
+
+              {error && (
+                <div className="mt-5 rounded-2xl border border-[#dec5bd] bg-[#f7ebe7] px-4 py-3 text-sm text-[#7a5147]">
+                  {error}
+                </div>
+              )}
+
+              {/* MESSAGE */}
+
+              {message && (
+                <div className="mt-5 rounded-2xl border border-[#c8d7c5] bg-[#eef5eb] px-4 py-3 text-sm text-[#53654f]">
+                  {message}
+                </div>
+              )}
+
+              {/* SAVE / CANCEL */}
+
+              <div className="mt-5 flex justify-end gap-3">
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (
+                      heightInput ||
+                      weightInput ||
+                      birthDateInput ||
+                      sexInput ||
+                      activityInput
+                    ) {
+                      setEditingHealth(
+                        false
+                      );
+                    }
+                  }}
+                  disabled={
+                    saving
+                  }
+                  className="rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-5 py-3 text-sm font-semibold transition hover:bg-[#eee7dc] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={
+                    saveHealth
+                  }
+                  disabled={
+                    saving
+                  }
+                  className="rounded-2xl bg-[#4f473e] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#3f382f] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {saving
+                    ? "Saving..."
+                    : "Save Health"}
+                </button>
+
+              </div>
+
+            </div>
+          )}
+
+        {/* =================================================
+            LOADING
+            ================================================= */}
+
+        {loading && (
+          <div className="mt-5 rounded-2xl bg-[#f5f0e8] p-4 text-sm opacity-60">
             Loading health data...
           </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-
-            {/* HEIGHT */}
-
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium">
-                Height
-              </span>
-
-              <div className="relative">
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  min="1"
-                  step="0.1"
-                  value={heightInput}
-                  onChange={(event) =>
-                    setHeightInput(
-                      event.target.value
-                    )
-                  }
-                  placeholder="e.g. 170"
-                  className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 pr-16 text-sm outline-none transition focus:border-[#a99b8a]"
-                />
-
-                <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs opacity-40">
-                  cm
-                </span>
-              </div>
-            </label>
-
-            {/* WEIGHT */}
-
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium">
-                Weight
-              </span>
-
-              <div className="relative">
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  min="1"
-                  step="0.1"
-                  value={weightInput}
-                  onChange={(event) =>
-                    setWeightInput(
-                      event.target.value
-                    )
-                  }
-                  placeholder="e.g. 60"
-                  className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 pr-16 text-sm outline-none transition focus:border-[#a99b8a]"
-                />
-
-                <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs opacity-40">
-                  kg
-                </span>
-              </div>
-            </label>
-
-            {/* BIRTH DATE */}
-
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium">
-                Birth date
-              </span>
-
-              <input
-                type="date"
-                value={birthDateInput}
-                onChange={(event) =>
-                  setBirthDateInput(
-                    event.target.value
-                  )
-                }
-                className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 text-sm outline-none transition focus:border-[#a99b8a]"
-              />
-            </label>
-
-            {/* SEX */}
-
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium">
-                Sex
-              </span>
-
-              <select
-                value={sexInput}
-                onChange={(event) =>
-                  setSexInput(
-                    event.target.value as
-                      | ""
-                      | Sex
-                  )
-                }
-                className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 text-sm outline-none transition focus:border-[#a99b8a]"
-              >
-                <option value="">
-                  Select sex
-                </option>
-
-                <option value="male">
-                  Male
-                </option>
-
-                <option value="female">
-                  Female
-                </option>
-              </select>
-            </label>
-
-            {/* ACTIVITY */}
-
-            <label className="block md:col-span-2">
-              <span className="mb-2 block text-sm font-medium">
-                Activity level
-              </span>
-
-              <select
-                value={activityInput}
-                onChange={(event) =>
-                  setActivityInput(
-                    event.target.value as
-                      | ""
-                      | ActivityLevel
-                  )
-                }
-                className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 text-sm outline-none transition focus:border-[#a99b8a]"
-              >
-                <option value="">
-                  Select activity level
-                </option>
-
-                {activityOptions.map(
-                  (option) => (
-                    <option
-                      key={option.value}
-                      value={option.value}
-                    >
-                      {option.label} —{" "}
-                      {option.description}
-                    </option>
-                  )
-                )}
-              </select>
-            </label>
-
-          </div>
         )}
 
-        {error && (
-          <div className="mt-5 rounded-2xl border border-[#dec5bd] bg-[#f7ebe7] px-4 py-3 text-sm text-[#7a5147]">
-            {error}
-          </div>
-        )}
-
-        {message && (
-          <div className="mt-5 rounded-2xl border border-[#c8d7c5] bg-[#eef5eb] px-4 py-3 text-sm text-[#53654f]">
-            {message}
-          </div>
-        )}
-
-        <div className="mt-5 flex justify-end">
-          <button
-            type="button"
-            onClick={saveHealth}
-            disabled={
-              loading || saving
-            }
-            className="rounded-2xl bg-[#4f473e] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#3f382f] disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {saving
-              ? "Saving..."
-              : "Save Health"}
-          </button>
-        </div>
       </section>
 
-      {/* YOUR NUMBERS */}
-
-      <section>
-        <div className="mb-4">
-          <p className="text-xs uppercase tracking-widest opacity-50">
-            BODY METRICS
-          </p>
-
-          <h3 className="mt-1 text-xl font-bold">
-            Your Numbers
-          </h3>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
-          {/* IMT */}
-
-          <div className="rounded-3xl bg-white/60 p-5 shadow-sm">
-            <p className="text-xs uppercase tracking-widest opacity-50">
-              IMT
-            </p>
-
-            <div className="mt-3 flex items-end gap-2">
-              <span className="text-4xl font-bold">
-                {formattedBmi}
-              </span>
-
-              {bmi !== null && (
-                <span className="pb-1 text-xs opacity-40">
-                  kg/m²
-                </span>
-              )}
-            </div>
-
-            <p className="mt-3 text-sm font-semibold">
-              {bmiStatus.label}
-            </p>
-
-            <p className="mt-1 text-xs leading-5 opacity-50">
-              {bmiStatus.description}
-            </p>
-          </div>
-
-          {/* AGE */}
-
-          <div className="rounded-3xl bg-white/60 p-5 shadow-sm">
-            <p className="text-xs uppercase tracking-widest opacity-50">
-              AGE
-            </p>
-
-            <div className="mt-3 flex items-end gap-2">
-              <span className="text-4xl font-bold">
-                {age !== null
-                  ? age
-                  : "—"}
-              </span>
-
-              {age !== null && (
-                <span className="pb-1 text-xs opacity-40">
-                  years
-                </span>
-              )}
-            </div>
-
-            <p className="mt-3 text-xs leading-5 opacity-50">
-              Calculated from your birth
-              date.
-            </p>
-          </div>
-
-          {/* BMR */}
-
-          <div className="rounded-3xl bg-white/60 p-5 shadow-sm">
-            <p className="text-xs uppercase tracking-widest opacity-50">
-              BMR
-            </p>
-
-            <div className="mt-3 flex items-end gap-2">
-              <span className="text-4xl font-bold">
-                {formattedBmr !== null
-                  ? formattedBmr
-                  : "—"}
-              </span>
-
-              {formattedBmr !==
-                null && (
-                <span className="pb-1 text-xs opacity-40">
-                  kcal/day
-                </span>
-              )}
-            </div>
-
-            <p className="mt-3 text-xs leading-5 opacity-50">
-              Estimated energy needed at
-              complete rest.
-            </p>
-          </div>
-
-          {/* TDEE */}
-
-          <div className="rounded-3xl bg-white/60 p-5 shadow-sm">
-            <p className="text-xs uppercase tracking-widest opacity-50">
-              TDEE
-            </p>
-
-            <div className="mt-3 flex items-end gap-2">
-              <span className="text-4xl font-bold">
-                {formattedTdee !== null
-                  ? formattedTdee
-                  : "—"}
-              </span>
-
-              {formattedTdee !==
-                null && (
-                <span className="pb-1 text-xs opacity-40">
-                  kcal/day
-                </span>
-              )}
-            </div>
-
-            <p className="mt-3 text-xs leading-5 opacity-50">
-              Estimated daily energy
-              expenditure.
-            </p>
-          </div>
-
-        </div>
-      </section>
-
-      {/* ESTIMATED CALORIE NEEDS */}
+      {/* =====================================================
+          ESTIMATED CALORIE NEEDS
+          ===================================================== */}
 
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
+
         <p className="text-xs uppercase tracking-widest opacity-50">
           DAILY ENERGY
         </p>
@@ -1405,7 +1663,9 @@ export default function Health() {
               </p>
 
               <p className="mt-1 text-2xl font-bold">
-                {Math.round(tdee)}
+                {Math.round(
+                  tdee
+                )}
               </p>
 
               <p className="mt-1 text-xs opacity-50">
@@ -1460,12 +1720,17 @@ export default function Health() {
           Angka ini merupakan estimasi dan
           bukan diagnosis medis.
         </p>
+
       </section>
 
-      {/* DAILY NUTRITION */}
+      {/* =====================================================
+          DAILY NUTRITION
+          ===================================================== */}
 
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
+
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+
           <div>
             <p className="text-xs uppercase tracking-widest opacity-50">
               NUTRITION
@@ -1486,13 +1751,16 @@ export default function Health() {
             onClick={
               syncFatSecretFoodDiary
             }
-            disabled={foodSyncing}
+            disabled={
+              foodSyncing
+            }
             className="rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-2.5 text-sm font-semibold transition hover:bg-[#eee7dc] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {foodSyncing
               ? "Syncing..."
               : "Sync FatSecret"}
           </button>
+
         </div>
 
         {foodError && (
@@ -1533,7 +1801,8 @@ export default function Health() {
             </p>
 
             <p className="mt-1 text-2xl font-bold">
-              {formattedTdee ?? "—"}
+              {formattedTdee ??
+                "—"}
             </p>
 
             <p className="mt-1 text-xs opacity-50">
@@ -1569,7 +1838,9 @@ export default function Health() {
             </p>
 
             <p className="mt-1 text-2xl font-bold">
-              {todayEntries.length}
+              {
+                todayEntries.length
+              }
             </p>
 
             <p className="mt-1 text-xs opacity-50">
@@ -1582,6 +1853,7 @@ export default function Health() {
         {/* CALORIE PROGRESS */}
 
         <div className="mt-5">
+
           <div className="mb-2 flex items-center justify-between text-xs opacity-50">
             <span>
               Daily calorie progress
@@ -1603,6 +1875,7 @@ export default function Health() {
               }}
             />
           </div>
+
         </div>
 
         {/* MACROS */}
@@ -1649,11 +1922,15 @@ export default function Health() {
           </div>
 
         </div>
+
       </section>
 
-      {/* TODAY'S FOOD LOG */}
+      {/* =====================================================
+          TODAY'S FOOD LOG
+          ===================================================== */}
 
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
+
         <div className="flex items-start justify-between gap-3">
 
           <div>
@@ -1668,7 +1945,9 @@ export default function Health() {
 
           {!foodLoading && (
             <span className="rounded-full bg-[#f5f0e8] px-3 py-1 text-xs opacity-60">
-              {todayEntries.length}{" "}
+              {
+                todayEntries.length
+              }{" "}
               entries
             </span>
           )}
@@ -1695,9 +1974,11 @@ export default function Health() {
                   key={entry.id}
                   className="rounded-2xl bg-[#f5f0e8] p-4"
                 >
+
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 
                     <div className="min-w-0">
+
                       <p className="font-semibold">
                         {entry.name}
                       </p>
@@ -1715,9 +1996,11 @@ export default function Health() {
                           }
                         )}
                       </p>
+
                     </div>
 
                     <div className="text-left sm:text-right">
+
                       <p className="font-semibold">
                         {Math.round(
                           entry.calories
@@ -1740,15 +2023,18 @@ export default function Health() {
                         )}{" "}
                         g
                       </p>
+
                     </div>
 
                   </div>
+
                 </div>
               )
             )}
 
           </div>
         )}
+
       </section>
 
     </div>
