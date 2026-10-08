@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase";
 
@@ -34,25 +35,27 @@ type FoodAnalysis = {
   note: string;
 };
 
-type NutritionFood = {
-  id: string;
-  name: string;
-  aliases: string[] | null;
-  serving_grams: number | null;
-  calories_kcal: number | null;
-  protein_g: number | null;
-  fat_g: number | null;
-  carbohydrate_g: number | null;
-  source: string;
-};
-
 type FatSecretFood = {
   food_id: string;
   food_name: string;
   food_description: string;
   food_type: string;
   brand_name?: string;
-  food_url: string;
+  food_url?: string;
+};
+
+type FatSecretServing = {
+  serving_id?: string;
+  serving_description?: string;
+  metric_serving_amount?: string | number;
+  metric_serving_unit?: string;
+  number_of_units?: string | number;
+  measurement_description?: string;
+  is_default?: string | number | boolean;
+  calories?: string | number;
+  carbohydrate?: string | number;
+  protein?: string | number;
+  fat?: string | number;
 };
 
 type NutritionResult = FoodItem & {
@@ -62,6 +65,8 @@ type NutritionResult = FoodItem & {
   fat: number;
   carbs: number;
   match_confidence: "high" | "medium" | "low";
+  serving_description?: string;
+  source: "fatsecret";
 };
 
 const defaultHealthData: HealthData = {
@@ -210,7 +215,7 @@ function calculateBmr(
   );
 }
 
-function normalizeFoodName(value: string) {
+function normalizeText(value: string) {
   return value
     .toLowerCase()
     .trim()
@@ -218,82 +223,361 @@ function normalizeFoodName(value: string) {
     .replace(/\s+/g, " ");
 }
 
-function findFoodMatch(
-  item: FoodItem,
-  foods: NutritionFood[]
-) {
-  const input = normalizeFoodName(item.name);
+function parseNumber(value: string) {
+  const normalized = value
+    .toLowerCase()
+    .replace(",", ".")
+    .trim();
 
-  if (!input) return null;
+  const numeric = Number(normalized);
 
-  const exactName = foods.find(
-    (food) =>
-      normalizeFoodName(food.name) === input
-  );
+  if (Number.isFinite(numeric)) {
+    return numeric;
+  }
 
-  if (exactName) return exactName;
+  const numberWords: Record<string, number> = {
+    nol: 0,
+    satu: 1,
+    sebuah: 1,
+    sebutir: 1,
+    satuan: 1,
+    dua: 2,
+    tiga: 3,
+    empat: 4,
+    lima: 5,
+    enam: 6,
+    tujuh: 7,
+    delapan: 8,
+    sembilan: 9,
+    sepuluh: 10,
+  };
 
-  const exactAlias = foods.find((food) =>
-    (food.aliases ?? []).some(
-      (alias) =>
-        normalizeFoodName(alias) === input
-    )
-  );
-
-  if (exactAlias) return exactAlias;
-
-  const containsName = foods.find((food) => {
-    const name = normalizeFoodName(food.name);
-
-    return (
-      input.includes(name) ||
-      name.includes(input)
-    );
-  });
-
-  if (containsName) return containsName;
-
-  const containsAlias = foods.find((food) =>
-    (food.aliases ?? []).some((alias) => {
-      const normalizedAlias =
-        normalizeFoodName(alias);
-
-      return (
-        input.includes(normalizedAlias) ||
-        normalizedAlias.includes(input)
-      );
-    })
-  );
-
-  return containsAlias ?? null;
+  return numberWords[normalized] ?? null;
 }
 
-function estimatePortionMultiplier(
-  item: FoodItem,
-  servingGrams: number
+function splitFoodInput(text: string) {
+  return text
+    .split(/\s*\+\s*|\s*,\s*|\s+\bdan\b\s+/i)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseFoodEntry(text: string) {
+  const numberPattern =
+    "(\\d+(?:[.,]\\d+)?|nol|satu|sebuah|sebutir|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan|sepuluh)";
+
+  const unitPattern =
+    "(gram|grams|g|kg|kilogram|kilograms|ml|milliliter|liter|litre|l|porsi|portion|serving|cup|cups|gelas|glass|sendok makan|sdm|tablespoon|tbsp|sendok teh|sdt|teaspoon|tsp|potong|slice|slices|buah|butir|piece|pieces|centong|mangkuk|mangkok|bowl|scoop)";
+
+  let quantity = 1;
+  let unit = "serving";
+  let foodName = text.trim();
+
+  const afterNameRegex = new RegExp(
+    `${numberPattern}\\s*${unitPattern}\\b`,
+    "i"
+  );
+
+  const beforeNameRegex = new RegExp(
+    `^\\s*${numberPattern}\\s*${unitPattern}\\s+`,
+    "i"
+  );
+
+  const beforeOnlyNumberRegex = new RegExp(
+    `^\\s*${numberPattern}\\s+`,
+    "i"
+  );
+
+  const afterNameMatch =
+    foodName.match(afterNameRegex);
+
+  if (afterNameMatch) {
+    const parsedQuantity = parseNumber(
+      afterNameMatch[1]
+    );
+
+    if (parsedQuantity !== null) {
+      quantity = parsedQuantity;
+    }
+
+    unit = afterNameMatch[2];
+    foodName = foodName
+      .replace(afterNameMatch[0], "")
+      .trim();
+  } else {
+    const beforeMatch =
+      foodName.match(beforeNameRegex);
+
+    if (beforeMatch) {
+      const parsedQuantity = parseNumber(
+        beforeMatch[1]
+      );
+
+      if (parsedQuantity !== null) {
+        quantity = parsedQuantity;
+      }
+
+      unit = beforeMatch[2];
+
+      foodName = foodName
+        .replace(beforeMatch[0], "")
+        .trim();
+    } else {
+      const numberOnlyMatch =
+        foodName.match(beforeOnlyNumberRegex);
+
+      if (numberOnlyMatch) {
+        const parsedQuantity = parseNumber(
+          numberOnlyMatch[1]
+        );
+
+        if (parsedQuantity !== null) {
+          quantity = parsedQuantity;
+        }
+
+        foodName = foodName
+          .replace(numberOnlyMatch[0], "")
+          .trim();
+      }
+    }
+  }
+
+  const normalizedUnit =
+    normalizeUnit(unit);
+
+  return {
+    name: foodName,
+    quantity,
+    unit: normalizedUnit,
+  };
+}
+
+function normalizeUnit(unit: string) {
+  const value = normalizeText(unit);
+
+  const aliases: Record<string, string> = {
+    grams: "g",
+    gram: "g",
+    kilogram: "kg",
+    kilograms: "kg",
+    liter: "l",
+    litre: "l",
+    milliliter: "ml",
+    portion: "porsi",
+    serving: "porsi",
+    cups: "cup",
+    glass: "gelas",
+    tbsp: "sdm",
+    tablespoon: "sdm",
+    tsp: "sdt",
+    teaspoon: "sdt",
+    slices: "potong",
+    slice: "potong",
+    pieces: "buah",
+    piece: "buah",
+    mangkok: "mangkuk",
+  };
+
+  return aliases[value] ?? value;
+}
+
+function isDefaultServing(
+  serving: FatSecretServing
 ) {
+  return (
+    serving.is_default === true ||
+    serving.is_default === 1 ||
+    serving.is_default === "1"
+  );
+}
+
+function normalizeServings(
+  value: unknown
+): FatSecretServing[] {
+  if (!value) return [];
+
+  if (Array.isArray(value)) {
+    return value as FatSecretServing[];
+  }
+
+  return [value as FatSecretServing];
+}
+
+function chooseServing(
+  servings: FatSecretServing[],
+  requestedUnit: string
+) {
+  if (!servings.length) return null;
+
+  const unit = normalizeUnit(requestedUnit);
+
+  if (unit === "g") {
+    const gramServing = servings.find(
+      (serving) =>
+        normalizeText(
+          String(
+            serving.metric_serving_unit ?? ""
+          )
+        ) === "g" &&
+        normalizeText(
+          String(
+            serving.measurement_description ??
+              ""
+          )
+        ) === "g"
+    );
+
+    if (gramServing) return gramServing;
+
+    const hundredGramServing =
+      servings.find((serving) => {
+        const amount = Number(
+          serving.metric_serving_amount
+        );
+
+        return (
+          Number.isFinite(amount) &&
+          Math.abs(amount - 100) < 0.5 &&
+          String(
+            serving.metric_serving_unit ?? ""
+          ).toLowerCase() === "g"
+        );
+      });
+
+    if (hundredGramServing) {
+      return hundredGramServing;
+    }
+  }
+
+  if (unit === "ml") {
+    const mlServing = servings.find(
+      (serving) =>
+        String(
+          serving.metric_serving_unit ?? ""
+        ).toLowerCase() === "ml"
+    );
+
+    if (mlServing) return mlServing;
+  }
+
+  if (unit === "kg") {
+    const gramServing = servings.find(
+      (serving) =>
+        String(
+          serving.metric_serving_unit ?? ""
+        ).toLowerCase() === "g"
+    );
+
+    if (gramServing) return gramServing;
+  }
+
+  if (unit === "l") {
+    const mlServing = servings.find(
+      (serving) =>
+        String(
+          serving.metric_serving_unit ?? ""
+        ).toLowerCase() === "ml"
+    );
+
+    if (mlServing) return mlServing;
+  }
+
+  if (unit !== "porsi") {
+    const exactMeasurement =
+      servings.find((serving) => {
+        const measurement =
+          normalizeText(
+            String(
+              serving.measurement_description ??
+                ""
+            )
+          );
+
+        const description =
+          normalizeText(
+            String(
+              serving.serving_description ??
+                ""
+            )
+          );
+
+        return (
+          measurement.includes(unit) ||
+          description.includes(unit)
+        );
+      });
+
+    if (exactMeasurement) {
+      return exactMeasurement;
+    }
+  }
+
+  return (
+    servings.find(isDefaultServing) ??
+    servings[0]
+  );
+}
+
+function calculateServingMultiplier(
+  quantity: number,
+  requestedUnit: string,
+  serving: FatSecretServing
+) {
+  const unit = normalizeUnit(requestedUnit);
+
+  const metricAmount = Number(
+    serving.metric_serving_amount
+  );
+
+  const numberOfUnits = Number(
+    serving.number_of_units
+  );
+
   if (
-    !Number.isFinite(item.estimated_grams) ||
-    item.estimated_grams <= 0
+    unit === "g" &&
+    Number.isFinite(metricAmount) &&
+    metricAmount > 0
   ) {
-    return null;
+    return quantity / metricAmount;
   }
 
   if (
-    !Number.isFinite(servingGrams) ||
-    servingGrams <= 0
+    unit === "kg" &&
+    Number.isFinite(metricAmount) &&
+    metricAmount > 0
   ) {
-    return null;
+    return (quantity * 1000) / metricAmount;
   }
 
-  return item.estimated_grams / servingGrams;
+  if (
+    unit === "ml" &&
+    Number.isFinite(metricAmount) &&
+    metricAmount > 0
+  ) {
+    return quantity / metricAmount;
+  }
+
+  if (
+    unit === "l" &&
+    Number.isFinite(metricAmount) &&
+    metricAmount > 0
+  ) {
+    return (quantity * 1000) / metricAmount;
+  }
+
+  if (
+    Number.isFinite(numberOfUnits) &&
+    numberOfUnits > 0
+  ) {
+    return quantity / numberOfUnits;
+  }
+
+  return quantity;
 }
 
 export default function Health() {
   const [health, setHealth] =
-    useState<HealthData>(
-      defaultHealthData
-    );
+    useState<HealthData>(defaultHealthData);
 
   const [heightInput, setHeightInput] =
     useState("");
@@ -321,10 +605,6 @@ export default function Health() {
 
   const [error, setError] =
     useState("");
-
-  // =========================
-  // FOOD AI
-  // =========================
 
   const [foodInput, setFoodInput] =
     useState("");
@@ -361,10 +641,6 @@ export default function Health() {
       fat: 0,
     });
 
-  // =========================
-  // LOAD HEALTH
-  // =========================
-
   useEffect(() => {
     async function loadHealth() {
       setLoading(true);
@@ -380,7 +656,6 @@ export default function Health() {
         setError(
           "Kamu harus login untuk menggunakan Health."
         );
-
         setLoading(false);
         return;
       }
@@ -416,21 +691,17 @@ export default function Health() {
             data.height_cm !== null
               ? Number(data.height_cm)
               : null,
-
           weight_kg:
             data.weight_kg !== null
               ? Number(data.weight_kg)
               : null,
-
           birth_date:
             data.birth_date || null,
-
           sex:
             data.sex === "male" ||
             data.sex === "female"
               ? data.sex
               : null,
-
           activity_level:
             activityOptions.some(
               (item) =>
@@ -474,10 +745,6 @@ export default function Health() {
     loadHealth();
   }, []);
 
-  // =========================
-  // BODY CALCULATIONS
-  // =========================
-
   const height =
     Number.parseFloat(heightInput);
 
@@ -514,21 +781,14 @@ export default function Health() {
     validWeight,
   ]);
 
-  const age =
-    calculateAge(
-      birthDateInput || null
-    );
+  const age = calculateAge(
+    birthDateInput || null
+  );
 
   const bmr = useMemo(() => {
     return calculateBmr(
-      validWeight
-        ? weight
-        : null,
-
-      validHeight
-        ? height
-        : null,
-
+      validWeight ? weight : null,
+      validHeight ? height : null,
       age,
       sexInput || null
     );
@@ -567,10 +827,6 @@ export default function Health() {
   const bmiStatus =
     getBmiStatus(bmi);
 
-  // =========================
-  // SAVE HEALTH
-  // =========================
-
   async function saveHealth() {
     setMessage("");
     setError("");
@@ -588,7 +844,6 @@ export default function Health() {
       setError(
         "Tinggi badan belum valid."
       );
-
       return;
     }
 
@@ -599,7 +854,6 @@ export default function Health() {
       setError(
         "Berat badan belum valid."
       );
-
       return;
     }
 
@@ -615,7 +869,6 @@ export default function Health() {
       setError(
         "Kamu harus login terlebih dahulu."
       );
-
       setSaving(false);
       return;
     }
@@ -638,12 +891,9 @@ export default function Health() {
       error: saveError,
     } = await supabase
       .from("health_profiles")
-      .upsert(
-        payload,
-        {
-          onConflict: "user_id",
-        }
-      );
+      .upsert(payload, {
+        onConflict: "user_id",
+      });
 
     if (saveError) {
       console.error(
@@ -680,10 +930,6 @@ export default function Health() {
       new Event("life-game-updated")
     );
   }
-
-  // =========================
-  // FATSECRET FOOD SEARCH
-  // =========================
 
   async function searchFatSecretFood() {
     const query =
@@ -740,9 +986,27 @@ export default function Health() {
     }
   }
 
-  // =========================
-  // ANALYZE FOOD
-  // =========================
+  async function getFatSecretFood(
+    foodId: string
+  ) {
+    const response = await fetch(
+      `/api/fatsecret/foods/get?food_id=${encodeURIComponent(
+        foodId
+      )}`
+    );
+
+    const data =
+      await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data?.error ||
+          "Gagal mengambil detail makanan."
+      );
+    }
+
+    return data?.data?.food;
+  }
 
   async function analyzeFood() {
     const text =
@@ -763,10 +1027,6 @@ export default function Health() {
     });
 
     try {
-      // =====================================================
-      // STEP 1: LOGIN USER
-      // =====================================================
-
       const supabase = createClient();
 
       const {
@@ -779,218 +1039,296 @@ export default function Health() {
         );
       }
 
-      // =====================================================
-      // STEP 2: LOAD DATABASE TKPI
-      // =====================================================
+      const entries =
+        splitFoodInput(text);
 
-      const {
-        data: foods,
-        error: foodsError,
-      } = await supabase
-        .from("nutrition_foods")
-        .select(
-          "id, name, aliases, serving_grams, calories_kcal, protein_g, fat_g, carbohydrate_g, source"
-        );
-
-      if (foodsError) {
-        console.error(
-          "NUTRITION DATABASE ERROR:",
-          foodsError
-        );
-
+      if (!entries.length) {
         throw new Error(
-          "Database pangan belum bisa dibaca."
+          "Makanan belum bisa dikenali."
         );
       }
 
-      const nutritionFoods =
-        (foods ?? []) as NutritionFood[];
+      const results: NutritionResult[] =
+        [];
 
-      if (
-        nutritionFoods.length === 0
-      ) {
+      const analysisItems: FoodItem[] =
+        [];
+
+      for (const entry of entries) {
+        const parsed =
+          parseFoodEntry(entry);
+
+        if (!parsed.name) {
+          continue;
+        }
+
+        const searchResponse =
+          await fetch(
+            `/api/fatsecret/foods/search?q=${encodeURIComponent(
+              parsed.name
+            )}&max_results=10`
+          );
+
+        const searchData =
+          await searchResponse.json();
+
+        if (!searchResponse.ok) {
+          throw new Error(
+            searchData?.error ||
+              `Gagal mencari ${parsed.name}.`
+          );
+        }
+
+        const rawFoods =
+          searchData?.data?.foods?.food ??
+          [];
+
+        const foods: FatSecretFood[] =
+          Array.isArray(rawFoods)
+            ? rawFoods
+            : [rawFoods];
+
+        if (!foods.length) {
+          results.push({
+            name: parsed.name,
+            quantity: parsed.quantity,
+            unit: parsed.unit,
+            estimated_grams: 0,
+            confidence: "low",
+            note:
+              "Makanan tidak ditemukan di FatSecret.",
+            matched_food: null,
+            calories: 0,
+            protein: 0,
+            fat: 0,
+            carbs: 0,
+            match_confidence: "low",
+            source: "fatsecret",
+          });
+
+          analysisItems.push({
+            name: parsed.name,
+            quantity: parsed.quantity,
+            unit: parsed.unit,
+            estimated_grams: 0,
+            confidence: "low",
+            note:
+              "Makanan tidak ditemukan di FatSecret.",
+          });
+
+          continue;
+        }
+
+        const normalizedInput =
+          normalizeText(parsed.name);
+
+        const exactFood =
+          foods.find(
+            (food) =>
+              normalizeText(
+                food.food_name
+              ) === normalizedInput
+          ) ?? foods[0];
+
+        const matchConfidence =
+          normalizeText(
+            exactFood.food_name
+          ) === normalizedInput
+            ? "high"
+            : "medium";
+
+        const foodDetails =
+          await getFatSecretFood(
+            exactFood.food_id
+          );
+
+        const servings =
+          normalizeServings(
+            foodDetails?.servings?.serving
+          );
+
+        if (!servings.length) {
+          results.push({
+            name: parsed.name,
+            quantity: parsed.quantity,
+            unit: parsed.unit,
+            estimated_grams: 0,
+            confidence: "low",
+            note:
+              "Makanan ditemukan, tetapi FatSecret tidak menyediakan serving yang bisa digunakan.",
+            matched_food:
+              exactFood.food_name,
+            calories: 0,
+            protein: 0,
+            fat: 0,
+            carbs: 0,
+            match_confidence:
+              matchConfidence,
+            source: "fatsecret",
+          });
+
+          analysisItems.push({
+            name: parsed.name,
+            quantity: parsed.quantity,
+            unit: parsed.unit,
+            estimated_grams: 0,
+            confidence: "low",
+            note:
+              "Serving FatSecret tidak tersedia.",
+          });
+
+          continue;
+        }
+
+        const serving =
+          chooseServing(
+            servings,
+            parsed.unit
+          );
+
+        if (!serving) {
+          throw new Error(
+            `Serving untuk ${parsed.name} tidak tersedia.`
+          );
+        }
+
+        const multiplier =
+          calculateServingMultiplier(
+            parsed.quantity,
+            parsed.unit,
+            serving
+          );
+
+        const calories =
+          Number(
+            serving.calories ?? 0
+          ) * multiplier;
+
+        const protein =
+          Number(
+            serving.protein ?? 0
+          ) * multiplier;
+
+        const fat =
+          Number(
+            serving.fat ?? 0
+          ) * multiplier;
+
+        const carbs =
+          Number(
+            serving.carbohydrate ?? 0
+          ) * multiplier;
+
+        const metricAmount =
+          Number(
+            serving.metric_serving_amount
+          );
+
+        let estimatedGrams = 0;
+
+        if (
+          Number.isFinite(metricAmount) &&
+          metricAmount > 0
+        ) {
+          estimatedGrams =
+            metricAmount *
+            multiplier;
+        }
+
+        let portionNote =
+          `Serving FatSecret: ${
+            serving.serving_description ??
+            "standard serving"
+          }.`;
+
+        if (
+          parsed.unit !== "porsi" &&
+          parsed.unit !== "g" &&
+          parsed.unit !== "kg" &&
+          parsed.unit !== "ml" &&
+          parsed.unit !== "l"
+        ) {
+          portionNote =
+            `Porsi dipetakan ke serving FatSecret "${serving.serving_description ?? "standard serving"}".`;
+        }
+
+        const result: NutritionResult = {
+          name: parsed.name,
+          quantity: parsed.quantity,
+          unit: parsed.unit,
+          estimated_grams:
+            estimatedGrams,
+          confidence:
+            matchConfidence,
+          note: portionNote,
+          matched_food:
+            exactFood.food_name,
+          calories,
+          protein,
+          fat,
+          carbs,
+          match_confidence:
+            matchConfidence,
+          serving_description:
+            serving.serving_description,
+          source: "fatsecret",
+        };
+
+        results.push(result);
+
+        analysisItems.push({
+          name: parsed.name,
+          quantity: parsed.quantity,
+          unit: parsed.unit,
+          estimated_grams:
+            estimatedGrams,
+          confidence:
+            matchConfidence,
+          note: portionNote,
+        });
+      }
+
+      if (!results.length) {
         throw new Error(
-          "Database pangan masih kosong."
+          "Tidak ada makanan yang berhasil dianalisis."
         );
       }
 
-      // =====================================================
-      // STEP 3: KIRIM DICTIONARY TKPI KE LOCAL PARSER
-      // =====================================================
-
-      const knownFoods =
-        nutritionFoods.map(
-          (food) => ({
-            name: food.name,
-            aliases:
-              food.aliases ?? [],
-          })
-        );
-
-      const response =
-        await fetch(
-          "/api/health/food",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-            body: JSON.stringify({
-              text,
-              knownFoods,
-            }),
-          }
-        );
-
-      const data =
-        await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data?.error ||
-            "Food parser gagal menganalisis makanan."
-        );
-      }
-
-      const analysis =
-        data?.result as FoodAnalysis;
-
-      if (
-        !analysis ||
-        !Array.isArray(
-          analysis.items
+      const overallConfidence =
+        results.every(
+          (item) =>
+            item.match_confidence ===
+            "high"
         )
-      ) {
-        throw new Error(
-          "Format hasil Food parser tidak valid."
-        );
-      }
+          ? "high"
+          : results.some(
+                (item) =>
+                  item.match_confidence ===
+                  "high"
+              )
+            ? "medium"
+            : "low";
 
-      setFoodAnalysis(
-        analysis
-      );
+      const analysis: FoodAnalysis = {
+        items: analysisItems,
+        overall_confidence:
+          overallConfidence,
+        note:
+          "Nilai nutrisi berasal dari FatSecret berdasarkan makanan dan serving yang berhasil dipetakan.",
+      };
 
-      // =====================================================
-      // STEP 4: MATCH PARSER → DATABASE TKPI
-      // =====================================================
-
-      const results:
-        NutritionResult[] =
-        analysis.items.map(
-          (item) => {
-            const matched =
-              findFoodMatch(
-                item,
-                nutritionFoods
-              );
-
-            if (!matched) {
-              return {
-                ...item,
-                matched_food:
-                  null,
-                calories: 0,
-                protein: 0,
-                fat: 0,
-                carbs: 0,
-                match_confidence:
-                  "low",
-              };
-            }
-
-            const servingGrams =
-              Number(
-                matched.serving_grams ??
-                  100
-              );
-
-            const multiplier =
-              estimatePortionMultiplier(
-                item,
-                servingGrams
-              );
-
-            if (
-              multiplier === null
-            ) {
-              return {
-                ...item,
-                matched_food:
-                  matched.name,
-                calories: 0,
-                protein: 0,
-                fat: 0,
-                carbs: 0,
-                match_confidence:
-                  "low",
-              };
-            }
-
-            const calories =
-              Number(
-                matched.calories_kcal ??
-                  0
-              ) * multiplier;
-
-            const protein =
-              Number(
-                matched.protein_g ??
-                  0
-              ) * multiplier;
-
-            const fat =
-              Number(
-                matched.fat_g ??
-                  0
-              ) * multiplier;
-
-            const carbs =
-              Number(
-                matched.carbohydrate_g ??
-                  0
-              ) * multiplier;
-
-            return {
-              ...item,
-              matched_food:
-                matched.name,
-              calories,
-              protein,
-              fat,
-              carbs,
-              match_confidence:
-                item.confidence ===
-                "high"
-                  ? "high"
-                  : item.confidence ===
-                      "medium"
-                    ? "medium"
-                    : "low",
-            };
-          }
-        );
-
-      setNutritionResults(
-        results
-      );
-
-      // =====================================================
-      // STEP 5: TOTAL NUTRISI INPUT INI
-      // =====================================================
+      setFoodAnalysis(analysis);
+      setNutritionResults(results);
 
       const totals =
         results.reduce(
           (total, item) => {
             total.calories +=
               item.calories;
-
             total.protein +=
               item.protein;
-
             total.carbs +=
               item.carbs;
-
             total.fat +=
               item.fat;
 
@@ -1004,13 +1342,7 @@ export default function Health() {
           }
         );
 
-      setNutritionTotals(
-        totals
-      );
-
-      // =====================================================
-      // STEP 6: SAVE FOOD LOG
-      // =====================================================
+      setNutritionTotals(totals);
 
       const {
         error: logError,
@@ -1020,6 +1352,7 @@ export default function Health() {
           user_id: user.id,
           raw_input: text,
           ai_result: {
+            source: "fatsecret",
             analysis,
             nutrition_results:
               results,
@@ -1081,8 +1414,6 @@ export default function Health() {
 
   return (
     <div className="space-y-6">
-      {/* INTRO */}
-
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
         <p className="text-xs uppercase tracking-widest opacity-50">
           HEALTH
@@ -1098,8 +1429,6 @@ export default function Health() {
           kebutuhan energi harian.
         </p>
       </section>
-
-      {/* PROFILE */}
 
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
         <div className="mb-5">
@@ -1118,8 +1447,6 @@ export default function Health() {
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
-            {/* HEIGHT */}
-
             <label className="block">
               <span className="mb-2 block text-sm font-medium">
                 Height
@@ -1146,8 +1473,6 @@ export default function Health() {
                 </span>
               </div>
             </label>
-
-            {/* WEIGHT */}
 
             <label className="block">
               <span className="mb-2 block text-sm font-medium">
@@ -1176,8 +1501,6 @@ export default function Health() {
               </div>
             </label>
 
-            {/* BIRTH DATE */}
-
             <label className="block">
               <span className="mb-2 block text-sm font-medium">
                 Birth date
@@ -1194,8 +1517,6 @@ export default function Health() {
                 className="w-full rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] px-4 py-3 text-sm outline-none transition focus:border-[#a99b8a]"
               />
             </label>
-
-            {/* SEX */}
 
             <label className="block">
               <span className="mb-2 block text-sm font-medium">
@@ -1227,8 +1548,6 @@ export default function Health() {
                 </option>
               </select>
             </label>
-
-            {/* ACTIVITY */}
 
             <label className="block md:col-span-2">
               <span className="mb-2 block text-sm font-medium">
@@ -1301,8 +1620,6 @@ export default function Health() {
         </div>
       </section>
 
-      {/* BODY METRICS */}
-
       <section>
         <div className="mb-4">
           <p className="text-xs uppercase tracking-widest opacity-50">
@@ -1337,7 +1654,9 @@ export default function Health() {
             </p>
 
             <p className="mt-1 text-xs leading-5 opacity-50">
-              {bmiStatus.description}
+              {
+                bmiStatus.description
+              }
             </p>
           </div>
 
@@ -1420,8 +1739,6 @@ export default function Health() {
         </div>
       </section>
 
-      {/* ENERGY GUIDE */}
-
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
         <div>
           <p className="text-xs uppercase tracking-widest opacity-50">
@@ -1483,20 +1800,20 @@ export default function Health() {
           </div>
         ) : (
           <div className="mt-5 rounded-2xl bg-[#f5f0e8] p-4 text-sm leading-6 opacity-60">
-            Lengkapi tanggal lahir, jenis
-            kelamin, tinggi, berat, dan
-            activity level untuk menghitung
-            estimasi kebutuhan energi.
+            Lengkapi tanggal lahir,
+            jenis kelamin, tinggi, berat,
+            dan activity level untuk
+            menghitung estimasi kebutuhan
+            energi.
           </div>
         )}
 
         <p className="mt-4 text-xs leading-5 opacity-40">
-          Angka ini merupakan estimasi, bukan
-          diagnosis atau target medis personal.
+          Angka ini merupakan estimasi,
+          bukan diagnosis atau target
+          medis personal.
         </p>
       </section>
-
-      {/* FOOD AI */}
 
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1511,18 +1828,18 @@ export default function Health() {
 
             <p className="mt-2 max-w-2xl text-sm leading-6 opacity-60">
               Tulis makananmu dengan bahasa
-              sehari-hari. Sistem akan mengenali
-              makanan dan porsinya, lalu mengambil
-              nilai gizinya dari database pangan.
+              sehari-hari. Sistem akan mencari
+              makanan tersebut di FatSecret,
+              mengambil serving yang paling
+              sesuai, lalu menghitung nilai
+              gizinya.
             </p>
           </div>
 
           <span className="rounded-full bg-[#ddd4c7] px-3 py-1 text-xs font-semibold">
-            AI Nutrition
+            FatSecret Nutrition
           </span>
         </div>
-
-        {/* FATSECRET SEARCH */}
 
         <div className="mt-5">
           <p className="mb-2 text-sm font-medium">
@@ -1537,13 +1854,14 @@ export default function Health() {
                 setFoodSearch(
                   event.target.value
                 );
-
                 setFoodSearchResults([]);
-
                 setFoodSearchError("");
               }}
               onKeyDown={(event) => {
-                if (event.key === "Enter") {
+                if (
+                  event.key ===
+                  "Enter"
+                ) {
                   searchFatSecretFood();
                 }
               }}
@@ -1580,17 +1898,17 @@ export default function Health() {
               {foodSearchResults.map(
                 (food) => (
                   <button
-                    key={food.food_id}
+                    key={
+                      food.food_id
+                    }
                     type="button"
                     onClick={() => {
                       setFoodInput(
                         food.food_name
                       );
-
                       setFoodSearch(
                         food.food_name
                       );
-
                       setFoodSearchResults(
                         []
                       );
@@ -1598,12 +1916,16 @@ export default function Health() {
                     className="w-full rounded-2xl bg-[#f5f0e8] p-4 text-left transition hover:bg-[#ebe3d8]"
                   >
                     <p className="font-semibold">
-                      {food.food_name}
+                      {
+                        food.food_name
+                      }
                     </p>
 
                     {food.brand_name && (
                       <p className="mt-1 text-xs opacity-50">
-                        {food.brand_name}
+                        {
+                          food.brand_name
+                        }
                       </p>
                     )}
 
@@ -1618,8 +1940,6 @@ export default function Health() {
             </div>
           )}
         </div>
-
-        {/* AI INPUT */}
 
         <div className="mt-5">
           <textarea
@@ -1638,13 +1958,16 @@ export default function Health() {
             <p className="text-xs leading-5 opacity-50">
               Sertakan jenis makanan dan
               perkiraan jumlah/porsi agar
-              estimasi lebih akurat. Kamu boleh
-              mengetik dengan bahasa sehari-hari.
+              estimasi lebih akurat. Kamu
+              boleh mengetik dengan bahasa
+              sehari-hari.
             </p>
 
             <button
               type="button"
-              onClick={analyzeFood}
+              onClick={
+                analyzeFood
+              }
               disabled={
                 foodLoading ||
                 !foodInput.trim()
@@ -1664,8 +1987,6 @@ export default function Health() {
           )}
         </div>
       </section>
-
-      {/* AI RESULT */}
 
       {foodAnalysis && (
         <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
@@ -1718,22 +2039,21 @@ export default function Health() {
                             P{" "}
                             {item.protein.toFixed(
                               1
-                            )}
+                            )}{" "}
                             g · C{" "}
                             {item.carbs.toFixed(
                               1
-                            )}
+                            )}{" "}
                             g · F{" "}
                             {item.fat.toFixed(
                               1
-                            )}
+                            )}{" "}
                             g
                           </p>
                         </>
                       ) : (
                         <p className="text-sm font-medium text-[#8a6257]">
                           Belum ditemukan
-                          di database
                         </p>
                       )}
                     </div>
@@ -1741,8 +2061,17 @@ export default function Health() {
 
                   {item.matched_food && (
                     <p className="mt-3 text-xs opacity-40">
-                      Database match:{" "}
+                      FatSecret match:{" "}
                       {item.matched_food}
+                    </p>
+                  )}
+
+                  {item.serving_description && (
+                    <p className="mt-2 text-xs opacity-40">
+                      Serving:{" "}
+                      {
+                        item.serving_description
+                      }
                     </p>
                   )}
 
@@ -1763,8 +2092,6 @@ export default function Health() {
           )}
         </section>
       )}
-
-      {/* DAILY NUTRITION */}
 
       <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
         <div>
@@ -1845,16 +2172,17 @@ export default function Health() {
 
         {!foodAnalysis && (
           <div className="mt-5 rounded-2xl border border-dashed border-[#cfc3b4] p-4 text-sm leading-6 opacity-50">
-            Belum ada makanan yang dianalisis
-            hari ini.
+            Belum ada makanan yang
+            dianalisis hari ini.
           </div>
         )}
 
         {foodAnalysis && (
           <div className="mt-5 rounded-2xl border border-dashed border-[#cfc3b4] p-4 text-sm leading-6 opacity-50">
-            Hasil ini merupakan estimasi berdasarkan
-            porsi yang kamu masukkan dan data pangan
-            yang tersedia di database.
+            Hasil ini merupakan estimasi
+            berdasarkan serving FatSecret
+            yang paling sesuai dengan porsi
+            yang kamu masukkan.
           </div>
         )}
       </section>
