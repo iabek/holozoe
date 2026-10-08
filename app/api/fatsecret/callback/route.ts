@@ -360,13 +360,20 @@ export async function GET(request: Request) {
     const {
       error: saveError,
     } = await supabase
-      .from(
-        "fatsecret_connections"
-      )
+      .from("fatsecret_connections")
       .upsert(
         {
           user_id: user.id,
 
+          // Kolom lama yang masih NOT NULL
+          access_token:
+            accessToken,
+
+          access_token_secret:
+            accessTokenSecret,
+
+          // Kolom FatSecret yang digunakan
+          // oleh helper API kita
           fatsecret_access_token:
             accessToken,
 
