@@ -93,7 +93,7 @@ export async function GET(request: Request) {
       {
         success: true,
         query,
-        debug_version: "food-search-v3",
+        debug_version: "food-search-v4",
         data,
       },
       {
