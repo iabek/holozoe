@@ -6,6 +6,7 @@ import Stats from "@/components/Stats";
 
 import {
   saveCurrentLifeGameStorage,
+  subscribeLifeGameStorageRealtime,
   syncLifeGameStorageFromSupabase,
 } from "@/lib/life-game-storage";
 
@@ -35,8 +36,10 @@ type LeisureDay = {
   usedMinutes: number;
 };
 
-type DailyActivitiesMap =
-  Record<string, string[]>;
+type DailyActivitiesMap = Record<
+  string,
+  string[]
+>;
 
 const BASE_LEISURE_MINUTES = 120;
 const MAX_EXTENSION_MINUTES = 120;
@@ -52,61 +55,44 @@ const DEFAULT_ACTIVITY_NAMES: Record<
   leisure: "Leisure",
 };
 
-function calculateLevel(
-  totalXp: number
-) {
-  return Math.floor(
-    totalXp / 100
-  ) + 1;
+function calculateLevel(totalXp: number) {
+  return Math.floor(totalXp / 100) + 1;
 }
 
-function getCurrentLevelXp(
-  totalXp: number
-) {
+function getCurrentLevelXp(totalXp: number) {
   return totalXp % 100;
 }
 
-function getLevelProgress(
-  totalXp: number
-) {
-  return getCurrentLevelXp(
-    totalXp
-  );
+function getLevelProgress(totalXp: number) {
+  return getCurrentLevelXp(totalXp);
 }
 
 function loadDailyActivities(): DailyActivitiesMap {
-  const saved =
-    localStorage.getItem(
-      "life-game-daily-activities"
-    );
+  const saved = localStorage.getItem(
+    "life-game-daily-activities"
+  );
 
   if (!saved) {
     return {};
   }
 
   try {
-    const parsed =
-      JSON.parse(saved);
+    const parsed = JSON.parse(saved);
 
     if (
       parsed &&
       typeof parsed === "object" &&
       !Array.isArray(parsed)
     ) {
-      const result: DailyActivitiesMap =
-        {};
+      const result: DailyActivitiesMap = {};
 
       Object.entries(parsed).forEach(
         ([date, value]) => {
           if (Array.isArray(value)) {
-            result[date] =
-              value.filter(
-                (
-                  item
-                ): item is string =>
-                  typeof item ===
-                  "string"
-              );
+            result[date] = value.filter(
+              (item): item is string =>
+                typeof item === "string"
+            );
           }
         }
       );
@@ -123,8 +109,7 @@ function loadDailyActivities(): DailyActivitiesMap {
 function getTodayKey() {
   const now = new Date();
 
-  const year =
-    now.getFullYear();
+  const year = now.getFullYear();
 
   const month = String(
     now.getMonth() + 1
@@ -137,11 +122,8 @@ function getTodayKey() {
   return `${year}-${month}-${day}`;
 }
 
-function getMood(
-  activityIds: string[]
-) {
-  const count =
-    activityIds.length;
+function getMood(activityIds: string[]) {
+  const count = activityIds.length;
 
   if (count === 0) {
     return {
@@ -151,29 +133,19 @@ function getMood(
   }
 
   const hasThesis =
-    activityIds.includes(
-      "thesis"
-    );
+    activityIds.includes("thesis");
 
   const hasMovement =
-    activityIds.includes(
-      "movement"
-    );
+    activityIds.includes("movement");
 
   const hasLearning =
-    activityIds.includes(
-      "learning"
-    );
+    activityIds.includes("learning");
 
   const hasSocial =
-    activityIds.includes(
-      "social"
-    );
+    activityIds.includes("social");
 
   const hasLeisure =
-    activityIds.includes(
-      "leisure"
-    );
+    activityIds.includes("leisure");
 
   const focus =
     (hasThesis ? 6 : 0) +
@@ -258,9 +230,7 @@ function getMood(
   }
 
   if (
-    focus +
-      energy +
-      growth >
+    focus + energy + growth >
     0
   ) {
     return {
@@ -292,9 +262,7 @@ function getMood(
 export default function Dashboard({
   onNavigate,
 }: {
-  onNavigate: (
-    page: string
-  ) => void;
+  onNavigate: (page: string) => void;
 }) {
   const [totalXp, setTotalXp] =
     useState(0);
@@ -320,36 +288,28 @@ export default function Dashboard({
   const [
     dailyStats,
     setDailyStats,
-  ] =
-    useState<DailyStats>({
-      Energy: 0,
-      Focus: 0,
-      Growth: 0,
-    });
+  ] = useState<DailyStats>({
+    Energy: 0,
+    Focus: 0,
+    Growth: 0,
+  });
 
   const [
     todayActivities,
     setTodayActivities,
-  ] =
-    useState<ActivityItem[]>(
-      []
-    );
+  ] = useState<ActivityItem[]>([]);
 
   const [
     habits,
     setHabits,
-  ] =
-    useState<ActivityItem[]>(
-      []
-    );
+  ] = useState<ActivityItem[]>([]);
 
   function loadDashboardData() {
-    const savedXp =
-      Number(
-        localStorage.getItem(
-          "life-game-xp"
-        ) || "0"
-      );
+    const savedXp = Number(
+      localStorage.getItem(
+        "life-game-xp"
+      ) || "0"
+    );
 
     setTotalXp(
       Number.isFinite(savedXp)
@@ -357,12 +317,11 @@ export default function Dashboard({
         : 0
     );
 
-    const savedGold =
-      Number(
-        localStorage.getItem(
-          "life-game-gold"
-        ) || "0"
-      );
+    const savedGold = Number(
+      localStorage.getItem(
+        "life-game-gold"
+      ) || "0"
+    );
 
     setGold(
       Number.isFinite(savedGold)
@@ -373,8 +332,7 @@ export default function Dashboard({
         : 0
     );
 
-    const today =
-      getTodayKey();
+    const today = getTodayKey();
 
     /*
      * GOLD EARNED TODAY
@@ -388,13 +346,9 @@ export default function Dashboard({
     if (savedHistory) {
       try {
         const parsed =
-          JSON.parse(
-            savedHistory
-          );
+          JSON.parse(savedHistory);
 
-        if (
-          Array.isArray(parsed)
-        ) {
+        if (Array.isArray(parsed)) {
           const todayGold =
             parsed.reduce(
               (
@@ -417,22 +371,14 @@ export default function Dashboard({
                 }
 
                 const recordDate =
-                  new Date(
-                    record.date
-                  );
+                  new Date(record.date);
 
                 const recordDateKey =
                   `${recordDate.getFullYear()}-${String(
                     recordDate.getMonth() + 1
-                  ).padStart(
-                    2,
-                    "0"
-                  )}-${String(
+                  ).padStart(2, "0")}-${String(
                     recordDate.getDate()
-                  ).padStart(
-                    2,
-                    "0"
-                  )}`;
+                  ).padStart(2, "0")}`;
 
                 if (
                   recordDateKey !==
@@ -483,9 +429,7 @@ export default function Dashboard({
     if (savedLeisure) {
       try {
         const parsed =
-          JSON.parse(
-            savedLeisure
-          );
+          JSON.parse(savedLeisure);
 
         const todayData =
           parsed?.[today] as
@@ -544,9 +488,7 @@ export default function Dashboard({
     if (savedStats) {
       try {
         const parsed =
-          JSON.parse(
-            savedStats
-          );
+          JSON.parse(savedStats);
 
         if (
           parsed &&
@@ -586,19 +528,15 @@ export default function Dashboard({
         "life-game-habits"
       );
 
-    let loadedHabits:
-      ActivityItem[] = [];
+    let loadedHabits: ActivityItem[] =
+      [];
 
     if (savedHabits) {
       try {
         const parsed =
-          JSON.parse(
-            savedHabits
-          );
+          JSON.parse(savedHabits);
 
-        if (
-          Array.isArray(parsed)
-        ) {
+        if (Array.isArray(parsed)) {
           loadedHabits =
             parsed
               .filter(
@@ -626,9 +564,7 @@ export default function Dashboard({
       }
     }
 
-    setHabits(
-      loadedHabits
-    );
+    setHabits(loadedHabits);
 
     /*
      * TODAY ACTIVITIES
@@ -638,31 +574,37 @@ export default function Dashboard({
       loadDailyActivities();
 
     const todayIds =
-      dailyActivities[
-        today
-      ] || [];
+      dailyActivities[today] || [];
 
     const builtActivities =
-      todayIds.map(
-        (id) => ({
-          id,
-          name:
-            DEFAULT_ACTIVITY_NAMES[
-              id
-            ] ||
-            id,
-        })
-      );
+      todayIds.map((id) => ({
+        id,
+        name:
+          DEFAULT_ACTIVITY_NAMES[
+            id
+          ] || id,
+      }));
 
     setTodayActivities(
       builtActivities
     );
   }
 
+  /*
+   * INITIAL LOAD + SUPABASE REALTIME
+   */
   useEffect(() => {
     let cancelled = false;
 
+    let unsubscribeRealtime:
+      | (() => void)
+      | null = null;
+
     async function initializeDashboard() {
+      /*
+       * Supabase menjadi source of truth
+       * saat Dashboard pertama dibuka.
+       */
       await syncLifeGameStorageFromSupabase();
 
       if (cancelled) {
@@ -670,10 +612,28 @@ export default function Dashboard({
       }
 
       loadDashboardData();
+
+      /*
+       * Setelah initial sync selesai,
+       * dengarkan perubahan dari device lain.
+       */
+      const cleanup =
+        await subscribeLifeGameStorageRealtime();
+
+      if (cancelled) {
+        cleanup?.();
+        return;
+      }
+
+      unsubscribeRealtime =
+        cleanup;
     }
 
     initializeDashboard();
 
+    /*
+     * Perubahan local browser.
+     */
     const handleStorage = () => {
       loadDashboardData();
     };
@@ -695,6 +655,11 @@ export default function Dashboard({
     return () => {
       cancelled = true;
 
+      /*
+       * Tutup realtime channel.
+       */
+      unsubscribeRealtime?.();
+
       window.removeEventListener(
         "storage",
         handleStorage
@@ -711,37 +676,31 @@ export default function Dashboard({
     activityId: string,
     occurrenceIndex: number
   ) {
-    const today =
-      getTodayKey();
+    const today = getTodayKey();
 
     const allActivities =
       loadDailyActivities();
 
     const todayIds =
-      allActivities[
-        today
-      ] || [];
+      allActivities[today] || [];
 
     let removed = false;
 
     const nextIds =
-      todayIds.filter(
-        (id) => {
-          if (
-            id === activityId &&
-            !removed
-          ) {
-            removed = true;
-            return false;
-          }
-
-          return true;
+      todayIds.filter((id) => {
+        if (
+          id === activityId &&
+          !removed
+        ) {
+          removed = true;
+          return false;
         }
-      );
 
-    allActivities[
-      today
-    ] = nextIds;
+        return true;
+      });
+
+    allActivities[today] =
+      nextIds;
 
     localStorage.setItem(
       "life-game-daily-activities",
@@ -751,16 +710,13 @@ export default function Dashboard({
     );
 
     setTodayActivities(
-      nextIds.map(
-        (id) => ({
-          id,
-          name:
-            DEFAULT_ACTIVITY_NAMES[
-              id
-            ] ||
-            id,
-        })
-      )
+      nextIds.map((id) => ({
+        id,
+        name:
+          DEFAULT_ACTIVITY_NAMES[
+            id
+          ] || id,
+      }))
     );
 
     const result =
@@ -782,7 +738,7 @@ export default function Dashboard({
     );
   }
 
-  function resetXp() {
+  async function resetXp() {
     const confirmed =
       window.confirm(
         "Reset semua XP dan kembali ke Level 1?"
@@ -799,6 +755,21 @@ export default function Dashboard({
 
     setTotalXp(0);
 
+    /*
+     * Simpan reset XP ke Supabase.
+     */
+    const result =
+      await saveCurrentLifeGameStorage(
+        "life-game-xp"
+      );
+
+    if (!result.success) {
+      console.error(
+        "Gagal menyimpan reset XP ke Supabase:",
+        result
+      );
+    }
+
     window.dispatchEvent(
       new Event(
         "life-game-updated"
@@ -806,7 +777,7 @@ export default function Dashboard({
     );
   }
 
-  function resetGold() {
+  async function resetGold() {
     const confirmed =
       window.confirm(
         "Reset semua Gold?"
@@ -823,6 +794,21 @@ export default function Dashboard({
 
     setGold(0);
 
+    /*
+     * Simpan reset Gold ke Supabase.
+     */
+    const result =
+      await saveCurrentLifeGameStorage(
+        "life-game-gold"
+      );
+
+    if (!result.success) {
+      console.error(
+        "Gagal menyimpan reset Gold ke Supabase:",
+        result
+      );
+    }
+
     window.dispatchEvent(
       new Event(
         "life-game-updated"
@@ -831,19 +817,13 @@ export default function Dashboard({
   }
 
   const level =
-    calculateLevel(
-      totalXp
-    );
+    calculateLevel(totalXp);
 
   const currentLevelXp =
-    getCurrentLevelXp(
-      totalXp
-    );
+    getCurrentLevelXp(totalXp);
 
   const progress =
-    getLevelProgress(
-      totalXp
-    );
+    getLevelProgress(totalXp);
 
   const mood =
     getMood(
@@ -1002,7 +982,8 @@ export default function Dashboard({
             </span>
 
             <span>
-              {leisureUsedToday} / {totalLeisureToday}m
+              {leisureUsedToday} /{" "}
+              {totalLeisureToday}m
             </span>
           </div>
 
@@ -1115,8 +1096,7 @@ export default function Dashboard({
           </h3>
 
           <div className="mt-4">
-            {habits.length ===
-            0 ? (
+            {habits.length === 0 ? (
               <p className="text-sm opacity-50">
                 No custom habits yet.
               </p>
@@ -1124,21 +1104,16 @@ export default function Dashboard({
               <div className="space-y-2">
                 {habits
                   .slice(0, 5)
-                  .map(
-                    (habit) => (
-                      <div
-                        key={
-                          habit.id
-                        }
-                        className="rounded-xl bg-[#f5f0e8] px-3 py-2 text-sm"
-                      >
-                        {habit.name}
-                      </div>
-                    )
-                  )}
+                  .map((habit) => (
+                    <div
+                      key={habit.id}
+                      className="rounded-xl bg-[#f5f0e8] px-3 py-2 text-sm"
+                    >
+                      {habit.name}
+                    </div>
+                  ))}
 
-                {habits.length >
-                  5 && (
+                {habits.length > 5 && (
                   <p className="pt-1 text-xs opacity-50">
                     +
                     {habits.length - 5}{" "}
@@ -1168,9 +1143,7 @@ export default function Dashboard({
           <button
             type="button"
             onClick={() =>
-              onNavigate(
-                "Prayer"
-              )
+              onNavigate("Prayer")
             }
             className="rounded-xl bg-[#ddd4c7] px-4 py-2 text-sm font-medium"
           >

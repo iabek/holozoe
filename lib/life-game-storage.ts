@@ -40,12 +40,16 @@ async function getAuthenticatedUser() {
   };
 }
 
+function isProtectedStorageKey(storageKey: string) {
+  return (
+    storageKey === "life-game-user-mode" ||
+    storageKey === "life-game-user-email"
+  );
+}
+
 /**
- * Ambil data Life Game dari Supabase untuk user yang sedang login.
- *
- * Supabase menjadi sumber data utama.
- * localStorage digunakan sebagai cache agar komponen
- * Life Game yang lama tetap bisa bekerja.
+ * Ambil data Life Game dari Supabase
+ * dan jadikan Supabase sebagai source of truth.
  */
 export async function syncLifeGameStorageFromSupabase() {
   const {
@@ -84,9 +88,7 @@ export async function syncLifeGameStorageFromSupabase() {
   }
 
   /**
-   * Bersihkan cache Life Game dari user sebelumnya.
-   *
-   * Jangan hapus key session/auth.
+   * Bersihkan cache Life Game lama.
    */
   for (let i = localStorage.length - 1; i >= 0; i--) {
     const key = localStorage.key(i);
@@ -99,34 +101,21 @@ export async function syncLifeGameStorageFromSupabase() {
       continue;
     }
 
-    if (
-      key === "life-game-user-mode" ||
-      key === "life-game-user-email"
-    ) {
+    if (isProtectedStorageKey(key)) {
       continue;
     }
 
     localStorage.removeItem(key);
   }
 
-  if (!data) {
-    return {
-      success: true,
-      count: 0,
-    };
-  }
-
   let count = 0;
 
-  for (const row of data as StorageRow[]) {
+  for (const row of (data ?? []) as StorageRow[]) {
     if (!row.storage_key.startsWith(STORAGE_PREFIX)) {
       continue;
     }
 
-    if (
-      row.storage_key === "life-game-user-mode" ||
-      row.storage_key === "life-game-user-email"
-    ) {
+    if (isProtectedStorageKey(row.storage_key)) {
       continue;
     }
 
@@ -148,9 +137,138 @@ export async function syncLifeGameStorageFromSupabase() {
     "key"
   );
 
+  window.dispatchEvent(
+    new Event("life-game-updated")
+  );
+
   return {
     success: true,
     count,
+  };
+}
+
+/**
+ * Subscribe perubahan Life Game dari Supabase
+ * supaya HP dan laptop menerima perubahan
+ * tanpa harus refresh.
+ */
+export async function subscribeLifeGameStorageRealtime() {
+  const {
+    user,
+    error: authError,
+  } = await getAuthenticatedUser();
+
+  if (authError || !user) {
+    console.error(
+      "Life Game realtime: user belum terautentikasi.",
+      authError
+    );
+
+    return null;
+  }
+
+  const channelName =
+    `life-game-storage-${user.id}`;
+
+  const channel = supabase
+    .channel(channelName)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "life_game_storage",
+        filter: `user_id=eq.${user.id}`,
+      },
+      async (payload) => {
+        console.log(
+          "Life Game realtime update:",
+          payload.eventType
+        );
+
+        /**
+         * INSERT / UPDATE
+         */
+        if (
+          payload.eventType === "INSERT" ||
+          payload.eventType === "UPDATE"
+        ) {
+          const row =
+            payload.new as Partial<StorageRow>;
+
+          const storageKey =
+            row.storage_key;
+
+          if (
+            !storageKey ||
+            !storageKey.startsWith(
+              STORAGE_PREFIX
+            ) ||
+            isProtectedStorageKey(
+              storageKey
+            )
+          ) {
+            return;
+          }
+
+          if (
+            row.storage_value === null ||
+            row.storage_value === undefined
+          ) {
+            localStorage.removeItem(
+              storageKey
+            );
+          } else {
+            localStorage.setItem(
+              storageKey,
+              row.storage_value
+            );
+          }
+
+          window.dispatchEvent(
+            new Event("life-game-updated")
+          );
+
+          return;
+        }
+
+        /**
+         * DELETE
+         *
+         * Untuk DELETE kita lakukan full sync
+         * karena old row tidak selalu membawa
+         * seluruh kolom tanpa replica identity full.
+         */
+        if (
+          payload.eventType === "DELETE"
+        ) {
+          await syncLifeGameStorageFromSupabase();
+        }
+      }
+    )
+    .subscribe((status) => {
+      console.log(
+        "Life Game realtime status:",
+        status
+      );
+
+      if (
+        status === "CHANNEL_ERROR" ||
+        status === "TIMED_OUT"
+      ) {
+        console.error(
+          "Life Game realtime gagal terhubung:",
+          status
+        );
+      }
+    });
+
+  return () => {
+    console.log(
+      "Menutup Life Game realtime channel."
+    );
+
+    supabase.removeChannel(channel);
   };
 }
 
@@ -185,10 +303,7 @@ export async function saveLifeGameStorage(
     };
   }
 
-  if (
-    storageKey === "life-game-user-mode" ||
-    storageKey === "life-game-user-email"
-  ) {
+  if (isProtectedStorageKey(storageKey)) {
     return {
       success: false,
       reason: "protected_key" as const,
@@ -202,10 +317,12 @@ export async function saveLifeGameStorage(
         user_id: user.id,
         storage_key: storageKey,
         storage_value: storageValue,
-        updated_at: new Date().toISOString(),
+        updated_at:
+          new Date().toISOString(),
       },
       {
-        onConflict: "user_id,storage_key",
+        onConflict:
+          "user_id,storage_key",
       }
     );
 
@@ -233,13 +350,14 @@ export async function saveLifeGameStorage(
 }
 
 /**
- * Simpan data yang sedang ada di localStorage
+ * Simpan data localStorage saat ini
  * ke Supabase.
  */
 export async function saveCurrentLifeGameStorage(
   storageKey: string
 ) {
-  const value = localStorage.getItem(storageKey);
+  const value =
+    localStorage.getItem(storageKey);
 
   return saveLifeGameStorage(
     storageKey,
@@ -274,6 +392,13 @@ export async function removeLifeGameStorage(
     return {
       success: false,
       reason: "invalid_key" as const,
+    };
+  }
+
+  if (isProtectedStorageKey(storageKey)) {
+    return {
+      success: false,
+      reason: "protected_key" as const,
     };
   }
 

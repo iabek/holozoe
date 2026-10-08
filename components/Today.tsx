@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import {
   saveCurrentLifeGameStorage,
+  subscribeLifeGameStorageRealtime,
   syncLifeGameStorageFromSupabase,
 } from "@/lib/life-game-storage";
 
@@ -141,8 +142,7 @@ const defaultActivities: Activity[] = [
 function getTodayKey() {
   const now = new Date();
 
-  const year =
-    now.getFullYear();
+  const year = now.getFullYear();
 
   const month = String(
     now.getMonth() + 1
@@ -166,8 +166,7 @@ function loadDailyActivities(): DailyActivities {
   }
 
   try {
-    const parsed =
-      JSON.parse(saved);
+    const parsed = JSON.parse(saved);
 
     if (
       parsed &&
@@ -194,8 +193,7 @@ function loadHistory(): HistoryItem[] {
   }
 
   try {
-    const parsed =
-      JSON.parse(saved);
+    const parsed = JSON.parse(saved);
 
     if (Array.isArray(parsed)) {
       return parsed;
@@ -218,8 +216,7 @@ function loadGoldLedger(): GoldLedgerItem[] {
   }
 
   try {
-    const parsed =
-      JSON.parse(saved);
+    const parsed = JSON.parse(saved);
 
     if (Array.isArray(parsed)) {
       return parsed;
@@ -242,8 +239,7 @@ function loadLeisureData(): LeisureData {
   }
 
   try {
-    const parsed =
-      JSON.parse(saved);
+    const parsed = JSON.parse(saved);
 
     if (
       parsed &&
@@ -274,12 +270,11 @@ function calculateGold(
 }
 
 function getSafeXp() {
-  const saved =
-    Number(
-      localStorage.getItem(
-        "life-game-xp"
-      ) || "0"
-    );
+  const saved = Number(
+    localStorage.getItem(
+      "life-game-xp"
+    ) || "0"
+  );
 
   if (!Number.isFinite(saved)) {
     return 0;
@@ -292,12 +287,11 @@ function getSafeXp() {
 }
 
 function getSafeGold() {
-  const saved =
-    Number(
-      localStorage.getItem(
-        "life-game-gold"
-      ) || "0"
-    );
+  const saved = Number(
+    localStorage.getItem(
+      "life-game-gold"
+    ) || "0"
+  );
 
   if (!Number.isFinite(saved)) {
     return 0;
@@ -313,8 +307,7 @@ function updateDailyStat(
   stat: StatName,
   amount: number
 ) {
-  const today =
-    getTodayKey();
+  const today = getTodayKey();
 
   const saved =
     localStorage.getItem(
@@ -331,8 +324,7 @@ function updateDailyStat(
 
   if (saved) {
     try {
-      const parsed =
-        JSON.parse(saved);
+      const parsed = JSON.parse(saved);
 
       if (
         parsed &&
@@ -390,17 +382,12 @@ function updateDailyStat(
 
   localStorage.setItem(
     "life-game-daily-stats",
-    JSON.stringify(
-      dailyStats
-    )
+    JSON.stringify(dailyStats)
   );
 }
 
-function updateXp(
-  amount: number
-) {
-  const currentXp =
-    getSafeXp();
+function updateXp(amount: number) {
+  const currentXp = getSafeXp();
 
   const nextXp = Math.max(
     0,
@@ -413,17 +400,13 @@ function updateXp(
   );
 }
 
-function updateGold(
-  amount: number
-) {
-  const currentGold =
-    getSafeGold();
+function updateGold(amount: number) {
+  const currentGold = getSafeGold();
 
-  const nextGold =
-    Math.max(
-      0,
-      currentGold + amount
-    );
+  const nextGold = Math.max(
+    0,
+    currentGold + amount
+  );
 
   localStorage.setItem(
     "life-game-gold",
@@ -440,8 +423,7 @@ function addGoldLedger(
     return;
   }
 
-  const ledger =
-    loadGoldLedger();
+  const ledger = loadGoldLedger();
 
   ledger.push({
     id: `${Date.now()}-${Math.random()}`,
@@ -496,10 +478,21 @@ export default function Today() {
     setCustomLeisureMinutes,
   ] = useState("");
 
+  /*
+   * INITIAL LOAD + REALTIME SYNC
+   */
   useEffect(() => {
     let cancelled = false;
 
+    let unsubscribeRealtime:
+      | (() => void)
+      | null = null;
+
     async function initializeToday() {
+      /*
+       * Ambil data terbaru dari Supabase
+       * sebelum membaca localStorage.
+       */
       await syncLifeGameStorageFromSupabase();
 
       if (cancelled) {
@@ -507,11 +500,25 @@ export default function Today() {
       }
 
       refresh();
+
+      /*
+       * Setelah initial sync selesai,
+       * buka realtime listener.
+       */
+      const cleanup =
+        await subscribeLifeGameStorageRealtime();
+
+      if (cancelled) {
+        cleanup?.();
+        return;
+      }
+
+      unsubscribeRealtime =
+        cleanup;
     }
 
     function refresh() {
-      const today =
-        getTodayKey();
+      const today = getTodayKey();
 
       const dailyActivities =
         loadDailyActivities();
@@ -528,9 +535,7 @@ export default function Today() {
       if (savedHabits) {
         try {
           const parsed =
-            JSON.parse(
-              savedHabits
-            );
+            JSON.parse(savedHabits);
 
           if (Array.isArray(parsed)) {
             setHabits(parsed);
@@ -544,9 +549,7 @@ export default function Today() {
         setHabits([]);
       }
 
-      setGold(
-        getSafeGold()
-      );
+      setGold(getSafeGold());
 
       const savedLeisure =
         loadLeisureData();
@@ -561,6 +564,9 @@ export default function Today() {
 
     initializeToday();
 
+    /*
+     * Local browser events.
+     */
     window.addEventListener(
       "storage",
       refresh
@@ -573,6 +579,12 @@ export default function Today() {
 
     return () => {
       cancelled = true;
+
+      /*
+       * Tutup Supabase realtime channel
+       * ketika component unmount.
+       */
+      unsubscribeRealtime?.();
 
       window.removeEventListener(
         "storage",
@@ -638,8 +650,7 @@ export default function Today() {
       usedMinutes: number;
     }
   ) {
-    const today =
-      getTodayKey();
+    const today = getTodayKey();
 
     const allLeisure =
       loadLeisureData();
@@ -648,9 +659,7 @@ export default function Today() {
 
     localStorage.setItem(
       "life-game-leisure",
-      JSON.stringify(
-        allLeisure
-      )
+      JSON.stringify(allLeisure)
     );
 
     setLeisure(data);
@@ -689,8 +698,7 @@ export default function Today() {
           )
         : 0;
 
-    const today =
-      getTodayKey();
+    const today = getTodayKey();
 
     const dailyActivities =
       loadDailyActivities();
@@ -720,8 +728,7 @@ export default function Today() {
       )
     );
 
-    const history =
-      loadHistory();
+    const history = loadHistory();
 
     history.push({
       id: `${Date.now()}-${Math.random()}`,
@@ -745,9 +752,7 @@ export default function Today() {
       JSON.stringify(history)
     );
 
-    updateXp(
-      activity.xp
-    );
+    updateXp(activity.xp);
 
     if (
       activity.stat !== "Mood"
@@ -758,12 +763,8 @@ export default function Today() {
       );
     }
 
-    if (
-      goldEarned > 0
-    ) {
-      updateGold(
-        goldEarned
-      );
+    if (goldEarned > 0) {
+      updateGold(goldEarned);
 
       addGoldLedger(
         "EARN",
@@ -772,20 +773,26 @@ export default function Today() {
       );
     }
 
-    setGold(
-      getSafeGold()
-    );
+    setGold(getSafeGold());
 
     setPendingActivity(null);
 
     setCustomMinutes("");
 
+    /*
+     * Update UI lokal dulu.
+     */
     window.dispatchEvent(
       new Event(
         "life-game-updated"
       )
     );
 
+    /*
+     * Lalu persist ke Supabase.
+     * Device lain akan menerima perubahan
+     * melalui realtime subscription.
+     */
     await persistStorageKeys([
       "life-game-daily-activities",
       "life-game-history",
@@ -820,8 +827,7 @@ export default function Today() {
   async function removeActivity(
     activity: Activity
   ) {
-    const today =
-      getTodayKey();
+    const today = getTodayKey();
 
     const dailyActivities =
       loadDailyActivities();
@@ -864,8 +870,7 @@ export default function Today() {
       )
     );
 
-    const history =
-      loadHistory();
+    const history = loadHistory();
 
     let historyIndex = -1;
 
@@ -914,9 +919,7 @@ export default function Today() {
         1
       );
 
-      if (
-        removedGold > 0
-      ) {
+      if (removedGold > 0) {
         updateGold(
           -removedGold
         );
@@ -928,9 +931,7 @@ export default function Today() {
       JSON.stringify(history)
     );
 
-    updateXp(
-      -activity.xp
-    );
+    updateXp(-activity.xp);
 
     if (
       activity.stat !== "Mood"
@@ -941,9 +942,7 @@ export default function Today() {
       );
     }
 
-    setGold(
-      getSafeGold()
-    );
+    setGold(getSafeGold());
 
     window.dispatchEvent(
       new Event(
@@ -976,16 +975,11 @@ export default function Today() {
       return;
     }
 
-    if (
-      gold <
-      goldCost
-    ) {
+    if (gold < goldCost) {
       return;
     }
 
-    updateGold(
-      -goldCost
-    );
+    updateGold(-goldCost);
 
     addGoldLedger(
       "SPEND",
@@ -1005,9 +999,7 @@ export default function Today() {
       nextLeisure
     );
 
-    setGold(
-      getSafeGold()
-    );
+    setGold(getSafeGold());
 
     window.dispatchEvent(
       new Event(
@@ -1058,10 +1050,9 @@ export default function Today() {
   }
 
   function confirmCustomLeisure() {
-    const minutes =
-      Number(
-        customLeisureMinutes
-      );
+    const minutes = Number(
+      customLeisureMinutes
+    );
 
     if (
       !Number.isFinite(minutes) ||
@@ -1080,10 +1071,9 @@ export default function Today() {
       return;
     }
 
-    const minutes =
-      Number(
-        customMinutes
-      );
+    const minutes = Number(
+      customMinutes
+    );
 
     if (
       !Number.isFinite(minutes) ||
@@ -1226,9 +1216,7 @@ export default function Today() {
 
                 return (
                   <button
-                    key={
-                      option.gold
-                    }
+                    key={option.gold}
                     type="button"
                     disabled={disabled}
                     onClick={() =>
@@ -1272,15 +1260,11 @@ export default function Today() {
 
                 return (
                   <button
-                    key={
-                      minutes
-                    }
+                    key={minutes}
                     type="button"
                     disabled={disabled}
                     onClick={() =>
-                      useLeisure(
-                        minutes
-                      )
+                      useLeisure(minutes)
                     }
                     className="rounded-xl bg-[#ddd4c7] px-3 py-3 text-sm font-medium transition hover:bg-[#d4c9ba] disabled:cursor-not-allowed disabled:opacity-40"
                   >
@@ -1304,9 +1288,7 @@ export default function Today() {
                 value={
                   customLeisureMinutes
                 }
-                onChange={(
-                  event
-                ) =>
+                onChange={(event) =>
                   setCustomLeisureMinutes(
                     event.target.value
                   )
@@ -1382,9 +1364,7 @@ export default function Today() {
 
             return (
               <div
-                key={
-                  activity.id
-                }
+                key={activity.id}
                 className="rounded-2xl bg-[#f5f0e8] p-4"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1468,9 +1448,7 @@ export default function Today() {
 
                           return (
                             <button
-                              key={
-                                minutes
-                              }
+                              key={minutes}
                               type="button"
                               onClick={() =>
                                 completeActivity(
@@ -1510,9 +1488,7 @@ export default function Today() {
                             event
                           ) =>
                             setCustomMinutes(
-                              event
-                                .target
-                                .value
+                              event.target.value
                             )
                           }
                           placeholder="e.g. 35"
