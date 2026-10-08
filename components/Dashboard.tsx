@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 
 import Stats from "@/components/Stats";
-import { saveCurrentLifeGameStorage } from "@/lib/life-game-storage";
+
+import {
+  saveCurrentLifeGameStorage,
+  syncLifeGameStorageFromSupabase,
+} from "@/lib/life-game-storage";
 
 type DailyStats = {
   Energy: number;
@@ -31,12 +35,16 @@ type LeisureDay = {
   usedMinutes: number;
 };
 
-type DailyActivitiesMap = Record<string, string[]>;
+type DailyActivitiesMap =
+  Record<string, string[]>;
 
 const BASE_LEISURE_MINUTES = 120;
 const MAX_EXTENSION_MINUTES = 120;
 
-const DEFAULT_ACTIVITY_NAMES: Record<string, string> = {
+const DEFAULT_ACTIVITY_NAMES: Record<
+  string,
+  string
+> = {
   thesis: "Thesis",
   movement: "Movement",
   learning: "Learning",
@@ -44,45 +52,64 @@ const DEFAULT_ACTIVITY_NAMES: Record<string, string> = {
   leisure: "Leisure",
 };
 
-function calculateLevel(totalXp: number) {
-  return Math.floor(totalXp / 100) + 1;
+function calculateLevel(
+  totalXp: number
+) {
+  return Math.floor(
+    totalXp / 100
+  ) + 1;
 }
 
-function getCurrentLevelXp(totalXp: number) {
+function getCurrentLevelXp(
+  totalXp: number
+) {
   return totalXp % 100;
 }
 
-function getLevelProgress(totalXp: number) {
-  return getCurrentLevelXp(totalXp);
+function getLevelProgress(
+  totalXp: number
+) {
+  return getCurrentLevelXp(
+    totalXp
+  );
 }
 
 function loadDailyActivities(): DailyActivitiesMap {
-  const saved = localStorage.getItem(
-    "life-game-daily-activities"
-  );
+  const saved =
+    localStorage.getItem(
+      "life-game-daily-activities"
+    );
 
   if (!saved) {
     return {};
   }
 
   try {
-    const parsed = JSON.parse(saved);
+    const parsed =
+      JSON.parse(saved);
 
     if (
       parsed &&
       typeof parsed === "object" &&
       !Array.isArray(parsed)
     ) {
-      const result: DailyActivitiesMap = {};
+      const result: DailyActivitiesMap =
+        {};
 
-      Object.entries(parsed).forEach(([date, value]) => {
-        if (Array.isArray(value)) {
-          result[date] = value.filter(
-            (item): item is string =>
-              typeof item === "string"
-          );
+      Object.entries(parsed).forEach(
+        ([date, value]) => {
+          if (Array.isArray(value)) {
+            result[date] =
+              value.filter(
+                (
+                  item
+                ): item is string =>
+                  typeof item ===
+                  "string"
+              );
+          }
         }
-      });
+      );
 
       return result;
     }
@@ -96,7 +123,8 @@ function loadDailyActivities(): DailyActivitiesMap {
 function getTodayKey() {
   const now = new Date();
 
-  const year = now.getFullYear();
+  const year =
+    now.getFullYear();
 
   const month = String(
     now.getMonth() + 1
@@ -109,8 +137,11 @@ function getTodayKey() {
   return `${year}-${month}-${day}`;
 }
 
-function getMood(activityIds: string[]) {
-  const count = activityIds.length;
+function getMood(
+  activityIds: string[]
+) {
+  const count =
+    activityIds.length;
 
   if (count === 0) {
     return {
@@ -120,19 +151,29 @@ function getMood(activityIds: string[]) {
   }
 
   const hasThesis =
-    activityIds.includes("thesis");
+    activityIds.includes(
+      "thesis"
+    );
 
   const hasMovement =
-    activityIds.includes("movement");
+    activityIds.includes(
+      "movement"
+    );
 
   const hasLearning =
-    activityIds.includes("learning");
+    activityIds.includes(
+      "learning"
+    );
 
   const hasSocial =
-    activityIds.includes("social");
+    activityIds.includes(
+      "social"
+    );
 
   const hasLeisure =
-    activityIds.includes("leisure");
+    activityIds.includes(
+      "leisure"
+    );
 
   const focus =
     (hasThesis ? 6 : 0) +
@@ -217,7 +258,10 @@ function getMood(activityIds: string[]) {
   }
 
   if (
-    focus + energy + growth > 0
+    focus +
+      energy +
+      growth >
+    0
   ) {
     return {
       emoji: "🥰",
@@ -248,33 +292,56 @@ function getMood(activityIds: string[]) {
 export default function Dashboard({
   onNavigate,
 }: {
-  onNavigate: (page: string) => void;
+  onNavigate: (
+    page: string
+  ) => void;
 }) {
-  const [totalXp, setTotalXp] = useState(0);
-
-  const [gold, setGold] = useState(0);
-
-  const [goldEarnedToday, setGoldEarnedToday] =
+  const [totalXp, setTotalXp] =
     useState(0);
 
-  const [leisureUsedToday, setLeisureUsedToday] =
+  const [gold, setGold] =
     useState(0);
 
-  const [leisureExtensionToday, setLeisureExtensionToday] =
-    useState(0);
+  const [
+    goldEarnedToday,
+    setGoldEarnedToday,
+  ] = useState(0);
 
-  const [dailyStats, setDailyStats] =
+  const [
+    leisureUsedToday,
+    setLeisureUsedToday,
+  ] = useState(0);
+
+  const [
+    leisureExtensionToday,
+    setLeisureExtensionToday,
+  ] = useState(0);
+
+  const [
+    dailyStats,
+    setDailyStats,
+  ] =
     useState<DailyStats>({
       Energy: 0,
       Focus: 0,
       Growth: 0,
     });
 
-  const [todayActivities, setTodayActivities] =
-    useState<ActivityItem[]>([]);
+  const [
+    todayActivities,
+    setTodayActivities,
+  ] =
+    useState<ActivityItem[]>(
+      []
+    );
 
-  const [habits, setHabits] =
-    useState<ActivityItem[]>([]);
+  const [
+    habits,
+    setHabits,
+  ] =
+    useState<ActivityItem[]>(
+      []
+    );
 
   function loadDashboardData() {
     const savedXp =
@@ -306,7 +373,8 @@ export default function Dashboard({
         : 0
     );
 
-    const today = getTodayKey();
+    const today =
+      getTodayKey();
 
     /*
      * GOLD EARNED TODAY
@@ -320,7 +388,9 @@ export default function Dashboard({
     if (savedHistory) {
       try {
         const parsed =
-          JSON.parse(savedHistory);
+          JSON.parse(
+            savedHistory
+          );
 
         if (
           Array.isArray(parsed)
@@ -516,7 +586,8 @@ export default function Dashboard({
         "life-game-habits"
       );
 
-    let loadedHabits: ActivityItem[] = [];
+    let loadedHabits:
+      ActivityItem[] = [];
 
     if (savedHabits) {
       try {
@@ -589,7 +660,19 @@ export default function Dashboard({
   }
 
   useEffect(() => {
-    loadDashboardData();
+    let cancelled = false;
+
+    async function initializeDashboard() {
+      await syncLifeGameStorageFromSupabase();
+
+      if (cancelled) {
+        return;
+      }
+
+      loadDashboardData();
+    }
+
+    initializeDashboard();
 
     const handleStorage = () => {
       loadDashboardData();
@@ -610,6 +693,8 @@ export default function Dashboard({
     );
 
     return () => {
+      cancelled = true;
+
       window.removeEventListener(
         "storage",
         handleStorage
@@ -622,19 +707,6 @@ export default function Dashboard({
     };
   }, []);
 
-  /*
-   * REMOVE ACTIVITY
-   *
-   * Sebelumnya hanya localStorage.
-   * Sekarang setelah menghapus:
-   *
-   * 1. localStorage diubah
-   * 2. Supabase ikut diubah
-   * 3. baru event refresh dikirim
-   *
-   * Jadi ketika refresh halaman,
-   * data lama tidak muncul kembali.
-   */
   async function removeActivity(
     activityId: string,
     occurrenceIndex: number
