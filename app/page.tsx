@@ -20,6 +20,7 @@ import Flashcard from "@/components/Flashcard";
 import ScreenTime from "@/components/ScreenTime";
 import Health from "@/components/Health";
 import Admin from "@/components/Admin";
+import Archive from "@/components/Archive";
 
 type DailyStats = {
   Energy: number;
@@ -47,18 +48,12 @@ type LeisureDay = {
   usedMinutes: number;
 };
 
-type DailyActivitiesMap = Record<
-  string,
-  string[]
->;
+type DailyActivitiesMap = Record<string, string[]>;
 
 const BASE_LEISURE_MINUTES = 120;
 const MAX_EXTENSION_MINUTES = 120;
 
-const DEFAULT_ACTIVITY_NAMES: Record<
-  string,
-  string
-> = {
+const DEFAULT_ACTIVITY_NAMES: Record<string, string> = {
   thesis: "Thesis",
   movement: "Movement",
   learning: "Learning",
@@ -66,70 +61,43 @@ const DEFAULT_ACTIVITY_NAMES: Record<
   leisure: "Leisure",
 };
 
-function calculateLevel(
-  totalXp: number
-) {
-  return Math.floor(
-    totalXp / 100
-  ) + 1;
+function calculateLevel(totalXp: number) {
+  return Math.floor(totalXp / 100) + 1;
 }
 
-function getCurrentLevelXp(
-  totalXp: number
-) {
+function getCurrentLevelXp(totalXp: number) {
   return totalXp % 100;
 }
 
-function getLevelProgress(
-  totalXp: number
-) {
-  return getCurrentLevelXp(
-    totalXp
-  );
+function getLevelProgress(totalXp: number) {
+  return getCurrentLevelXp(totalXp);
 }
 
 function loadDailyActivities(): DailyActivitiesMap {
-  const saved =
-    localStorage.getItem(
-      "life-game-daily-activities"
-    );
+  const saved = localStorage.getItem("life-game-daily-activities");
 
   if (!saved) {
     return {};
   }
 
   try {
-    const parsed =
-      JSON.parse(saved);
+    const parsed = JSON.parse(saved);
 
     if (
       parsed &&
       typeof parsed === "object" &&
       !Array.isArray(parsed)
     ) {
-      const result: DailyActivitiesMap =
-        {};
+      const result: DailyActivitiesMap = {};
 
-      Object.entries(
-        parsed
-      ).forEach(
-        ([date, value]) => {
-          if (
-            Array.isArray(
-              value
-            )
-          ) {
-            result[date] =
-              value.filter(
-                (
-                  item
-                ): item is string =>
-                  typeof item ===
-                  "string"
-              );
-          }
+      Object.entries(parsed).forEach(([date, value]) => {
+        if (Array.isArray(value)) {
+          result[date] = value.filter(
+            (item): item is string =>
+              typeof item === "string"
+          );
         }
-      );
+      });
 
       return result;
     }
@@ -141,30 +109,19 @@ function loadDailyActivities(): DailyActivitiesMap {
 }
 
 function getTodayKey() {
-  const now =
-    new Date();
+  const now = new Date();
 
-  const year =
-    now.getFullYear();
+  const year = now.getFullYear();
 
-  const month =
-    String(
-      now.getMonth() + 1
-    ).padStart(2, "0");
+  const month = String(now.getMonth() + 1).padStart(2, "0");
 
-  const day =
-    String(
-      now.getDate()
-    ).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
 }
 
-function getMood(
-  activityIds: string[]
-) {
-  const count =
-    activityIds.length;
+function getMood(activityIds: string[]) {
+  const count = activityIds.length;
 
   if (count === 0) {
     return {
@@ -173,54 +130,27 @@ function getMood(
     };
   }
 
-  const hasThesis =
-    activityIds.includes(
-      "thesis"
-    );
+  const hasThesis = activityIds.includes("thesis");
 
-  const hasMovement =
-    activityIds.includes(
-      "movement"
-    );
+  const hasMovement = activityIds.includes("movement");
 
-  const hasLearning =
-    activityIds.includes(
-      "learning"
-    );
+  const hasLearning = activityIds.includes("learning");
 
-  const hasSocial =
-    activityIds.includes(
-      "social"
-    );
+  const hasSocial = activityIds.includes("social");
 
-  const hasLeisure =
-    activityIds.includes(
-      "leisure"
-    );
+  const hasLeisure = activityIds.includes("leisure");
 
   const focus =
     (hasThesis ? 6 : 0) +
     (hasLearning ? 4 : 0);
 
-  const energy =
-    hasMovement
-      ? 5
-      : 0;
+  const energy = hasMovement ? 5 : 0;
 
-  const growth =
-    hasLearning
-      ? 5
-      : 0;
+  const growth = hasLearning ? 5 : 0;
 
-  const social =
-    hasSocial
-      ? 1
-      : 0;
+  const social = hasSocial ? 1 : 0;
 
-  const leisure =
-    hasLeisure
-      ? 1
-      : 0;
+  const leisure = hasLeisure ? 1 : 0;
 
   if (
     count === 1 &&
@@ -365,16 +295,12 @@ export default function Home() {
   const [
     todayActivities,
     setTodayActivities,
-  ] = useState<
-    ActivityItem[]
-  >([]);
+  ] = useState<ActivityItem[]>([]);
 
   const [
     habits,
     setHabits,
-  ] = useState<
-    ActivityItem[]
-  >([]);
+  ] = useState<ActivityItem[]>([]);
 
   function loadDashboardData() {
     const savedXp =
@@ -1039,6 +965,23 @@ export default function Home() {
       "Admin"
     ) {
       return <Admin />;
+    }
+
+    /*
+     * ARCHIVE
+     */
+
+    if (
+      activePage ===
+      "Archive"
+    ) {
+      return (
+        <Archive
+          onNavigate={
+            setActivePage
+          }
+        />
+      );
     }
 
     /*
