@@ -19,9 +19,6 @@ export async function GET(request: Request) {
     const region =
       url.searchParams.get("region") ?? "ID";
 
-    const language =
-      url.searchParams.get("language") ?? "en";
-
     if (!query) {
       return NextResponse.json(
         {
@@ -84,7 +81,6 @@ export async function GET(request: Request) {
           max_results:
             parsedMaxResults.toString(),
           region,
-          language,
           format: "json",
         }
       );
@@ -93,7 +89,7 @@ export async function GET(request: Request) {
       {
         success: true,
         query,
-        debug_version: "food-search-v4",
+        debug_version: "food-search-v5",
         data,
       },
       {
