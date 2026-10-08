@@ -12,8 +12,10 @@ type FatSecretConnection = {
 };
 
 function percentEncode(value: string) {
-  return encodeURIComponent(value).replace(/[!'()*]/g, (char) =>
-    `%${char.charCodeAt(0).toString(16).toUpperCase()}`
+  return encodeURIComponent(value).replace(
+    /[!'()*]/g,
+    (char) =>
+      `%${char.charCodeAt(0).toString(16).toUpperCase()}`
   );
 }
 
@@ -77,11 +79,7 @@ async function getAuthenticatedSupabase() {
           try {
             cookiesToSet.forEach(
               ({ name, value, options }) => {
-                cookieStore.set(
-                  name,
-                  value,
-                  options
-                );
+                cookieStore.set(name, value, options);
               }
             );
           } catch {
@@ -212,10 +210,7 @@ export async function fatSecretRequest<T>(
     const [key, value]
     of Object.entries(allParams)
   ) {
-    requestParams.set(
-      key,
-      value
-    );
+    requestParams.set(key, value);
   }
 
   requestParams.set(
