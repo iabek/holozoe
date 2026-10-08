@@ -36,28 +36,15 @@ function createSignature(
       percentEncode(value),
     ])
     .sort(([aKey, aValue], [bKey, bValue]) => {
-      if (aKey < bKey) {
-        return -1;
-      }
+      if (aKey < bKey) return -1;
+      if (aKey > bKey) return 1;
 
-      if (aKey > bKey) {
-        return 1;
-      }
-
-      if (aValue < bValue) {
-        return -1;
-      }
-
-      if (aValue > bValue) {
-        return 1;
-      }
+      if (aValue < bValue) return -1;
+      if (aValue > bValue) return 1;
 
       return 0;
     })
-    .map(
-      ([key, value]) =>
-        `${key}=${value}`
-    )
+    .map(([key, value]) => `${key}=${value}`)
     .join("&");
 
   const baseString = [
@@ -101,7 +88,7 @@ async function getAuthenticatedSupabase() {
               }
             );
           } catch {
-            // Ignore cookie write errors
+            // Ignore cookie write errors.
           }
         },
       },
@@ -181,6 +168,11 @@ export async function fatSecretRequest<T>(
       .trim()
       .replace(/^\/+/, "");
 
+  /*
+   * Kalau delegated = true,
+   * request dilakukan atas nama akun FatSecret
+   * yang sudah terhubung dengan user Holozoe.
+   */
   const connection =
     options.delegated
       ? await getFatSecretConnection()
@@ -205,6 +197,13 @@ export async function fatSecretRequest<T>(
       "1.0",
   };
 
+  /*
+   * Ini yang sebelumnya belum kita lakukan.
+   *
+   * Dengan oauth_token + oauth_token_secret,
+   * FatSecret tahu request ini milik user
+   * FatSecret tertentu.
+   */
   if (connection) {
     oauthParams.oauth_token =
       connection.fatsecret_access_token;
@@ -212,7 +211,9 @@ export async function fatSecretRequest<T>(
 
   const apiParameters: Record<string, string> = {
     ...parameters,
-    method: cleanEndpoint,
+
+    method:
+      cleanEndpoint,
   };
 
   const allParams: Record<string, string> = {
@@ -252,13 +253,17 @@ export async function fatSecretRequest<T>(
       FATSECRET_SERVER_URL,
       {
         method,
+
         headers: {
           "Content-Type":
             "application/x-www-form-urlencoded",
         },
+
         body:
           requestParams.toString(),
-        cache: "no-store",
+
+        cache:
+          "no-store",
       }
     );
 

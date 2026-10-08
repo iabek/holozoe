@@ -1,46 +1,101 @@
 import { NextResponse } from "next/server";
 import { fatSecretRequest } from "@/lib/fatsecret";
 
-export const dynamic = "force-dynamic";
+export const dynamic =
+  "force-dynamic";
 
-function getDateInt(date: Date) {
+function dateToFatSecretDate(
+  date: string
+) {
+  const match =
+    /^(\d{4})-(\d{2})-(\d{2})$/.exec(
+      date
+    );
+
+  if (!match) {
+    return null;
+  }
+
+  const year =
+    Number(match[1]);
+
+  const month =
+    Number(match[2]);
+
+  const day =
+    Number(match[3]);
+
+  const timestamp =
+    Date.UTC(
+      year,
+      month - 1,
+      day
+    );
+
+  const parsed =
+    new Date(timestamp);
+
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !==
+      month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  /*
+   * FatSecret tidak menerima
+   * "2026-10-09" secara langsung.
+
+   * Parameter date harus berupa
+   * jumlah hari sejak 1 Januari 1970.
+   */
   return Math.floor(
-    date.getTime() / 1000 / 86400
+    timestamp /
+      (24 * 60 * 60 * 1000)
   );
 }
 
-export async function GET(request: Request) {
+export async function GET(
+  request: Request
+) {
   try {
-    const url = new URL(request.url);
+    const url =
+      new URL(request.url);
 
-    const dateParam =
-      url.searchParams.get("date")?.trim() ?? "";
+    const date =
+      url.searchParams
+        .get("date")
+        ?.trim() ?? "";
 
-    let dateInt: number;
+    if (!date) {
+      return NextResponse.json(
+        {
+          error:
+            "Parameter date wajib diisi.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
 
-    if (dateParam) {
-      const parsedDate =
-        new Date(`${dateParam}T00:00:00Z`);
+    const dateInt =
+      dateToFatSecretDate(
+        date
+      );
 
-      if (
-        Number.isNaN(
-          parsedDate.getTime()
-        )
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "Parameter date tidak valid. Gunakan format YYYY-MM-DD.",
-          },
-          { status: 400 }
-        );
-      }
-
-      dateInt =
-        getDateInt(parsedDate);
-    } else {
-      dateInt =
-        getDateInt(new Date());
+    if (dateInt === null) {
+      return NextResponse.json(
+        {
+          error:
+            "Parameter date harus berformat YYYY-MM-DD dan merupakan tanggal yang valid.",
+        },
+        {
+          status: 400,
+        }
+      );
     }
 
     const data =
@@ -50,22 +105,31 @@ export async function GET(request: Request) {
         {
           date:
             dateInt.toString(),
-          format: "json",
+
+          format:
+            "json",
         },
         {
-          delegated: true,
+          delegated:
+            true,
         }
       );
 
     return NextResponse.json(
       {
-        success: true,
+        success:
+          true,
+
+        date,
+
         date_int:
           dateInt,
+
         data,
       },
       {
         status: 200,
+
         headers: {
           "Cache-Control":
             "no-store",
@@ -85,7 +149,9 @@ export async function GET(request: Request) {
             ? error.message
             : "Gagal mengambil Food Diary FatSecret.",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
