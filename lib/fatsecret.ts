@@ -5,6 +5,9 @@ import { cookies } from "next/headers";
 const FATSECRET_BASE_URL =
   "https://platform.fatsecret.com/rest";
 
+const FATSECRET_METHOD_URL =
+  "https://platform.fatsecret.com/rest/server.api";
+
 type FatSecretConnection = {
   user_id: string;
   fatsecret_access_token: string;
@@ -79,12 +82,15 @@ async function getAuthenticatedSupabase() {
           try {
             cookiesToSet.forEach(
               ({ name, value, options }) => {
-                cookieStore.set(name, value, options);
+                cookieStore.set(
+                  name,
+                  value,
+                  options
+                );
               }
             );
           } catch {
             // Ignore cookie write errors
-            // in server-only contexts.
           }
         },
       },
@@ -164,8 +170,12 @@ export async function fatSecretRequest<T>(
       .trim()
       .replace(/^\/+/, "");
 
-  const url =
-    `${FATSECRET_BASE_URL}/${cleanEndpoint}`;
+  const isMethodBased =
+    cleanEndpoint.includes(".");
+
+  const url = isMethodBased
+    ? FATSECRET_METHOD_URL
+    : `${FATSECRET_BASE_URL}/${cleanEndpoint}`;
 
   const oauthParams: Record<string, string> = {
     oauth_consumer_key:
@@ -189,8 +199,17 @@ export async function fatSecretRequest<T>(
       "1.0",
   };
 
-  const allParams: Record<string, string> = {
+  const apiParameters: Record<string, string> = {
     ...parameters,
+  };
+
+  if (isMethodBased) {
+    apiParameters.method =
+      cleanEndpoint;
+  }
+
+  const allParams: Record<string, string> = {
+    ...apiParameters,
     ...oauthParams,
   };
 
@@ -210,7 +229,10 @@ export async function fatSecretRequest<T>(
     const [key, value]
     of Object.entries(allParams)
   ) {
-    requestParams.set(key, value);
+    requestParams.set(
+      key,
+      value
+    );
   }
 
   requestParams.set(

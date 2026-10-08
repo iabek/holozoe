@@ -34,7 +34,8 @@ export async function GET(request: Request) {
     if (query.length > 100) {
       return NextResponse.json(
         {
-          error: "Pencarian terlalu panjang.",
+          error:
+            "Pencarian terlalu panjang.",
         },
         { status: 400 }
       );
@@ -52,7 +53,8 @@ export async function GET(request: Request) {
     ) {
       return NextResponse.json(
         {
-          error: "Parameter page tidak valid.",
+          error:
+            "Parameter page tidak valid.",
         },
         { status: 400 }
       );
@@ -74,8 +76,8 @@ export async function GET(request: Request) {
 
     const data =
       await fatSecretRequest(
-        "GET",
-        "foods/search/v5",
+        "POST",
+        "foods.search.v5",
         {
           search_expression: query,
 
