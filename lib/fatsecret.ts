@@ -2,10 +2,7 @@ import crypto from "crypto";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-const FATSECRET_BASE_URL =
-  "https://platform.fatsecret.com/rest";
-
-const FATSECRET_SIGNATURE_URL =
+const FATSECRET_SERVER_URL =
   "https://platform.fatsecret.com/rest/server.api";
 
 type FatSecretConnection = {
@@ -28,34 +25,51 @@ function createNonce() {
 
 function createSignature(
   method: string,
-  signatureUrl: string,
+  url: string,
   params: Record<string, string>,
-  consumerSecret: string
+  consumerSecret: string,
+  accessTokenSecret = ""
 ) {
-  const normalizedParams = Object.entries(params)
+  const encodedParams = Object.entries(params)
+    .map(([key, value]) => [
+      percentEncode(key),
+      percentEncode(value),
+    ])
     .sort(([aKey, aValue], [bKey, bValue]) => {
-      const keyCompare = aKey.localeCompare(bKey);
-
-      if (keyCompare !== 0) {
-        return keyCompare;
+      if (aKey < bKey) {
+        return -1;
       }
 
-      return aValue.localeCompare(bValue);
+      if (aKey > bKey) {
+        return 1;
+      }
+
+      if (aValue < bValue) {
+        return -1;
+      }
+
+      if (aValue > bValue) {
+        return 1;
+      }
+
+      return 0;
     })
     .map(
       ([key, value]) =>
-        `${percentEncode(key)}=${percentEncode(value)}`
+        `${key}=${value}`
     )
     .join("&");
 
   const baseString = [
     method.toUpperCase(),
-    percentEncode(signatureUrl),
-    percentEncode(normalizedParams),
+    percentEncode(url),
+    percentEncode(encodedParams),
   ].join("&");
 
   const signingKey =
-    `${percentEncode(consumerSecret)}&`;
+    `${percentEncode(consumerSecret)}&${percentEncode(
+      accessTokenSecret
+    )}`;
 
   return crypto
     .createHmac("sha1", signingKey)
@@ -164,9 +178,6 @@ export async function fatSecretRequest<T>(
       .trim()
       .replace(/^\/+/, "");
 
-  const requestUrl =
-    `${FATSECRET_BASE_URL}/${cleanEndpoint}`;
-
   const oauthParams: Record<string, string> = {
     oauth_consumer_key:
       consumerKey,
@@ -186,15 +197,20 @@ export async function fatSecretRequest<T>(
       "1.0",
   };
 
-  const allParams: Record<string, string> = {
+  const apiParameters: Record<string, string> = {
     ...parameters,
+    method: cleanEndpoint,
+  };
+
+  const allParams: Record<string, string> = {
+    ...apiParameters,
     ...oauthParams,
   };
 
   const signature =
     createSignature(
       method,
-      FATSECRET_SIGNATURE_URL,
+      FATSECRET_SERVER_URL,
       allParams,
       consumerSecret
     );
@@ -217,21 +233,11 @@ export async function fatSecretRequest<T>(
     signature
   );
 
-  let response: Response;
-
-  if (method === "GET") {
-    response = await fetch(
-      `${requestUrl}?${requestParams.toString()}`,
+  const response =
+    await fetch(
+      FATSECRET_SERVER_URL,
       {
-        method: "GET",
-        cache: "no-store",
-      }
-    );
-  } else {
-    response = await fetch(
-      requestUrl,
-      {
-        method: "POST",
+        method,
         headers: {
           "Content-Type":
             "application/x-www-form-urlencoded",
@@ -241,7 +247,6 @@ export async function fatSecretRequest<T>(
         cache: "no-store",
       }
     );
-  }
 
   const responseText =
     await response.text();
@@ -253,6 +258,12 @@ export async function fatSecretRequest<T>(
   );
 
   if (!response.ok) {
+    console.error(
+      "FatSecret API HTTP error:",
+      response.status,
+      responseText
+    );
+
     throw new Error(
       `FatSecret API request failed (${response.status}).`
     );
@@ -263,6 +274,11 @@ export async function fatSecretRequest<T>(
       responseText
     ) as T;
   } catch {
+    console.error(
+      "FatSecret API non-JSON response:",
+      responseText
+    );
+
     throw new Error(
       "FatSecret API mengembalikan response yang bukan JSON."
     );
