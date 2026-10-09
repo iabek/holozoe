@@ -50,14 +50,19 @@ export async function GET(request: Request) {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (
-    !supabaseUrl ||
-    !supabasePublishableKey ||
-    !serviceRoleKey
-  ) {
-    console.error("Supabase server configuration is incomplete.");
-    return finish("/?strava=config_error");
-  }
+if (
+  !supabaseUrl ||
+  !supabasePublishableKey ||
+  !serviceRoleKey
+) {
+  console.error("Supabase configuration check:", {
+    hasUrl: Boolean(supabaseUrl),
+    hasPublishableKey: Boolean(supabasePublishableKey),
+    hasServiceRoleKey: Boolean(serviceRoleKey),
+  });
+
+  return finish("/?strava=config_error");
+}
 
   // Client sesi pengguna: hanya untuk memverifikasi login.
   const sessionSupabase = createServerClient(
