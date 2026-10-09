@@ -1,7 +1,8 @@
-
 "use client";
 
 import { useState } from "react";
+import PlaceSearch from "@/components/PlaceSearch";
+import type { PlaceSearchResult } from "@/components/PlacesMap";
 
 type ArchiveFolder = {
   icon: string;
@@ -11,6 +12,35 @@ type ArchiveFolder = {
 
 type ArchiveProps = {
   onNavigate: (page: string) => void;
+};
+
+type MenuItem = {
+  id: string;
+  name: string;
+  rating: number;
+  notes: string;
+  recommended: boolean;
+};
+
+type PlaceVisit = {
+  id: string;
+  date: string;
+  notes: string;
+};
+
+type SavedPlace = {
+  id: string;
+  name: string;
+  category: string;
+  location: string;
+  latitude: number | null;
+  longitude: number | null;
+  rating: number;
+  notes: string;
+  tags: string[];
+  favorite: boolean;
+  menus: MenuItem[];
+  visits: PlaceVisit[];
 };
 
 const folders: ArchiveFolder[] = [
@@ -42,43 +72,20 @@ const folders: ArchiveFolder[] = [
   {
     icon: "📍",
     name: "Places",
-    description: "Places you've visited and experiences you want to remember.",
+    description:
+      "Places you've visited and experiences you want to remember.",
   },
 ];
 
 const inputClass =
   "w-full rounded-xl border border-[#d8cec0] bg-white/80 px-3 py-2.5 text-sm text-[#3f382f] outline-none placeholder:text-[#aaa092] focus:border-[#9c8973]";
 
-const labelClass =
-  "mb-1.5 block text-sm font-medium text-[#5f5346]";
+const labelClass = "mb-1.5 block text-sm font-medium text-[#5f5346]";
 
 export default function Archive({ onNavigate }: ArchiveProps) {
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
 
-  const [places, setPlaces] = useState<
-    {
-      id: string;
-      name: string;
-      category: string;
-      location: string;
-      rating: number;
-      notes: string;
-      tags: string[];
-      favorite: boolean;
-      menus: {
-        id: string;
-        name: string;
-        rating: number;
-        notes: string;
-        recommended: boolean;
-      }[];
-      visits: {
-        id: string;
-        date: string;
-        notes: string;
-      }[];
-    }[]
-  >([]);
+  const [places, setPlaces] = useState<SavedPlace[]>([]);
 
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
     null
@@ -95,6 +102,8 @@ export default function Archive({ onNavigate }: ArchiveProps) {
   const [placeName, setPlaceName] = useState("");
   const [placeCategory, setPlaceCategory] = useState("Restaurant");
   const [placeLocation, setPlaceLocation] = useState("");
+  const [placeLatitude, setPlaceLatitude] = useState<number | null>(null);
+  const [placeLongitude, setPlaceLongitude] = useState<number | null>(null);
   const [placeRating, setPlaceRating] = useState("5");
   const [placeNotes, setPlaceNotes] = useState("");
   const [placeTags, setPlaceTags] = useState("");
@@ -137,8 +146,7 @@ export default function Archive({ onNavigate }: ArchiveProps) {
 
     return (
       matchesSearch &&
-      (categoryFilter === "All" ||
-        place.category === categoryFilter) &&
+      (categoryFilter === "All" || place.category === categoryFilter) &&
       (!favoritesOnly || place.favorite)
     );
   });
@@ -158,16 +166,36 @@ export default function Archive({ onNavigate }: ArchiveProps) {
     setActiveFolder(name);
   }
 
+  function handleChooseLocation(result: PlaceSearchResult) {
+    setPlaceName(result.name);
+    setPlaceLocation(result.address);
+    setPlaceLatitude(result.latitude);
+    setPlaceLongitude(result.longitude);
+  }
+
+  function resetPlaceForm() {
+    setPlaceName("");
+    setPlaceCategory("Restaurant");
+    setPlaceLocation("");
+    setPlaceLatitude(null);
+    setPlaceLongitude(null);
+    setPlaceRating("5");
+    setPlaceNotes("");
+    setPlaceTags("");
+  }
+
   function addPlace(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!placeName.trim()) return;
 
-    const place = {
+    const place: SavedPlace = {
       id: crypto.randomUUID(),
       name: placeName.trim(),
       category: placeCategory,
       location: placeLocation.trim(),
+      latitude: placeLatitude,
+      longitude: placeLongitude,
       rating: Number(placeRating),
       notes: placeNotes.trim(),
       tags: placeTags
@@ -182,17 +210,12 @@ export default function Archive({ onNavigate }: ArchiveProps) {
     setPlaces((current) => [place, ...current]);
     setSelectedPlaceId(place.id);
     setShowPlaceForm(false);
-
-    setPlaceName("");
-    setPlaceCategory("Restaurant");
-    setPlaceLocation("");
-    setPlaceRating("5");
-    setPlaceNotes("");
-    setPlaceTags("");
+    resetPlaceForm();
   }
 
   function addMenuItem(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     if (!selectedPlace || !menuName.trim()) return;
 
     setPlaces((current) =>
@@ -224,6 +247,7 @@ export default function Archive({ onNavigate }: ArchiveProps) {
 
   function addVisit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     if (!selectedPlace || !visitDate) return;
 
     setPlaces((current) =>
@@ -258,6 +282,51 @@ export default function Archive({ onNavigate }: ArchiveProps) {
     );
   }
 
+  function deletePlace(placeId: string) {
+    const place = places.find((item) => item.id === placeId);
+
+    if (!place) return;
+
+    if (window.confirm(`Delete ${place.name}?`)) {
+      setPlaces((current) =>
+        current.filter((item) => item.id !== placeId)
+      );
+      setSelectedPlaceId(null);
+      setShowMenuForm(false);
+      setShowVisitForm(false);
+    }
+  }
+
+  function deleteMenu(menuId: string) {
+    if (!selectedPlace) return;
+
+    setPlaces((current) =>
+      current.map((place) =>
+        place.id === selectedPlace.id
+          ? {
+              ...place,
+              menus: place.menus.filter((menu) => menu.id !== menuId),
+            }
+          : place
+      )
+    );
+  }
+
+  function deleteVisit(visitId: string) {
+    if (!selectedPlace) return;
+
+    setPlaces((current) =>
+      current.map((place) =>
+        place.id === selectedPlace.id
+          ? {
+              ...place,
+              visits: place.visits.filter((visit) => visit.id !== visitId),
+            }
+          : place
+      )
+    );
+  }
+
   function renderStars(rating: number) {
     return (
       <span className="tracking-wide text-[#b18a4d]">
@@ -270,14 +339,25 @@ export default function Archive({ onNavigate }: ArchiveProps) {
   }
 
   function formatDate(date: string) {
-    return new Date(`${date}T12:00:00`).toLocaleDateString(
-      "en-US",
-      {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }
-    );
+    return new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+
+  function getMapUrl(place: SavedPlace) {
+    if (place.latitude !== null && place.longitude !== null) {
+      return `https://www.google.com/maps?q=${place.latitude},${place.longitude}`;
+    }
+
+    if (place.location) {
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+        `${place.name} ${place.location}`
+      )}`;
+    }
+
+    return null;
   }
 
   return (
@@ -294,8 +374,8 @@ export default function Archive({ onNavigate }: ArchiveProps) {
             </h2>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[#746a5e]">
-              A place for the people, memories, and pieces of your
-              life that you want to keep with you.
+              A place for the people, memories, and pieces of your life that
+              you want to keep with you.
             </p>
           </div>
 
@@ -334,8 +414,8 @@ export default function Archive({ onNavigate }: ArchiveProps) {
             </p>
 
             <p className="mt-2 text-sm leading-6 text-[#746a5e]">
-              Your archive can grow as your life grows. New folders
-              can be added whenever they become meaningful.
+              Your archive can grow as your life grows. New folders can be
+              added whenever they become meaningful.
             </p>
           </div>
         </>
@@ -360,18 +440,32 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                     <p className="text-xs uppercase tracking-[0.2em] text-[#8a7e70]">
                       Archive / Places
                     </p>
+
                     <h2 className="mt-2 text-2xl font-bold text-[#3f382f]">
                       {selectedPlace.name}
                     </h2>
+
                     <p className="mt-2 text-sm text-[#746a5e]">
                       {selectedPlace.category}
                       {selectedPlace.location
                         ? ` · ${selectedPlace.location}`
                         : ""}
                     </p>
+
                     <div className="mt-2">
                       {renderStars(selectedPlace.rating)}
                     </div>
+
+                    {getMapUrl(selectedPlace) && (
+                      <a
+                        href={getMapUrl(selectedPlace)!}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 inline-flex text-sm text-[#8f806d] underline underline-offset-4 hover:text-[#5f5346]"
+                      >
+                        📍 Open in Google Maps
+                      </a>
+                    )}
                   </div>
 
                   <div className="flex gap-2">
@@ -382,23 +476,10 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                     >
                       {selectedPlace.favorite ? "♥ Saved" : "♡ Favorite"}
                     </button>
+
                     <button
                       type="button"
-                      onClick={() => {
-                        if (
-                          window.confirm(
-                            `Delete ${selectedPlace.name}?`
-                          )
-                        ) {
-                          setPlaces((current) =>
-                            current.filter(
-                              (place) =>
-                                place.id !== selectedPlace.id
-                            )
-                          );
-                          setSelectedPlaceId(null);
-                        }
-                      }}
+                      onClick={() => deletePlace(selectedPlace.id)}
                       className="rounded-xl border border-[#d8cec0] px-3 py-2 text-sm text-[#9b5f54] hover:bg-[#f3e5e0]"
                     >
                       Delete
@@ -411,6 +492,7 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                     <p className="text-xs uppercase tracking-widest text-[#8a7e70]">
                       Experience notes
                     </p>
+
                     <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#5f5346]">
                       {selectedPlace.notes}
                     </p>
@@ -419,9 +501,9 @@ export default function Archive({ onNavigate }: ArchiveProps) {
 
                 {selectedPlace.tags.length > 0 && (
                   <div className="mt-4 flex flex-wrap gap-2">
-                    {selectedPlace.tags.map((tag) => (
+                    {selectedPlace.tags.map((tag, index) => (
                       <span
-                        key={tag}
+                        key={`${tag}-${index}`}
                         className="rounded-full bg-[#ebe3d8] px-3 py-1 text-xs text-[#746a5e]"
                       >
                         #{tag}
@@ -435,6 +517,7 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                     <h3 className="text-xl font-semibold text-[#3f382f]">
                       Menu & Recommendations
                     </h3>
+
                     <button
                       type="button"
                       onClick={() => setShowMenuForm(!showMenuForm)}
@@ -450,15 +533,11 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                       className="mt-4 space-y-4 rounded-xl border border-[#d8cec0] bg-white/60 p-4"
                     >
                       <div>
-                        <label className={labelClass}>
-                          Menu name *
-                        </label>
+                        <label className={labelClass}>Menu name *</label>
                         <input
                           required
                           value={menuName}
-                          onChange={(event) =>
-                            setMenuName(event.target.value)
-                          }
+                          onChange={(event) => setMenuName(event.target.value)}
                           className={inputClass}
                           placeholder="e.g. Matcha Latte"
                         />
@@ -468,9 +547,7 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                         <label className={labelClass}>Rating</label>
                         <select
                           value={menuRating}
-                          onChange={(event) =>
-                            setMenuRating(event.target.value)
-                          }
+                          onChange={(event) => setMenuRating(event.target.value)}
                           className={inputClass}
                         >
                           {[5, 4, 3, 2, 1].map((rating) => (
@@ -485,9 +562,7 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                         <label className={labelClass}>Notes</label>
                         <textarea
                           value={menuNotes}
-                          onChange={(event) =>
-                            setMenuNotes(event.target.value)
-                          }
+                          onChange={(event) => setMenuNotes(event.target.value)}
                           className={inputClass}
                           rows={2}
                         />
@@ -531,32 +606,21 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                                 {menu.name}
                                 {menu.recommended ? " ⭐" : ""}
                               </p>
+
                               <div className="mt-1">
                                 {renderStars(menu.rating)}
                               </div>
+
                               {menu.notes && (
                                 <p className="mt-2 whitespace-pre-wrap text-sm text-[#746a5e]">
                                   {menu.notes}
                                 </p>
                               )}
                             </div>
+
                             <button
                               type="button"
-                              onClick={() =>
-                                setPlaces((current) =>
-                                  current.map((place) =>
-                                    place.id === selectedPlace.id
-                                      ? {
-                                          ...place,
-                                          menus: place.menus.filter(
-                                            (item) =>
-                                              item.id !== menu.id
-                                          ),
-                                        }
-                                      : place
-                                  )
-                                )
-                              }
+                              onClick={() => deleteMenu(menu.id)}
                               className="text-xs text-[#9b5f54] hover:underline"
                             >
                               Delete
@@ -574,10 +638,12 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                       <h3 className="text-xl font-semibold text-[#3f382f]">
                         Visit History
                       </h3>
+
                       <p className="mt-1 text-sm text-[#746a5e]">
                         {selectedPlace.visits.length} visits recorded
                       </p>
                     </div>
+
                     <button
                       type="button"
                       onClick={() => setShowVisitForm(!showVisitForm)}
@@ -598,22 +664,16 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                           required
                           type="date"
                           value={visitDate}
-                          onChange={(event) =>
-                            setVisitDate(event.target.value)
-                          }
+                          onChange={(event) => setVisitDate(event.target.value)}
                           className={inputClass}
                         />
                       </div>
 
                       <div>
-                        <label className={labelClass}>
-                          Experience
-                        </label>
+                        <label className={labelClass}>Experience</label>
                         <textarea
                           value={visitNotes}
-                          onChange={(event) =>
-                            setVisitNotes(event.target.value)
-                          }
+                          onChange={(event) => setVisitNotes(event.target.value)}
                           className={inputClass}
                           rows={3}
                           placeholder="What happened during this visit?"
@@ -644,28 +704,16 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                             <p className="font-medium text-[#3f382f]">
                               {formatDate(visit.date)}
                             </p>
+
                             <button
                               type="button"
-                              onClick={() =>
-                                setPlaces((current) =>
-                                  current.map((place) =>
-                                    place.id === selectedPlace.id
-                                      ? {
-                                          ...place,
-                                          visits: place.visits.filter(
-                                            (item) =>
-                                              item.id !== visit.id
-                                          ),
-                                        }
-                                      : place
-                                  )
-                                )
-                              }
+                              onClick={() => deleteVisit(visit.id)}
                               className="text-xs text-[#9b5f54] hover:underline"
                             >
                               Delete
                             </button>
                           </div>
+
                           {visit.notes && (
                             <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#746a5e]">
                               {visit.notes}
@@ -682,16 +730,19 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                 <p className="text-xs uppercase tracking-[0.2em] text-[#8a7e70]">
                   Archive / Places
                 </p>
+
                 <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
                   <div>
                     <h2 className="text-2xl font-bold text-[#3f382f] sm:text-3xl">
                       Places I've Been.
                     </h2>
+
                     <p className="mt-2 max-w-xl text-sm leading-6 text-[#746a5e]">
-                      Keep your favorite places, remember the experience,
-                      and never forget what you loved there.
+                      Keep your favorite places, remember the experience, and
+                      never forget what you loved there.
                     </p>
                   </div>
+
                   <button
                     type="button"
                     onClick={() => setShowPlaceForm(!showPlaceForm)}
@@ -708,12 +759,14 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                       {places.length}
                     </p>
                   </div>
+
                   <div className="rounded-xl bg-[#eee7dc] p-4">
                     <p className="text-xs text-[#8a7e70]">Favorites</p>
                     <p className="mt-1 text-2xl font-bold text-[#3f382f]">
                       {places.filter((place) => place.favorite).length}
                     </p>
                   </div>
+
                   <div className="col-span-2 rounded-xl bg-[#eee7dc] p-4 sm:col-span-1">
                     <p className="text-xs text-[#8a7e70]">Visits recorded</p>
                     <p className="mt-1 text-2xl font-bold text-[#3f382f]">
@@ -734,14 +787,33 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                       Add a new place
                     </h3>
 
+                    {/* LOCATION SEARCH */}
+                    <div>
+                      <label className={labelClass}>
+                        Search for a place
+                      </label>
+
+                      <p className="mb-3 text-xs leading-5 text-[#8a7e70]">
+                        Search for a real place, then select a result to
+                        automatically fill in its name and location.
+                      </p>
+
+                      <PlaceSearch onChoose={handleChooseLocation} />
+
+                      {placeLatitude !== null &&
+                        placeLongitude !== null && (
+                          <p className="mt-2 text-xs text-[#6c8063]">
+                            ✓ Location selected · Coordinates saved
+                          </p>
+                        )}
+                    </div>
+
                     <div>
                       <label className={labelClass}>Place name *</label>
                       <input
                         required
                         value={placeName}
-                        onChange={(event) =>
-                          setPlaceName(event.target.value)
-                        }
+                        onChange={(event) => setPlaceName(event.target.value)}
                         className={inputClass}
                         placeholder="e.g. Kopi Toko Djawa"
                       />
@@ -764,6 +836,7 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                           ))}
                         </select>
                       </div>
+
                       <div>
                         <label className={labelClass}>Rating</label>
                         <select
@@ -786,23 +859,24 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                       <label className={labelClass}>Location</label>
                       <input
                         value={placeLocation}
-                        onChange={(event) =>
-                          setPlaceLocation(event.target.value)
-                        }
+                        onChange={(event) => {
+                          setPlaceLocation(event.target.value);
+                          setPlaceLatitude(null);
+                          setPlaceLongitude(null);
+                        }}
                         className={inputClass}
                         placeholder="City, address, or area"
                       />
+                      <p className="mt-1 text-xs text-[#8a7e70]">
+                        You can edit the address manually if needed.
+                      </p>
                     </div>
 
                     <div>
-                      <label className={labelClass}>
-                        Experience notes
-                      </label>
+                      <label className={labelClass}>Experience notes</label>
                       <textarea
                         value={placeNotes}
-                        onChange={(event) =>
-                          setPlaceNotes(event.target.value)
-                        }
+                        onChange={(event) => setPlaceNotes(event.target.value)}
                         className={inputClass}
                         rows={3}
                         placeholder="What makes this place special?"
@@ -813,9 +887,7 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                       <label className={labelClass}>Tags</label>
                       <input
                         value={placeTags}
-                        onChange={(event) =>
-                          setPlaceTags(event.target.value)
-                        }
+                        onChange={(event) => setPlaceTags(event.target.value)}
                         className={inputClass}
                         placeholder="cozy, date spot, affordable"
                       />
@@ -840,6 +912,7 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                     placeholder="Search places, tags, or notes..."
                     className={inputClass}
                   />
+
                   <select
                     value={categoryFilter}
                     onChange={(event) =>
@@ -868,22 +941,23 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                   Show favorites only
                 </label>
 
-                {showPlaceForm && places.length === 0 ? null : null}
-
                 <div className="mt-5">
                   {filteredPlaces.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-[#d8cec0] bg-white/40 px-5 py-12 text-center">
                       <div className="text-4xl">📍</div>
+
                       <h3 className="mt-3 font-semibold text-[#3f382f]">
                         {places.length === 0
                           ? "Your Places archive starts here."
                           : "No places found."}
                       </h3>
+
                       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#746a5e]">
                         {places.length === 0
                           ? "Save places you've visited, record your experience, and keep your favorite menu items."
                           : "Try another search or change your filters."}
                       </p>
+
                       {places.length === 0 && (
                         <button
                           type="button"
@@ -905,6 +979,7 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#ebe3d8] text-xl">
                               📍
                             </div>
+
                             <button
                               type="button"
                               onClick={() => updateFavorite(place.id)}
@@ -923,6 +998,7 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                             <h3 className="break-words font-semibold text-[#3f382f]">
                               {place.name}
                             </h3>
+
                             <span className="mt-2 inline-block rounded-full bg-[#ebe3d8] px-2.5 py-1 text-xs text-[#746a5e]">
                               {place.category}
                             </span>
@@ -932,6 +1008,17 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                             <p className="mt-3 break-words text-sm text-[#746a5e]">
                               📌 {place.location}
                             </p>
+                          )}
+
+                          {getMapUrl(place) && (
+                            <a
+                              href={getMapUrl(place)!}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-2 inline-block text-xs text-[#8f806d] underline underline-offset-4 hover:text-[#5f5346]"
+                            >
+                              Open in Google Maps ↗
+                            </a>
                           )}
 
                           <div className="mt-3 text-sm">
@@ -946,9 +1033,9 @@ export default function Archive({ onNavigate }: ArchiveProps) {
 
                           {place.tags.length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-1.5">
-                              {place.tags.slice(0, 3).map((tag) => (
+                              {place.tags.slice(0, 3).map((tag, index) => (
                                 <span
-                                  key={tag}
+                                  key={`${tag}-${index}`}
                                   className="rounded-full bg-white/70 px-2 py-1 text-xs text-[#817362]"
                                 >
                                   #{tag}
@@ -962,6 +1049,7 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                               <p className="text-xs uppercase tracking-widest text-[#8a7e70]">
                                 ⭐ Recommended
                               </p>
+
                               <p className="mt-1 text-sm font-medium text-[#5f5346]">
                                 {place.menus
                                   .filter((menu) => menu.recommended)
@@ -977,6 +1065,7 @@ export default function Archive({ onNavigate }: ArchiveProps) {
                               {place.visits.length}{" "}
                               {place.visits.length === 1 ? "visit" : "visits"}
                             </span>
+
                             <button
                               type="button"
                               onClick={() => setSelectedPlaceId(place.id)}
@@ -1003,12 +1092,15 @@ export default function Archive({ onNavigate }: ArchiveProps) {
           >
             ← Back to Archive
           </button>
+
           <p className="text-xs uppercase tracking-[0.2em] text-[#8a7e70]">
             Archive / {activeFolder}
           </p>
+
           <h2 className="mt-2 text-2xl font-bold text-[#3f382f]">
             {activeFolder}
           </h2>
+
           <p className="mt-2 text-sm leading-6 text-[#746a5e]">
             This collection is ready for its next feature.
           </p>
