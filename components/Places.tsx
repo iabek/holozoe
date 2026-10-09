@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -76,7 +77,7 @@ function getErrorMessage(error: unknown): string {
   return "An unexpected error occurred.";
 }
 
-function formatDate(date: string): string {
+function formatDate(date: string) {
   if (!date) return "No date";
 
   return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
@@ -84,6 +85,15 @@ function formatDate(date: string): string {
     month: "short",
     year: "numeric",
   });
+}
+
+function todayLocal() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 function RatingStars({ rating }: { rating: number | null }) {
@@ -128,7 +138,6 @@ export default function Places({ onBack }: PlacesProps) {
   const [showPlaceForm, setShowPlaceForm] = useState(false);
   const [showMenuForm, setShowMenuForm] = useState(false);
   const [showVisitForm, setShowVisitForm] = useState(false);
-
   const [editingPlaceId, setEditingPlaceId] = useState<string | null>(null);
 
   const [placeName, setPlaceName] = useState("");
@@ -145,9 +154,7 @@ export default function Places({ onBack }: PlacesProps) {
   const [menuNotes, setMenuNotes] = useState("");
   const [menuRecommended, setMenuRecommended] = useState(false);
 
-  const [visitDate, setVisitDate] = useState(
-    new Date().toLocaleDateString("en-CA"),
-  );
+  const [visitDate, setVisitDate] = useState(todayLocal);
   const [visitNotes, setVisitNotes] = useState("");
 
   const selectedPlaceData =
@@ -161,6 +168,7 @@ export default function Places({ onBack }: PlacesProps) {
     .filter((visit) => visit.place_id === selectedPlace)
     .sort((a, b) => b.visited_at.localeCompare(a.visited_at));
 
+  // Load Places first. Menu/visit failures must not hide saved places.
   const loadPlaces = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -177,20 +185,28 @@ export default function Places({ onBack }: PlacesProps) {
         setPlaces([]);
         setMenuItems([]);
         setVisits([]);
+        setSelectedPlace(null);
         setError("Please log in to manage your saved places.");
         return;
       }
 
-      const [
-        { data: placeData, error: placesError },
-        { data: menuData, error: menuError },
-        { data: visitData, error: visitsError },
-      ] = await Promise.all([
-        supabase
-          .from("places")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false }),
+      const { data: placeData, error: placesError } = await supabase
+        .from("places")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (placesError) throw placesError;
+
+      const loadedPlaces = (placeData ?? []) as Place[];
+      const ownedIds = new Set(loadedPlaces.map((place) => place.id));
+
+      setPlaces(loadedPlaces);
+      setSelectedPlace((current) =>
+        current && ownedIds.has(current) ? current : null,
+      );
+
+      const [menuResult, visitResult] = await Promise.all([
         supabase
           .from("place_menu_items")
           .select("*")
@@ -201,28 +217,29 @@ export default function Places({ onBack }: PlacesProps) {
           .order("visited_at", { ascending: false }),
       ]);
 
-      if (placesError) throw placesError;
-      if (menuError) throw menuError;
-      if (visitsError) throw visitsError;
+      if (menuResult.error) {
+        console.error("Failed to load menu items:", menuResult.error);
+        setMenuItems([]);
+      } else {
+        setMenuItems(
+          ((menuResult.data ?? []) as MenuItem[]).filter((item) =>
+            ownedIds.has(item.place_id),
+          ),
+        );
+      }
 
-      const loadedPlaces = (placeData ?? []) as Place[];
-      const ownedIds = new Set(loadedPlaces.map((place) => place.id));
-
-      setPlaces(loadedPlaces);
-      setMenuItems(
-        ((menuData ?? []) as MenuItem[]).filter((item) =>
-          ownedIds.has(item.place_id),
-        ),
-      );
-      setVisits(
-        ((visitData ?? []) as PlaceVisit[]).filter((visit) =>
-          ownedIds.has(visit.place_id),
-        ),
-      );
-      setSelectedPlace((current) =>
-        current && ownedIds.has(current) ? current : null,
-      );
+      if (visitResult.error) {
+        console.error("Failed to load visits:", visitResult.error);
+        setVisits([]);
+      } else {
+        setVisits(
+          ((visitResult.data ?? []) as PlaceVisit[]).filter((visit) =>
+            ownedIds.has(visit.place_id),
+          ),
+        );
+      }
     } catch (err) {
+      console.error("Failed to load Places:", err);
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
@@ -274,6 +291,8 @@ export default function Places({ onBack }: PlacesProps) {
     setPlaceNotes(place.notes ?? "");
     setPlaceTags((place.tags ?? []).join(", "));
     setShowPlaceForm(true);
+    setError("");
+    setNotice("");
   }
 
   function handleChooseLocation(result: PlaceSearchResult) {
@@ -329,28 +348,48 @@ export default function Places({ onBack }: PlacesProps) {
       };
 
       if (editingPlaceId) {
-        const { error: updateError } = await supabase
+        const { data, error: updateError } = await supabase
           .from("places")
           .update(payload)
           .eq("id", editingPlaceId)
-          .eq("user_id", user.id);
+          .eq("user_id", user.id)
+          .select("*")
+          .single();
 
         if (updateError) throw updateError;
+        if (!data) throw new Error("The place update was not confirmed.");
+
+        setPlaces((current) =>
+          current.map((place) =>
+            place.id === editingPlaceId ? (data as Place) : place,
+          ),
+        );
         setNotice("Place updated successfully.");
       } else {
-        const { error: insertError } = await supabase.from("places").insert({
-          ...payload,
-          user_id: user.id,
-          is_favorite: false,
-        });
+        const { data, error: insertError } = await supabase
+          .from("places")
+          .insert({
+            ...payload,
+            user_id: user.id,
+            is_favorite: false,
+          })
+          .select("*")
+          .single();
 
         if (insertError) throw insertError;
+        if (!data) throw new Error("The place save was not confirmed.");
+
+        setPlaces((current) => [
+          data as Place,
+          ...current.filter((place) => place.id !== data.id),
+        ]);
         setNotice("Place saved successfully.");
       }
 
       resetPlaceForm();
       await loadPlaces();
     } catch (err) {
+      console.error("Failed to save place:", err);
       setError(getErrorMessage(err));
     } finally {
       setSaving(false);
@@ -362,19 +401,19 @@ export default function Places({ onBack }: PlacesProps) {
     setNotice("");
 
     try {
-      const { error: updateError } = await supabase
+      const { data, error: updateError } = await supabase
         .from("places")
         .update({ is_favorite: !place.is_favorite })
         .eq("id", place.id)
-        .eq("user_id", place.user_id);
+        .eq("user_id", place.user_id)
+        .select("*")
+        .single();
 
       if (updateError) throw updateError;
 
       setPlaces((current) =>
         current.map((item) =>
-          item.id === place.id
-            ? { ...item, is_favorite: !item.is_favorite }
-            : item,
+          item.id === place.id ? (data as Place) : item,
         ),
       );
     } catch (err) {
@@ -395,13 +434,19 @@ export default function Places({ onBack }: PlacesProps) {
     setNotice("");
 
     try {
-      const { error: deleteError } = await supabase
+      const { data, error: deleteError } = await supabase
         .from("places")
         .delete()
         .eq("id", place.id)
-        .eq("user_id", place.user_id);
+        .eq("user_id", place.user_id)
+        .select("id");
 
       if (deleteError) throw deleteError;
+      if (!data?.length) {
+        throw new Error(
+          "Place was not deleted. Check your account and database permissions.",
+        );
+      }
 
       setPlaces((current) => current.filter((item) => item.id !== place.id));
       setMenuItems((current) =>
@@ -441,7 +486,7 @@ export default function Places({ onBack }: PlacesProps) {
     setSaving(true);
 
     try {
-      const { error: insertError } = await supabase
+      const { data, error: insertError } = await supabase
         .from("place_menu_items")
         .insert({
           place_id: selectedPlaceData.id,
@@ -449,17 +494,19 @@ export default function Places({ onBack }: PlacesProps) {
           rating,
           notes: menuNotes.trim() || null,
           is_recommended: menuRecommended,
-        });
+        })
+        .select("*")
+        .single();
 
       if (insertError) throw insertError;
 
+      setMenuItems((current) => [data as MenuItem, ...current]);
       setMenuName("");
       setMenuRating("0");
       setMenuNotes("");
       setMenuRecommended(false);
       setShowMenuForm(false);
       setNotice("Menu item saved.");
-      await loadPlaces();
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -468,20 +515,22 @@ export default function Places({ onBack }: PlacesProps) {
   }
 
   async function toggleMenuRecommendation(item: MenuItem) {
+    setError("");
+
     try {
-      const { error: updateError } = await supabase
+      const { data, error: updateError } = await supabase
         .from("place_menu_items")
         .update({ is_recommended: !item.is_recommended })
         .eq("id", item.id)
-        .eq("place_id", item.place_id);
+        .eq("place_id", item.place_id)
+        .select("*")
+        .single();
 
       if (updateError) throw updateError;
 
       setMenuItems((current) =>
         current.map((menu) =>
-          menu.id === item.id
-            ? { ...menu, is_recommended: !menu.is_recommended }
-            : menu,
+          menu.id === item.id ? (data as MenuItem) : menu,
         ),
       );
     } catch (err) {
@@ -492,14 +541,18 @@ export default function Places({ onBack }: PlacesProps) {
   async function deleteMenuItem(item: MenuItem) {
     if (!window.confirm(`Delete "${item.name}"?`)) return;
 
+    setError("");
+
     try {
-      const { error: deleteError } = await supabase
+      const { data, error: deleteError } = await supabase
         .from("place_menu_items")
         .delete()
         .eq("id", item.id)
-        .eq("place_id", item.place_id);
+        .eq("place_id", item.place_id)
+        .select("id");
 
       if (deleteError) throw deleteError;
+      if (!data?.length) throw new Error("Menu item was not deleted.");
 
       setMenuItems((current) =>
         current.filter((menu) => menu.id !== item.id),
@@ -525,21 +578,23 @@ export default function Places({ onBack }: PlacesProps) {
     setSaving(true);
 
     try {
-      const { error: insertError } = await supabase
+      const { data, error: insertError } = await supabase
         .from("place_visits")
         .insert({
           place_id: selectedPlaceData.id,
           visited_at: visitDate,
           notes: visitNotes.trim() || null,
-        });
+        })
+        .select("*")
+        .single();
 
       if (insertError) throw insertError;
 
-      setVisitDate(new Date().toLocaleDateString("en-CA"));
+      setVisits((current) => [data as PlaceVisit, ...current]);
+      setVisitDate(todayLocal());
       setVisitNotes("");
       setShowVisitForm(false);
       setNotice("Visit added to your history.");
-      await loadPlaces();
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -550,14 +605,18 @@ export default function Places({ onBack }: PlacesProps) {
   async function deleteVisit(visit: PlaceVisit) {
     if (!window.confirm("Delete this visit record?")) return;
 
+    setError("");
+
     try {
-      const { error: deleteError } = await supabase
+      const { data, error: deleteError } = await supabase
         .from("place_visits")
         .delete()
         .eq("id", visit.id)
-        .eq("place_id", visit.place_id);
+        .eq("place_id", visit.place_id)
+        .select("id");
 
       if (deleteError) throw deleteError;
+      if (!data?.length) throw new Error("Visit record was not deleted.");
 
       setVisits((current) =>
         current.filter((item) => item.id !== visit.id),
@@ -610,15 +669,7 @@ export default function Places({ onBack }: PlacesProps) {
               if (showPlaceForm) {
                 resetPlaceForm();
               } else {
-                setEditingPlaceId(null);
-                setPlaceName("");
-                setPlaceCategory("Restaurant");
-                setPlaceRating("0");
-                setPlaceLocation("");
-                setPlaceLatitude(null);
-                setPlaceLongitude(null);
-                setPlaceNotes("");
-                setPlaceTags("");
+                resetPlaceForm();
                 setShowPlaceForm(true);
               }
             }}
@@ -632,7 +683,7 @@ export default function Places({ onBack }: PlacesProps) {
       {error && (
         <div
           role="alert"
-          className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-700"
+          className="break-words rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-700"
         >
           {error}
         </div>
@@ -641,7 +692,7 @@ export default function Places({ onBack }: PlacesProps) {
       {notice && (
         <div
           role="status"
-          className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-800"
+          className="break-words rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-800"
         >
           {notice}
         </div>
@@ -928,15 +979,16 @@ export default function Places({ onBack }: PlacesProps) {
                         </p>
                       )}
 
-                      {place.latitude !== null && place.longitude !== null && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedPlace(place.id)}
-                          className="mt-2 self-start text-xs text-[var(--primary)] underline"
-                        >
-                          View on map
-                        </button>
-                      )}
+                      {place.latitude !== null &&
+                        place.longitude !== null && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedPlace(place.id)}
+                            className="mt-2 self-start text-xs text-[var(--primary)] underline"
+                          >
+                            View on map
+                          </button>
+                        )}
 
                       {place.notes && (
                         <p className="mt-3 line-clamp-3 whitespace-pre-wrap text-sm">
@@ -1118,7 +1170,6 @@ export default function Places({ onBack }: PlacesProps) {
           {showPlaceForm && editingPlaceId === selectedPlaceData.id && (
             <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
               <h3 className="text-lg font-semibold">Edit Place</h3>
-
               <form onSubmit={savePlace} className="mt-4 space-y-4">
                 <PlaceSearch onChoose={handleChooseLocation} />
 
@@ -1379,9 +1430,7 @@ export default function Places({ onBack }: PlacesProps) {
                             }
                             className="rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-xs"
                           >
-                            {item.is_recommended
-                              ? "Unrecommend"
-                              : "Recommend"}
+                            {item.is_recommended ? "Unrecommend" : "Recommend"}
                           </button>
                           <button
                             type="button"
