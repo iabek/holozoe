@@ -1,6 +1,4 @@
-
 "use client";
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import PlaceSearch, { type PlaceSearchResult } from "@/components/PlaceSearch";
@@ -62,7 +60,6 @@ function getErrorMessage(error: unknown): string {
   ) {
     return String(error.message);
   }
-
   return "An unexpected error occurred.";
 }
 
@@ -78,13 +75,11 @@ function getGoogleMapsUrl(place: {
   ) {
     return `https://www.google.com/maps/search/?api=1&query=${place.latitude},${place.longitude}`;
   }
-
   if (place.location) {
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
       `${place.name} ${place.location}`,
     )}`;
   }
-
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
     place.name,
   )}`;
@@ -92,7 +87,6 @@ function getGoogleMapsUrl(place: {
 
 function RatingStars({ rating }: { rating: number | null }) {
   const value = Math.max(0, Math.min(5, rating ?? 0));
-
   return (
     <span className="tracking-wide text-amber-500">
       {"★".repeat(value)}
@@ -151,7 +145,6 @@ export default function Places({ onBack }: PlacesProps) {
   const loadPlaces = useCallback(async () => {
     setLoading(true);
     setError("");
-
     try {
       const {
         data: { user },
@@ -246,7 +239,6 @@ export default function Places({ onBack }: PlacesProps) {
     }
 
     setSaving(true);
-
     try {
       const {
         data: { user },
@@ -304,7 +296,6 @@ export default function Places({ onBack }: PlacesProps) {
   async function toggleFavorite(place: Place) {
     setError("");
     setNotice("");
-
     try {
       const { error: updateError } = await supabase
         .from("places")
@@ -337,7 +328,6 @@ export default function Places({ onBack }: PlacesProps) {
 
     setError("");
     setNotice("");
-
     try {
       const { error: deleteError } = await supabase
         .from("places")
@@ -372,7 +362,6 @@ export default function Places({ onBack }: PlacesProps) {
     const selectedPlaceData = places.find(
       (place) => place.id === selectedPlace,
     );
-
     if (!selectedPlaceData) return;
 
     if (!menuName.trim()) {
@@ -381,7 +370,6 @@ export default function Places({ onBack }: PlacesProps) {
     }
 
     const parsedRating = Number(menuRating);
-
     try {
       const { error: insertError } = await supabase
         .from("place_menu_items")
@@ -435,7 +423,6 @@ export default function Places({ onBack }: PlacesProps) {
     const selectedPlaceData = places.find(
       (place) => place.id === selectedPlace,
     );
-
     if (!selectedPlaceData) return;
 
     try {
@@ -481,7 +468,6 @@ export default function Places({ onBack }: PlacesProps) {
 
   const filteredPlaces = places.filter((place) => {
     const query = searchQuery.trim().toLowerCase();
-
     const matchesQuery =
       !query ||
       place.name.toLowerCase().includes(query) ||
@@ -494,7 +480,6 @@ export default function Places({ onBack }: PlacesProps) {
     const matchesCategory =
       categoryFilter === "All" ||
       place.category === categoryFilter;
-
     const matchesFavorite =
       !favoriteFilter || place.is_favorite;
 
@@ -527,7 +512,6 @@ export default function Places({ onBack }: PlacesProps) {
         >
           ← Back
         </button>
-
         <button
           type="button"
           onClick={() => {
@@ -556,7 +540,7 @@ export default function Places({ onBack }: PlacesProps) {
       )}
 
       {showPlaceForm && (
-        <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 sm:p-7">
+        <section className="rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] p-5 sm:p-7 text-[#40372e]">
           <h2 className="mb-5 text-xl font-bold">
             {editingPlaceId ? "Edit Place" : "Add a Place"}
           </h2>
@@ -570,7 +554,7 @@ export default function Places({ onBack }: PlacesProps) {
                 value={placeName}
                 onChange={(event) => setPlaceName(event.target.value)}
                 required
-                className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                className="w-full rounded-xl border border-[#cfc2b1] bg-[#fbf8f3] px-3 py-3 text-[#40372e] placeholder:text-[#8a7b69] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9a8873]"
                 placeholder="Place name"
               />
             </label>
@@ -580,7 +564,7 @@ export default function Places({ onBack }: PlacesProps) {
               <select
                 value={placeCategory}
                 onChange={(event) => setPlaceCategory(event.target.value)}
-                className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                className="w-full rounded-xl border border-[#cfc2b1] bg-[#fbf8f3] px-3 py-3 text-[#40372e] placeholder:text-[#8a7b69] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9a8873]"
               >
                 {CATEGORIES.map((category) => (
                   <option key={category} value={category}>
@@ -616,7 +600,7 @@ export default function Places({ onBack }: PlacesProps) {
               <input
                 value={placeLocation}
                 onChange={(event) => setPlaceLocation(event.target.value)}
-                className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                className="w-full rounded-xl border border-[#cfc2b1] bg-[#fbf8f3] px-3 py-3 text-[#40372e] placeholder:text-[#8a7b69] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9a8873]"
                 placeholder="Address or location"
               />
             </label>
@@ -635,7 +619,7 @@ export default function Places({ onBack }: PlacesProps) {
                         : Number(event.target.value),
                     )
                   }
-                  className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                  className="w-full rounded-xl border border-[#cfc2b1] bg-[#fbf8f3] px-3 py-3 text-[#40372e] placeholder:text-[#8a7b69] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9a8873]"
                 />
               </label>
 
@@ -652,7 +636,7 @@ export default function Places({ onBack }: PlacesProps) {
                         : Number(event.target.value),
                     )
                   }
-                  className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                  className="w-full rounded-xl border border-[#cfc2b1] bg-[#fbf8f3] px-3 py-3 text-[#40372e] placeholder:text-[#8a7b69] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9a8873]"
                 />
               </label>
             </div>
@@ -663,7 +647,7 @@ export default function Places({ onBack }: PlacesProps) {
                 value={placeNotes}
                 onChange={(event) => setPlaceNotes(event.target.value)}
                 rows={3}
-                className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                className="w-full rounded-xl border border-[#cfc2b1] bg-[#fbf8f3] px-3 py-3 text-[#40372e] placeholder:text-[#8a7b69] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9a8873]"
                 placeholder="Your notes about this place"
               />
             </label>
@@ -673,7 +657,7 @@ export default function Places({ onBack }: PlacesProps) {
               <input
                 value={placeTags}
                 onChange={(event) => setPlaceTags(event.target.value)}
-                className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                className="w-full rounded-xl border border-[#cfc2b1] bg-[#fbf8f3] px-3 py-3 text-[#40372e] placeholder:text-[#8a7b69] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9a8873]"
                 placeholder="study, quiet, affordable"
               />
               <span className="text-xs text-[var(--muted)]">
@@ -681,11 +665,11 @@ export default function Places({ onBack }: PlacesProps) {
               </span>
             </label>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap items-center gap-3 border-t border-[#d8cec0] pt-5">
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-xl bg-[var(--primary)] px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[#776956] bg-[#8f806d] px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#776956] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8f806d] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving
                   ? "Saving..."
@@ -697,7 +681,7 @@ export default function Places({ onBack }: PlacesProps) {
               <button
                 type="button"
                 onClick={resetPlaceForm}
-                className="rounded-xl border border-[var(--border)] px-5 py-3 text-sm"
+                className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[#b8aa98] bg-[#eee5d8] px-6 py-3 text-sm font-medium text-[#40372e] transition-colors hover:bg-[#e3d7c7]"
               >
                 Cancel
               </button>
@@ -733,7 +717,6 @@ export default function Places({ onBack }: PlacesProps) {
                 <span className="text-sm text-[var(--muted)]">
                   {selectedPlaceData.category || "Other"}
                 </span>
-
                 <h2 className="mt-2 break-words text-3xl font-bold">
                   {selectedPlaceData.name}
                 </h2>
@@ -793,7 +776,6 @@ export default function Places({ onBack }: PlacesProps) {
                 >
                   {selectedPlaceData.is_favorite ? "♥ Favorite" : "♡ Favorite"}
                 </button>
-
                 <button
                   type="button"
                   onClick={() => openEditPlaceForm(selectedPlaceData)}
@@ -801,7 +783,6 @@ export default function Places({ onBack }: PlacesProps) {
                 >
                   Edit
                 </button>
-
                 <button
                   type="button"
                   onClick={() => void deletePlace(selectedPlaceData)}
@@ -843,7 +824,7 @@ export default function Places({ onBack }: PlacesProps) {
                     value={menuName}
                     onChange={(event) => setMenuName(event.target.value)}
                     required
-                    className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                    className="w-full rounded-xl border border-[#cfc2b1] bg-[#fbf8f3] px-3 py-3 text-[#40372e] placeholder:text-[#8a7b69] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9a8873]"
                   />
                 </label>
 
@@ -852,7 +833,7 @@ export default function Places({ onBack }: PlacesProps) {
                   <select
                     value={menuRating}
                     onChange={(event) => setMenuRating(event.target.value)}
-                    className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                    className="w-full rounded-xl border border-[#cfc2b1] bg-[#fbf8f3] px-3 py-3 text-[#40372e] placeholder:text-[#8a7b69] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9a8873]"
                   >
                     {[0, 1, 2, 3, 4, 5].map((value) => (
                       <option key={value} value={value}>
@@ -868,7 +849,7 @@ export default function Places({ onBack }: PlacesProps) {
                     value={menuNotes}
                     onChange={(event) => setMenuNotes(event.target.value)}
                     rows={2}
-                    className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                    className="w-full rounded-xl border border-[#cfc2b1] bg-[#fbf8f3] px-3 py-3 text-[#40372e] placeholder:text-[#8a7b69] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9a8873]"
                   />
                 </label>
 
@@ -906,16 +887,19 @@ export default function Places({ onBack }: PlacesProps) {
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <h4 className="font-semibold">{menu.name}</h4>
+
                         {menu.rating !== null && menu.rating > 0 && (
                           <p className="mt-1 text-sm">
                             <RatingStars rating={menu.rating} />
                           </p>
                         )}
+
                         {menu.is_recommended && (
                           <p className="mt-2 text-xs text-amber-600">
                             ⭐ Recommended
                           </p>
                         )}
+
                         {menu.notes && (
                           <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--muted)]">
                             {menu.notes}
@@ -968,7 +952,7 @@ export default function Places({ onBack }: PlacesProps) {
                     value={visitDate}
                     onChange={(event) => setVisitDate(event.target.value)}
                     required
-                    className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                    className="w-full rounded-xl border border-[#cfc2b1] bg-[#fbf8f3] px-3 py-3 text-[#40372e] placeholder:text-[#8a7b69] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9a8873]"
                   />
                 </label>
 
@@ -978,7 +962,7 @@ export default function Places({ onBack }: PlacesProps) {
                     value={visitNotes}
                     onChange={(event) => setVisitNotes(event.target.value)}
                     rows={2}
-                    className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                    className="w-full rounded-xl border border-[#cfc2b1] bg-[#fbf8f3] px-3 py-3 text-[#40372e] placeholder:text-[#8a7b69] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9a8873]"
                     placeholder="What was your experience?"
                   />
                 </label>
@@ -1014,6 +998,7 @@ export default function Places({ onBack }: PlacesProps) {
                             year: "numeric",
                           })}
                         </p>
+
                         {visit.notes && (
                           <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--muted)]">
                             {visit.notes}
@@ -1044,7 +1029,7 @@ export default function Places({ onBack }: PlacesProps) {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search places..."
-                className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                className="w-full rounded-xl border border-[#cfc2b1] bg-[#fbf8f3] px-3 py-3 text-[#40372e] placeholder:text-[#8a7b69] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9a8873]"
               />
 
               <select
