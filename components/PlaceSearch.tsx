@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -25,6 +26,36 @@ type PhotonFeature = {
   };
 };
 
+type NominatimResult = {
+  lat?: string;
+  lon?: string;
+  name?: string;
+  display_name?: string;
+  type?: string;
+  class?: string;
+  category?: string;
+  addresstype?: string;
+  address?: {
+    house_number?: string;
+    road?: string;
+    neighbourhood?: string;
+    suburb?: string;
+    city?: string;
+    town?: string;
+    village?: string;
+    municipality?: string;
+    county?: string;
+    state?: string;
+    country?: string;
+  };
+};
+
+type Candidate = {
+  result: PlaceSearchResult;
+  score: number;
+  type?: string;
+};
+
 function normalize(value: string) {
   return value
     .normalize("NFD")
@@ -35,7 +66,9 @@ function normalize(value: string) {
     .trim();
 }
 
-function getAddress(p: NonNullable<PhotonFeature["properties"]>) {
+function getAddress(
+  p: NonNullable<PhotonFeature["properties"]>,
+) {
   return [
     p.street && p.housenumber
       ? `${p.street} ${p.housenumber}`
@@ -51,44 +84,198 @@ function getAddress(p: NonNullable<PhotonFeature["properties"]>) {
     .join(", ");
 }
 
+function getNominatimAddress(item: NominatimResult) {
+  const a = item.address;
+
+  if (!a) return item.display_name || "";
+
+  return [
+    [a.road, a.house_number].filter(Boolean).join(" "),
+    a.neighbourhood,
+    a.suburb,
+    a.city || a.town || a.village || a.municipality,
+    a.county,
+    a.state,
+    a.country,
+  ]
+    .filter(Boolean)
+    .filter((value, index, array) => array.indexOf(value) === index)
+    .join(", ");
+}
+
 function scoreResult(
   result: PlaceSearchResult,
-  properties: NonNullable<PhotonFeature["properties"]>,
   query: string,
+  type?: string,
 ) {
   const q = normalize(query);
   const name = normalize(result.name);
   const address = normalize(result.address);
+  const combined = `${name} ${address}`;
   const words = q.split(" ").filter(Boolean);
 
   let score = 0;
 
-  // Prioritaskan kecocokan nama bisnis/tempat.
   if (name === q) score += 120;
   else if (name.startsWith(q)) score += 90;
   else if (name.includes(q)) score += 65;
 
-  // Pencarian beberapa kata, misalnya "Inaka Coffee".
   if (words.length > 1 && words.every((word) => name.includes(word))) {
     score += 55;
   }
 
-  // Jika pengguna mengetik nama dan kota, cocokkan keduanya.
-  const addressWords = words.filter((word) => address.includes(word));
-  score += addressWords.length * 12;
+  const nameMatches = words.filter((word) => name.includes(word)).length;
+  const addressMatches = words.filter((word) =>
+    address.includes(word),
+  ).length;
 
-  // Nama yang tidak mengandung satu pun kata pencarian
-  // jangan mengalahkan hasil yang lebih relevan.
-  if (!words.some((word) => name.includes(word))) {
-    score -= 20;
+  score += nameMatches * 15;
+  score += addressMatches * 10;
+
+  if (words.every((word) => combined.includes(word))) {
+    score += 35;
   }
 
-  // Prioritaskan hasil bisnis/tempat, bukan sekadar alamat.
-  if (properties.type === "house" || properties.type === "street") {
+  if (nameMatches === 0) score -= 35;
+
+  if (type === "house" || type === "street") {
     score -= 15;
   }
 
   return score;
+}
+
+function parsePhoton(features: PhotonFeature[], query: string): Candidate[] {
+  return features.flatMap((feature) => {
+    const coordinates = feature.geometry?.coordinates;
+    const p = feature.properties;
+
+    if (
+      !coordinates ||
+      coordinates.length < 2 ||
+      !p ||
+      !Number.isFinite(coordinates[0]) ||
+      !Number.isFinite(coordinates[1])
+    ) {
+      return [];
+    }
+
+    const address = getAddress(p);
+    const result: PlaceSearchResult = {
+      name: p.name || address || query,
+      address,
+      longitude: coordinates[0],
+      latitude: coordinates[1],
+    };
+
+    return [{
+      result,
+      score: scoreResult(result, query, p.type),
+      type: p.type,
+    }];
+  });
+}
+
+function parseNominatim(
+  items: NominatimResult[],
+  query: string,
+): Candidate[] {
+  return items.flatMap((item) => {
+    const latitude = Number(item.lat);
+    const longitude = Number(item.lon);
+
+    if (
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude) ||
+      !item.display_name
+    ) {
+      return [];
+    }
+
+    const address = getNominatimAddress(item);
+    const result: PlaceSearchResult = {
+      name: item.name || address || item.display_name || query,
+      address: address || item.display_name,
+      latitude,
+      longitude,
+    };
+
+    return [{
+      result,
+      score: scoreResult(
+        result,
+        query,
+        item.type || item.addresstype,
+      ),
+      type: item.type,
+    }];
+  });
+}
+
+function mergeResults(candidates: Candidate[]) {
+  const seen = new Set<string>();
+
+  return candidates
+    .sort((a, b) => b.score - a.score)
+    .filter(({ result }) => {
+      const key = [
+        normalize(result.name),
+        result.latitude.toFixed(4),
+        result.longitude.toFixed(4),
+      ].join("|");
+
+      if (seen.has(key)) return false;
+
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 8)
+    .map(({ result }) => result);
+}
+
+async function searchPhoton(
+  query: string,
+  signal: AbortSignal,
+): Promise<Candidate[]> {
+  const url = new URL("https://photon.komoot.io/api/");
+  url.searchParams.set("q", query);
+  url.searchParams.set("limit", "20");
+  url.searchParams.set("lang", "en");
+
+  const response = await fetch(url.toString(), { signal });
+
+  if (!response.ok) {
+    throw new Error("Photon search failed");
+  }
+
+  const data: { features?: PhotonFeature[] } = await response.json();
+  return parsePhoton(data.features ?? [], query);
+}
+
+async function searchNominatim(
+  query: string,
+  signal: AbortSignal,
+): Promise<Candidate[]> {
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("q", query);
+  url.searchParams.set("format", "jsonv2");
+  url.searchParams.set("addressdetails", "1");
+  url.searchParams.set("limit", "10");
+  url.searchParams.set("accept-language", "en");
+
+  const response = await fetch(url.toString(), {
+    signal,
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Nominatim search failed");
+  }
+
+  const data: NominatimResult[] = await response.json();
+  return parseNominatim(data, query);
 }
 
 export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
@@ -112,93 +299,50 @@ export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
     const timer = window.setTimeout(async () => {
       setSearching(true);
       setError("");
+      setResults([]);
 
       try {
-        const url = new URL("https://photon.komoot.io/api/");
+        let candidates: Candidate[] = [];
 
-        url.searchParams.set("q", text);
-
-        // Ambil lebih banyak kandidat sebelum mengurutkan.
-        url.searchParams.set("limit", "20");
-        url.searchParams.set("lang", "en");
-
-        const response = await fetch(url.toString(), {
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error("Location search service is unavailable.");
-        }
-
-        const data: { features?: PhotonFeature[] } =
-          await response.json();
-
-        const parsed = (data.features ?? [])
-          .map((feature) => {
-            const coordinates = feature.geometry?.coordinates;
-            const p = feature.properties;
-
-            if (!coordinates || coordinates.length < 2 || !p) {
-              return null;
-            }
-
-            const address = getAddress(p);
-
-            const result: PlaceSearchResult = {
-              name: p.name || address || text,
-              address,
-              longitude: coordinates[0],
-              latitude: coordinates[1],
-            };
-
-            return {
-              result,
-              score: scoreResult(result, p, text),
-            };
-          })
-          .filter(
-            (
-              item,
-            ): item is {
-              result: PlaceSearchResult;
-              score: number;
-            } =>
-              item !== null &&
-              Number.isFinite(item.result.latitude) &&
-              Number.isFinite(item.result.longitude),
-          );
-
-        // Urutkan berdasarkan kecocokan, bukan urutan dari API saja.
-        parsed.sort((a, b) => b.score - a.score);
-
-        // Hilangkan hasil duplikat pada koordinat yang sama.
-        const seen = new Set<string>();
-
-        const uniqueResults = parsed
-          .filter(({ result }) => {
-            const key =
-              `${result.latitude.toFixed(5)},` +
-              `${result.longitude.toFixed(5)}`;
-
-            if (seen.has(key)) return false;
-
-            seen.add(key);
-            return true;
-          })
-          .slice(0, 8)
-          .map(({ result }) => result);
-
-        if (!controller.signal.aborted) {
-          setResults(uniqueResults);
-
-          if (uniqueResults.length === 0) {
-            setError(
-              "No matching places found. Try another name or spelling.",
-            );
+        // Provider pertama: Photon.
+        try {
+          candidates = await searchPhoton(text, controller.signal);
+        } catch (err) {
+          if (err instanceof Error && err.name === "AbortError") {
+            return;
           }
         }
-      } catch (err) {
-        if (err instanceof Error && err.name !== "AbortError") {
+
+        if (controller.signal.aborted) return;
+
+        // Fallback: Nominatim jika Photon gagal atau hasilnya sedikit.
+        // Beri jeda debounce sebelum request kedua untuk mengurangi beban API.
+        if (candidates.length < 5) {
+          try {
+            const fallback = await searchNominatim(
+              text,
+              controller.signal,
+            );
+            candidates = [...candidates, ...fallback];
+          } catch (err) {
+            if (err instanceof Error && err.name === "AbortError") {
+              return;
+            }
+          }
+        }
+
+        if (controller.signal.aborted) return;
+
+        const uniqueResults = mergeResults(candidates);
+        setResults(uniqueResults);
+
+        if (uniqueResults.length === 0) {
+          setError(
+            "No matching places found. Try a shorter name, city, or full address.",
+          );
+        }
+      } catch {
+        if (!controller.signal.aborted) {
           setError("Could not search right now. Please try again.");
         }
       } finally {
@@ -206,7 +350,7 @@ export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
           setSearching(false);
         }
       }
-    }, 400);
+    }, 700);
 
     return () => {
       window.clearTimeout(timer);
@@ -225,7 +369,6 @@ export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
     <div className="relative space-y-2">
       <label className="block space-y-2 text-sm">
         <span className="font-medium">🔎 Search a place</span>
-
         <input
           type="search"
           value={query}
@@ -237,8 +380,8 @@ export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
       </label>
 
       <p className="text-xs text-[var(--muted)]">
-        Search for places worldwide. Choose a result to fill in
-        the name, address, and coordinates automatically.
+        Search places worldwide. Choose a result to fill in the
+        name, address, and coordinates automatically.
       </p>
 
       {searching && (
@@ -275,6 +418,10 @@ export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
           ))}
         </div>
       )}
+
+      <p className="text-xs text-[var(--muted)]">
+        Location data © OpenStreetMap contributors.
+      </p>
     </div>
   );
 }
