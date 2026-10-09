@@ -4,10 +4,15 @@ import {
   useEffect,
   useState,
 } from "react";
-
 import { useRouter } from "next/navigation";
+import { createBrowserClient } from "@supabase/ssr";
 
-import { createClient } from "@/lib/supabase";
+function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+  );
+}
 
 type SidebarProps = {
   activePage: string;
@@ -26,6 +31,7 @@ type MenuIconName =
   | "finance"
   | "projects"
   | "habits"
+  | "grow"
   | "prayer"
   | "health"
   | "history"
@@ -95,6 +101,10 @@ const menuSections: {
       {
         name: "Habits",
         icon: "habits",
+      },
+      {
+        name: "Grow",
+        icon: "grow",
       },
       {
         name: "Prayer",
@@ -285,6 +295,15 @@ function MenuIcon({
         </svg>
       );
 
+    case "grow":
+      return (
+        <svg {...commonProps}>
+          <path d="M12 20V10" />
+          <path d="M12 13c-4.5 0-7-2.5-7-7 4.5 0 7 2.5 7 7Z" />
+          <path d="M12 10c0-4 2.5-6 7-6 0 4.5-2.5 7-7 7" />
+        </svg>
+      );
+
     case "prayer":
       return (
         <svg {...commonProps}>
@@ -471,26 +490,26 @@ export default function Sidebar({
     async function loadProfile() {
       const {
         data: { user },
-      } =
-        await supabase.auth.getUser();
+      } = await supabase.auth.getUser();
 
       if (!user) return;
 
-      const { data, error } =
-        await supabase
-          .from("profiles")
-          .select(
-            "display_name, is_admin"
-          )
-          .eq("id", user.id)
-          .single();
+      const {
+        data,
+        error,
+      } = await supabase
+        .from("profiles")
+        .select(
+          "display_name, is_admin"
+        )
+        .eq("id", user.id)
+        .single();
 
       if (error) {
         console.error(
           "SIDEBAR PROFILE ERROR:",
           error
         );
-
         return;
       }
 
@@ -518,9 +537,7 @@ export default function Sidebar({
         customEvent.detail?.displayName?.trim();
 
       if (newName) {
-        setDisplayName(
-          newName
-        );
+        setDisplayName(newName);
       }
     }
 
@@ -547,10 +564,7 @@ export default function Sidebar({
     function handleEscape(
       event: KeyboardEvent
     ) {
-      if (
-        event.key ===
-        "Escape"
-      ) {
+      if (event.key === "Escape") {
         setMobileOpen(false);
       }
     }
@@ -592,7 +606,6 @@ export default function Sidebar({
         "LOGOUT ERROR:",
         error
       );
-
       return;
     }
 
@@ -615,9 +628,7 @@ export default function Sidebar({
         {menuSections.map(
           (section) => (
             <div
-              key={
-                section.title
-              }
+              key={section.title}
             >
               <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest text-[#8a7e70]">
                 {section.title}
@@ -662,9 +673,7 @@ export default function Sidebar({
                             name={
                               item.icon
                             }
-                            size={
-                              17
-                            }
+                            size={17}
                           />
                         </span>
 
