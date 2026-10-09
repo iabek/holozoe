@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase";
@@ -106,7 +106,7 @@ function formatEventTime(event: PlannerEvent) {
   }
 
   if (event.startTime && event.endTime) {
-    return `${event.startTime}ÔÇô${event.endTime}`;
+    return `${event.startTime}–${event.endTime}`;
   }
 
   return event.startTime || event.endTime || "All day";
@@ -306,7 +306,7 @@ export default function Planner() {
       const generatedBirthdayEvents: PlannerEvent[] =
         people.map((person) => ({
           id: `birthday-${person.id}`,
-          title: `­ƒÄé ${person.name}'s Birthday`,
+          title: `🎂 ${person.name}'s Birthday`,
           date: person.birth_date,
           recurrence: "yearly",
           notes: "Birthday from People archive.",
@@ -645,7 +645,7 @@ export default function Planner() {
               className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f5f0e8] text-lg transition hover:bg-[#e6dccf]"
               aria-label="Previous month"
             >
-              ÔÇ╣
+              ←
             </button>
 
             <button
@@ -656,7 +656,7 @@ export default function Planner() {
               className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f5f0e8] text-lg transition hover:bg-[#e6dccf]"
               aria-label="Next month"
             >
-              ÔÇ║
+              →
             </button>
 
             <h3 className="ml-2 text-xl font-bold">
@@ -862,7 +862,7 @@ export default function Planner() {
                               )}
                             </span>
 
-                            <span>ÔÇó</span>
+                            <span>•</span>
 
                             <span>
                               {getRecurrenceLabel(
@@ -1025,7 +1025,7 @@ export default function Planner() {
                 }}
                 className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#e4d9cb] text-lg opacity-60 hover:opacity-100"
               >
-                ├ù
+                ×
               </button>
             </div>
 
