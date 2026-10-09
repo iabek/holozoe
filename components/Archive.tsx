@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -51,19 +50,18 @@ export default function Archive({ onNavigate }: ArchiveProps) {
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
 
   function handleFolderClick(name: string) {
-    const navigableFolders = [
-      "People",
-      "Places",
-      "Movies & Series",
-      "Books",
-    ];
+    switch (name) {
+      case "People":
+      case "Places":
+      case "Movies & Series":
+      case "Books":
+        onNavigate(name);
+        break;
 
-    if (navigableFolders.includes(name)) {
-      onNavigate(name);
-      return;
+      default:
+        setActiveFolder(name);
+        break;
     }
-
-    setActiveFolder(name);
   }
 
   return (
