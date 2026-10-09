@@ -31,6 +31,7 @@ type Habit = {
   name: string;
   xp: number;
   stat: StatName;
+  icon?: string;
   earnsGold?: boolean;
 };
 
@@ -598,13 +599,20 @@ export default function Today() {
     };
   }, []);
 
+  /*
+   * CUSTOM HABITS
+   *
+   * Ambil emoji/icon asli dari habit.
+   * Habit lama yang belum punya icon tetap
+   * aman karena fallback ke ✓.
+   */
   const customActivities: Activity[] =
     habits.map((habit) => ({
       id: `habit-${habit.id}`,
       name: habit.name,
       xp: habit.xp,
       stat: habit.stat,
-      icon: "✓",
+      icon: habit.icon || "✓",
       earnsGold:
         habit.earnsGold === true,
     }));
