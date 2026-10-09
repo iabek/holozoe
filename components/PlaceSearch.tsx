@@ -7,6 +7,90 @@ type PlaceSearchProps = {
   onChoose: (result: PlaceSearchResult) => void;
 };
 
+type PhotonFeature = {
+  geometry?: {
+    coordinates?: [number, number];
+  };
+  properties?: {
+    name?: string;
+    street?: string;
+    housenumber?: string;
+    city?: string;
+    district?: string;
+    locality?: string;
+    state?: string;
+    country?: string;
+    countrycode?: string;
+    type?: string;
+  };
+};
+
+function normalize(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getAddress(p: NonNullable<PhotonFeature["properties"]>) {
+  return [
+    p.street && p.housenumber
+      ? `${p.street} ${p.housenumber}`
+      : p.street || p.housenumber,
+    p.locality,
+    p.city,
+    p.district,
+    p.state,
+    p.country,
+  ]
+    .filter(Boolean)
+    .filter((value, index, array) => array.indexOf(value) === index)
+    .join(", ");
+}
+
+function scoreResult(
+  result: PlaceSearchResult,
+  properties: NonNullable<PhotonFeature["properties"]>,
+  query: string,
+) {
+  const q = normalize(query);
+  const name = normalize(result.name);
+  const address = normalize(result.address);
+  const words = q.split(" ").filter(Boolean);
+
+  let score = 0;
+
+  // Prioritaskan kecocokan nama bisnis/tempat.
+  if (name === q) score += 120;
+  else if (name.startsWith(q)) score += 90;
+  else if (name.includes(q)) score += 65;
+
+  // Pencarian beberapa kata, misalnya "Inaka Coffee".
+  if (words.length > 1 && words.every((word) => name.includes(word))) {
+    score += 55;
+  }
+
+  // Jika pengguna mengetik nama dan kota, cocokkan keduanya.
+  const addressWords = words.filter((word) => address.includes(word));
+  score += addressWords.length * 12;
+
+  // Nama yang tidak mengandung satu pun kata pencarian
+  // jangan mengalahkan hasil yang lebih relevan.
+  if (!words.some((word) => name.includes(word))) {
+    score -= 20;
+  }
+
+  // Prioritaskan hasil bisnis/tempat, bukan sekadar alamat.
+  if (properties.type === "house" || properties.type === "street") {
+    score -= 15;
+  }
+
+  return score;
+}
+
 export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PlaceSearchResult[]>([]);
@@ -31,8 +115,11 @@ export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
 
       try {
         const url = new URL("https://photon.komoot.io/api/");
+
         url.searchParams.set("q", text);
-        url.searchParams.set("limit", "6");
+
+        // Ambil lebih banyak kandidat sebelum mengurutkan.
+        url.searchParams.set("limit", "20");
         url.searchParams.set("lang", "en");
 
         const response = await fetch(url.toString(), {
@@ -43,65 +130,71 @@ export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
           throw new Error("Location search service is unavailable.");
         }
 
-        const data = await response.json();
+        const data: { features?: PhotonFeature[] } =
+          await response.json();
 
-        const parsed: PlaceSearchResult[] = (data.features ?? [])
-          .map(
-            (feature: {
-              geometry?: { coordinates?: [number, number] };
-              properties?: {
-                name?: string;
-                street?: string;
-                housenumber?: string;
-                city?: string;
-                district?: string;
-                locality?: string;
-                state?: string;
-                country?: string;
-              };
-            }) => {
-              const coordinates = feature.geometry?.coordinates;
-              const p = feature.properties;
+        const parsed = (data.features ?? [])
+          .map((feature) => {
+            const coordinates = feature.geometry?.coordinates;
+            const p = feature.properties;
 
-              if (!coordinates || coordinates.length < 2) {
-                return null;
-              }
+            if (!coordinates || coordinates.length < 2 || !p) {
+              return null;
+            }
 
-              const address = [
-                p?.street,
-                p?.housenumber,
-                p?.locality,
-                p?.city,
-                p?.district,
-                p?.state,
-                p?.country,
-              ]
-                .filter(Boolean)
-                .filter(
-                  (value, index, array) => array.indexOf(value) === index,
-                )
-                .join(", ");
+            const address = getAddress(p);
 
-              return {
-                name: p?.name || address || text,
-                address,
-                longitude: coordinates[0],
-                latitude: coordinates[1],
-              };
-            },
-          )
+            const result: PlaceSearchResult = {
+              name: p.name || address || text,
+              address,
+              longitude: coordinates[0],
+              latitude: coordinates[1],
+            };
+
+            return {
+              result,
+              score: scoreResult(result, p, text),
+            };
+          })
           .filter(
-            (item: PlaceSearchResult | null): item is PlaceSearchResult =>
+            (
+              item,
+            ): item is {
+              result: PlaceSearchResult;
+              score: number;
+            } =>
               item !== null &&
-              Number.isFinite(item.latitude) &&
-              Number.isFinite(item.longitude),
+              Number.isFinite(item.result.latitude) &&
+              Number.isFinite(item.result.longitude),
           );
 
-        if (!controller.signal.aborted) {
-          setResults(parsed);
+        // Urutkan berdasarkan kecocokan, bukan urutan dari API saja.
+        parsed.sort((a, b) => b.score - a.score);
 
-          if (parsed.length === 0) {
-            setError("No matching places found. Try another search.");
+        // Hilangkan hasil duplikat pada koordinat yang sama.
+        const seen = new Set<string>();
+
+        const uniqueResults = parsed
+          .filter(({ result }) => {
+            const key =
+              `${result.latitude.toFixed(5)},` +
+              `${result.longitude.toFixed(5)}`;
+
+            if (seen.has(key)) return false;
+
+            seen.add(key);
+            return true;
+          })
+          .slice(0, 8)
+          .map(({ result }) => result);
+
+        if (!controller.signal.aborted) {
+          setResults(uniqueResults);
+
+          if (uniqueResults.length === 0) {
+            setError(
+              "No matching places found. Try another name or spelling.",
+            );
           }
         }
       } catch (err) {
@@ -113,7 +206,7 @@ export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
           setSearching(false);
         }
       }
-    }, 500);
+    }, 400);
 
     return () => {
       window.clearTimeout(timer);
@@ -144,8 +237,8 @@ export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
       </label>
 
       <p className="text-xs text-[var(--muted)]">
-        Type at least 3 characters and choose a result to fill in the place
-        name, address, and coordinates automatically.
+        Search for places worldwide. Choose a result to fill in
+        the name, address, and coordinates automatically.
       </p>
 
       {searching && (
