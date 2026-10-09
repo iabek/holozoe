@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  useEffect,
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 
@@ -26,6 +23,7 @@ type MenuIconName =
   | "journal"
   | "notes"
   | "archive"
+  | "music"
   | "learning"
   | "flashcard"
   | "finance"
@@ -48,85 +46,38 @@ const menuSections: {
   {
     title: "MAIN",
     items: [
-      {
-        name: "Dashboard",
-        icon: "home",
-      },
-      {
-        name: "Today",
-        icon: "clipboard",
-      },
-      {
-        name: "Planner",
-        icon: "calendar",
-      },
+      { name: "Dashboard", icon: "home" },
+      { name: "Today", icon: "clipboard" },
+      { name: "Planner", icon: "calendar" },
     ],
   },
   {
     title: "PERSONAL",
     items: [
-      {
-        name: "Journal",
-        icon: "journal",
-      },
-      {
-        name: "Notes",
-        icon: "notes",
-      },
-      {
-        name: "Archive",
-        icon: "archive",
-      },
-      {
-        name: "Learning",
-        icon: "learning",
-      },
-      {
-        name: "Flashcard",
-        icon: "flashcard",
-      },
-      {
-        name: "Finance",
-        icon: "finance",
-      },
-      {
-        name: "Projects",
-        icon: "projects",
-      },
+      { name: "Journal", icon: "journal" },
+      { name: "Notes", icon: "notes" },
+      { name: "Archive", icon: "archive" },
+      { name: "Music", icon: "music" },
+      { name: "Learning", icon: "learning" },
+      { name: "Flashcard", icon: "flashcard" },
+      { name: "Finance", icon: "finance" },
+      { name: "Projects", icon: "projects" },
     ],
   },
   {
     title: "LIFE",
     items: [
-      {
-        name: "Habits",
-        icon: "habits",
-      },
-      {
-        name: "Grow",
-        icon: "grow",
-      },
-      {
-        name: "Prayer",
-        icon: "prayer",
-      },
-      {
-        name: "Health",
-        icon: "health",
-      },
+      { name: "Habits", icon: "habits" },
+      { name: "Grow", icon: "grow" },
+      { name: "Prayer", icon: "prayer" },
+      { name: "Health", icon: "health" },
     ],
   },
   {
     title: "TRACKING",
     items: [
-      {
-        name: "History",
-        icon: "history",
-      },
-      {
-        name: "Screen Time",
-        icon: "screen-time",
-      },
+      { name: "History", icon: "history" },
+      { name: "Screen Time", icon: "screen-time" },
     ],
   },
 ];
@@ -162,13 +113,7 @@ function MenuIcon({
     case "clipboard":
       return (
         <svg {...commonProps}>
-          <rect
-            x="5"
-            y="4.5"
-            width="14"
-            height="17"
-            rx="2"
-          />
+          <rect x="5" y="4.5" width="14" height="17" rx="2" />
           <path d="M9 4.5V3h6v1.5" />
           <path d="M8.5 10h7" />
           <path d="M8.5 14h7" />
@@ -179,13 +124,7 @@ function MenuIcon({
     case "calendar":
       return (
         <svg {...commonProps}>
-          <rect
-            x="3.5"
-            y="5"
-            width="17"
-            height="16"
-            rx="2"
-          />
+          <rect x="3.5" y="5" width="17" height="16" rx="2" />
           <path d="M16 3v4" />
           <path d="M8 3v4" />
           <path d="M3.5 9h17" />
@@ -228,6 +167,15 @@ function MenuIcon({
         </svg>
       );
 
+    case "music":
+      return (
+        <svg {...commonProps}>
+          <path d="M9 18V5l12-2v13" />
+          <circle cx="6" cy="18" r="3" />
+          <circle cx="18" cy="16" r="3" />
+        </svg>
+      );
+
     case "learning":
       return (
         <svg {...commonProps}>
@@ -241,13 +189,7 @@ function MenuIcon({
     case "flashcard":
       return (
         <svg {...commonProps}>
-          <rect
-            x="5"
-            y="7"
-            width="13"
-            height="10"
-            rx="1.5"
-          />
+          <rect x="5" y="7" width="13" height="10" rx="1.5" />
           <path d="M8 4.5h10.5A1.5 1.5 0 0 1 20 6v8" />
           <path d="M9 11h5" />
           <path d="M9 13.5h3" />
@@ -257,13 +199,7 @@ function MenuIcon({
     case "finance":
       return (
         <svg {...commonProps}>
-          <rect
-            x="3.5"
-            y="5"
-            width="17"
-            height="14"
-            rx="2"
-          />
+          <rect x="3.5" y="5" width="17" height="14" rx="2" />
           <path d="M3.5 9h17" />
           <path d="M7 14h3" />
           <path d="M15 14h2" />
@@ -284,13 +220,7 @@ function MenuIcon({
     case "habits":
       return (
         <svg {...commonProps}>
-          <rect
-            x="4"
-            y="4"
-            width="16"
-            height="16"
-            rx="3"
-          />
+          <rect x="4" y="4" width="16" height="16" rx="3" />
           <path d="m8 12 2.5 2.5L16 9" />
         </svg>
       );
@@ -336,21 +266,11 @@ function MenuIcon({
     case "screen-time":
       return (
         <svg {...commonProps}>
-          <rect
-            x="5"
-            y="3"
-            width="14"
-            height="18"
-            rx="2.5"
-          />
+          <rect x="5" y="3" width="14" height="18" rx="2.5" />
           <path d="M9 7h6" />
           <path d="M9 11h6" />
           <path d="M9 15h3" />
-          <circle
-            cx="16"
-            cy="16"
-            r="2.5"
-          />
+          <circle cx="16" cy="16" r="2.5" />
           <path d="M16 14.5V16l1 1" />
         </svg>
       );
@@ -358,11 +278,7 @@ function MenuIcon({
     case "admin":
       return (
         <svg {...commonProps}>
-          <circle
-            cx="12"
-            cy="12"
-            r="3"
-          />
+          <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.5 1.5-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V20h-2.1v-.4a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.5-1.5.1-.1A1.7 1.7 0 0 0 9 15a1.7 1.7 0 0 0-1.5-1H7.1v-2.1h.4A1.7 1.7 0 0 0 9 11a1.7 1.7 0 0 0-.3-1.9l-.1-.1 1.5-1.5.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V6h2.1v.4a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.5 1.5-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.4V14h-.4a1.7 1.7 0 0 0-1.5 1Z" />
         </svg>
       );
@@ -384,11 +300,7 @@ function ProfileIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <circle
-        cx="12"
-        cy="8"
-        r="3"
-      />
+      <circle cx="12" cy="8" r="3" />
       <path d="M5 20c0-3.3 3.1-5 7-5s7 1.7 7 5" />
     </svg>
   );
@@ -459,11 +371,7 @@ function SearchIcon() {
       strokeWidth={1.8}
       strokeLinecap="round"
     >
-      <circle
-        cx="11"
-        cy="11"
-        r="6.5"
-      />
+      <circle cx="11" cy="11" r="6.5" />
       <path d="m16 16 4 4" />
     </svg>
   );
@@ -475,14 +383,9 @@ export default function Sidebar({
 }: SidebarProps) {
   const router = useRouter();
 
-  const [displayName, setDisplayName] =
-    useState("HOLOZOE Player");
-
-  const [isAdmin, setIsAdmin] =
-    useState(false);
-
-  const [mobileOpen, setMobileOpen] =
-    useState(false);
+  const [displayName, setDisplayName] = useState("HOLOZOE Player");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -494,47 +397,32 @@ export default function Sidebar({
 
       if (!user) return;
 
-      const {
-        data,
-        error,
-      } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
-        .select(
-          "display_name, is_admin"
-        )
+        .select("display_name, is_admin")
         .eq("id", user.id)
         .single();
 
       if (error) {
-        console.error(
-          "SIDEBAR PROFILE ERROR:",
-          error
-        );
+        console.error("SIDEBAR PROFILE ERROR:", error);
         return;
       }
 
       setDisplayName(
-        data?.display_name?.trim() ||
-          "HOLOZOE Player"
+        data?.display_name?.trim() || "HOLOZOE Player"
       );
 
-      setIsAdmin(
-        data?.is_admin === true
-      );
+      setIsAdmin(data?.is_admin === true);
     }
 
-    loadProfile();
+    void loadProfile();
 
-    function handleProfileUpdated(
-      event: Event
-    ) {
-      const customEvent =
-        event as CustomEvent<{
-          displayName?: string;
-        }>;
+    function handleProfileUpdated(event: Event) {
+      const customEvent = event as CustomEvent<{
+        displayName?: string;
+      }>;
 
-      const newName =
-        customEvent.detail?.displayName?.trim();
+      const newName = customEvent.detail?.displayName?.trim();
 
       if (newName) {
         setDisplayName(newName);
@@ -561,51 +449,33 @@ export default function Sidebar({
   useEffect(() => {
     if (!mobileOpen) return;
 
-    function handleEscape(
-      event: KeyboardEvent
-    ) {
+    function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setMobileOpen(false);
       }
     }
 
-    document.addEventListener(
-      "keydown",
-      handleEscape
-    );
-
-    document.body.style.overflow =
-      "hidden";
+    document.addEventListener("keydown", handleEscape);
+    document.body.style.overflow = "hidden";
 
     return () => {
-      document.removeEventListener(
-        "keydown",
-        handleEscape
-      );
-
-      document.body.style.overflow =
-        "";
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "";
     };
   }, [mobileOpen]);
 
   async function handleLogout() {
-    const confirmed =
-      window.confirm(
-        "Logout dari HOLOZOE?\n\nProgress kamu tetap tersimpan."
-      );
+    const confirmed = window.confirm(
+      "Logout dari HOLOZOE?\n\nProgress kamu tetap tersimpan."
+    );
 
     if (!confirmed) return;
 
     const supabase = createClient();
-
-    const { error } =
-      await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
 
     if (error) {
-      console.error(
-        "LOGOUT ERROR:",
-        error
-      );
+      console.error("LOGOUT ERROR:", error);
       return;
     }
 
@@ -613,83 +483,54 @@ export default function Sidebar({
     router.refresh();
   }
 
-  function handleMobileNavigate(
-    page: string
-  ) {
+  function handleMobileNavigate(page: string) {
     setMobileOpen(false);
     onNavigate(page);
   }
 
-  function renderMenu(
-    mobile = false
-  ) {
+  function renderMenu(mobile = false) {
     return (
       <>
-        {menuSections.map(
-          (section) => (
-            <div
-              key={section.title}
-            >
-              <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest text-[#8a7e70]">
-                {section.title}
-              </p>
+        {menuSections.map((section) => (
+          <div key={section.title}>
+            <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest text-[#8a7e70]">
+              {section.title}
+            </p>
 
-              <div className="space-y-1">
-                {section.items.map(
-                  (item) => {
-                    const active =
-                      activePage ===
-                      item.name;
+            <div className="space-y-1">
+              {section.items.map((item) => {
+                const active = activePage === item.name;
 
-                    return (
-                      <button
-                        key={
-                          item.name
-                        }
-                        type="button"
-                        onClick={() =>
-                          mobile
-                            ? handleMobileNavigate(
-                                item.name
-                              )
-                            : onNavigate(
-                                item.name
-                              )
-                        }
-                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
-                          active
-                            ? "bg-[#d8cec0] font-semibold text-[#3f382f]"
-                            : "text-[#3f382f] hover:bg-[#e4dbcf]"
-                        }`}
-                      >
-                        <span
-                          className={`flex h-5 w-5 shrink-0 items-center justify-center ${
-                            active
-                              ? "text-[#554c42]"
-                              : "text-[#8a7e70]"
-                          }`}
-                        >
-                          <MenuIcon
-                            name={
-                              item.icon
-                            }
-                            size={17}
-                          />
-                        </span>
+                return (
+                  <button
+                    key={item.name}
+                    type="button"
+                    onClick={() =>
+                      mobile
+                        ? handleMobileNavigate(item.name)
+                        : onNavigate(item.name)
+                    }
+                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                      active
+                        ? "bg-[#d8cec0] font-semibold text-[#3f382f]"
+                        : "text-[#3f382f] hover:bg-[#e4dbcf]"
+                    }`}
+                  >
+                    <span
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center ${
+                        active ? "text-[#554c42]" : "text-[#8a7e70]"
+                      }`}
+                    >
+                      <MenuIcon name={item.icon} size={17} />
+                    </span>
 
-                        <span>
-                          {
-                            item.name
-                          }
-                        </span>
-                      </button>
-                    );
-                  }
-                )}
-              </div>
+                    <span>{item.name}</span>
+                  </button>
+                );
+              })}
             </div>
-          )
-        )}
+          </div>
+        ))}
 
         {isAdmin && (
           <div>
@@ -701,37 +542,26 @@ export default function Sidebar({
               type="button"
               onClick={() =>
                 mobile
-                  ? handleMobileNavigate(
-                      "Admin"
-                    )
-                  : onNavigate(
-                      "Admin"
-                    )
+                  ? handleMobileNavigate("Admin")
+                  : onNavigate("Admin")
               }
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
-                activePage ===
-                "Admin"
+                activePage === "Admin"
                   ? "bg-[#d8cec0] font-semibold text-[#3f382f]"
                   : "text-[#3f382f] hover:bg-[#e4dbcf]"
               }`}
             >
               <span
                 className={`flex h-5 w-5 shrink-0 items-center justify-center ${
-                  activePage ===
-                  "Admin"
+                  activePage === "Admin"
                     ? "text-[#554c42]"
                     : "text-[#8a7e70]"
                 }`}
               >
-                <MenuIcon
-                  name="admin"
-                  size={17}
-                />
+                <MenuIcon name="admin" size={17} />
               </span>
 
-              <span>
-                Admin
-              </span>
+              <span>Admin</span>
             </button>
           </div>
         )}
@@ -769,12 +599,9 @@ export default function Sidebar({
         {/* PROFILE */}
         <button
           type="button"
-          onClick={() =>
-            onNavigate("Profile")
-          }
+          onClick={() => onNavigate("Profile")}
           className={`mt-6 flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left shadow-sm transition ${
-            activePage ===
-            "Profile"
+            activePage === "Profile"
               ? "border-[#c8bbaa] bg-[#f7f2ea]"
               : "border-[#d8cec0] bg-[#f7f2ea] hover:bg-[#f2ece3]"
           }`}
@@ -788,9 +615,7 @@ export default function Sidebar({
               {displayName}
             </p>
 
-            <p className="text-xs text-[#8a7e70]">
-              Profile
-            </p>
+            <p className="text-xs text-[#8a7e70]">Profile</p>
           </div>
         </button>
 
@@ -803,18 +628,14 @@ export default function Sidebar({
         <div className="mt-6 border-t border-[#d8cec0] pt-4">
           <button
             type="button"
-            onClick={
-              handleLogout
-            }
+            onClick={handleLogout}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-[#765d55] transition hover:bg-[#e4dbcf]"
           >
             <span className="flex h-5 w-5 shrink-0 items-center justify-center">
               <LogoutIcon />
             </span>
 
-            <span>
-              Logout
-            </span>
+            <span>Logout</span>
           </button>
         </div>
       </aside>
@@ -823,9 +644,7 @@ export default function Sidebar({
       <div className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-[#d8cec0] bg-[#eee7dc]/95 px-4 backdrop-blur md:hidden">
         <button
           type="button"
-          onClick={() =>
-            setMobileOpen(true)
-          }
+          onClick={() => setMobileOpen(true)}
           aria-label="Open menu"
           className="flex h-10 w-10 items-center justify-center rounded-xl text-[#3f382f] transition hover:bg-[#e4dbcf]"
         >
@@ -862,9 +681,7 @@ export default function Sidebar({
         <button
           type="button"
           aria-label="Close menu"
-          onClick={() =>
-            setMobileOpen(false)
-          }
+          onClick={() => setMobileOpen(false)}
           className="fixed inset-0 z-40 bg-[#3f382f]/25 md:hidden"
         />
       )}
@@ -872,9 +689,7 @@ export default function Sidebar({
       {/* MOBILE DRAWER */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex w-[min(82vw,20rem)] flex-col border-r border-[#d8cec0] bg-[#eee7dc] p-5 shadow-2xl transition-transform duration-200 ease-out md:hidden ${
-          mobileOpen
-            ? "translate-x-0"
-            : "-translate-x-full"
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* MOBILE DRAWER HEADER */}
@@ -901,9 +716,7 @@ export default function Sidebar({
 
           <button
             type="button"
-            onClick={() =>
-              setMobileOpen(false)
-            }
+            onClick={() => setMobileOpen(false)}
             aria-label="Close menu"
             className="flex h-9 w-9 items-center justify-center rounded-xl text-[#746a5e] transition hover:bg-[#e4dbcf]"
           >
@@ -914,14 +727,9 @@ export default function Sidebar({
         {/* MOBILE PROFILE */}
         <button
           type="button"
-          onClick={() =>
-            handleMobileNavigate(
-              "Profile"
-            )
-          }
+          onClick={() => handleMobileNavigate("Profile")}
           className={`mt-6 flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left shadow-sm transition ${
-            activePage ===
-            "Profile"
+            activePage === "Profile"
               ? "border-[#c8bbaa] bg-[#f7f2ea]"
               : "border-[#d8cec0] bg-[#f7f2ea] hover:bg-[#f2ece3]"
           }`}
@@ -935,9 +743,7 @@ export default function Sidebar({
               {displayName}
             </p>
 
-            <p className="text-xs text-[#8a7e70]">
-              Profile
-            </p>
+            <p className="text-xs text-[#8a7e70]">Profile</p>
           </div>
         </button>
 
@@ -950,18 +756,14 @@ export default function Sidebar({
         <div className="mt-6 border-t border-[#d8cec0] pt-4">
           <button
             type="button"
-            onClick={
-              handleLogout
-            }
+            onClick={handleLogout}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-[#765d55] transition hover:bg-[#e4dbcf]"
           >
             <span className="flex h-5 w-5 shrink-0 items-center justify-center">
               <LogoutIcon />
             </span>
 
-            <span>
-              Logout
-            </span>
+            <span>Logout</span>
           </button>
         </div>
       </aside>

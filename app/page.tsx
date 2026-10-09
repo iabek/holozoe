@@ -26,6 +26,7 @@ import PersonArchive from "@/components/PersonArchive";
 import Places from "@/components/Places";
 import MoviesSeries from "@/components/MoviesSeries";
 import Books from "@/components/Books";
+import MusicWrapped from "@/components/MusicWrapped";
 
 type DailyStats = {
   Energy: number;
@@ -222,15 +223,15 @@ function getMood(activityIds: string[]) {
 
 export default function Home() {
   const [activePage, setActivePage] = useState("Dashboard");
-  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(
-    null
-  );
+  const [selectedPersonId, setSelectedPersonId] =
+    useState<string | null>(null);
 
   const [totalXp, setTotalXp] = useState(0);
   const [gold, setGold] = useState(0);
   const [goldEarnedToday, setGoldEarnedToday] = useState(0);
   const [leisureUsedToday, setLeisureUsedToday] = useState(0);
-  const [leisureExtensionToday, setLeisureExtensionToday] = useState(0);
+  const [leisureExtensionToday, setLeisureExtensionToday] =
+    useState(0);
 
   const [dailyStats, setDailyStats] = useState<DailyStats>({
     Energy: 0,
@@ -238,7 +239,8 @@ export default function Home() {
     Growth: 0,
   });
 
-  const [todayActivities, setTodayActivities] = useState<ActivityItem[]>([]);
+  const [todayActivities, setTodayActivities] =
+    useState<ActivityItem[]>([]);
   const [habits, setHabits] = useState<ActivityItem[]>([]);
 
   function loadDashboardData() {
@@ -320,7 +322,9 @@ export default function Home() {
     if (savedLeisure) {
       try {
         const parsed = JSON.parse(savedLeisure);
-        const todayData = parsed?.[today] as LeisureDay | undefined;
+        const todayData = parsed?.[today] as
+          | LeisureDay
+          | undefined;
 
         if (todayData && typeof todayData === "object") {
           setLeisureUsedToday(
@@ -449,7 +453,10 @@ export default function Home() {
 
     return () => {
       window.removeEventListener("storage", loadDashboardData);
-      window.removeEventListener("life-game-updated", loadDashboardData);
+      window.removeEventListener(
+        "life-game-updated",
+        loadDashboardData
+      );
     };
   }, []);
 
@@ -591,11 +598,19 @@ export default function Home() {
     }
 
     if (activePage === "Movies & Series") {
-      return <MoviesSeries onBack={() => setActivePage("Archive")} />;
+      return (
+        <MoviesSeries
+          onBack={() => setActivePage("Archive")}
+        />
+      );
     }
 
     if (activePage === "Books") {
       return <Books onBack={() => setActivePage("Archive")} />;
+    }
+
+    if (activePage === "Music") {
+      return <MusicWrapped />;
     }
 
     if (activePage === "Places") {
@@ -808,7 +823,9 @@ export default function Home() {
 
                     <button
                       type="button"
-                      onClick={() => removeActivity(activity.id, index)}
+                      onClick={() =>
+                        removeActivity(activity.id, index)
+                      }
                       aria-label={`Remove ${activity.name}`}
                       className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-base opacity-40 transition hover:bg-[#e2d7c9] hover:opacity-100"
                     >
