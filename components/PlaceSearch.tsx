@@ -9,6 +9,7 @@ export type PlaceSearchResult = {
   latitude: number;
   longitude: number;
 };
+
 type PlaceSearchProps = {
   onChoose: (result: PlaceSearchResult) => void;
 };
@@ -125,11 +126,17 @@ function scoreResult(
   else if (name.startsWith(q)) score += 90;
   else if (name.includes(q)) score += 65;
 
-  if (words.length > 1 && words.every((word) => name.includes(word))) {
+  if (
+    words.length > 1 &&
+    words.every((word) => name.includes(word))
+  ) {
     score += 55;
   }
 
-  const nameMatches = words.filter((word) => name.includes(word)).length;
+  const nameMatches = words.filter((word) =>
+    name.includes(word),
+  ).length;
+
   const addressMatches = words.filter((word) =>
     address.includes(word),
   ).length;
@@ -150,7 +157,10 @@ function scoreResult(
   return score;
 }
 
-function parsePhoton(features: PhotonFeature[], query: string): Candidate[] {
+function parsePhoton(
+  features: PhotonFeature[],
+  query: string,
+): Candidate[] {
   return features.flatMap((feature) => {
     const coordinates = feature.geometry?.coordinates;
     const p = feature.properties;
@@ -166,6 +176,7 @@ function parsePhoton(features: PhotonFeature[], query: string): Candidate[] {
     }
 
     const address = getAddress(p);
+
     const result: PlaceSearchResult = {
       name: p.name || address || query,
       address,
@@ -173,11 +184,13 @@ function parsePhoton(features: PhotonFeature[], query: string): Candidate[] {
       latitude: coordinates[1],
     };
 
-    return [{
-      result,
-      score: scoreResult(result, query, p.type),
-      type: p.type,
-    }];
+    return [
+      {
+        result,
+        score: scoreResult(result, query, p.type),
+        type: p.type,
+      },
+    ];
   });
 }
 
@@ -198,6 +211,7 @@ function parseNominatim(
     }
 
     const address = getNominatimAddress(item);
+
     const result: PlaceSearchResult = {
       name: item.name || address || item.display_name || query,
       address: address || item.display_name,
@@ -205,15 +219,17 @@ function parseNominatim(
       longitude,
     };
 
-    return [{
-      result,
-      score: scoreResult(
+    return [
+      {
         result,
-        query,
-        item.type || item.addresstype,
-      ),
-      type: item.type,
-    }];
+        score: scoreResult(
+          result,
+          query,
+          item.type || item.addresstype,
+        ),
+        type: item.type,
+      },
+    ];
   });
 }
 
@@ -243,6 +259,7 @@ async function searchPhoton(
   signal: AbortSignal,
 ): Promise<Candidate[]> {
   const url = new URL("https://photon.komoot.io/api/");
+
   url.searchParams.set("q", query);
   url.searchParams.set("limit", "20");
   url.searchParams.set("lang", "en");
@@ -253,7 +270,9 @@ async function searchPhoton(
     throw new Error("Photon search failed");
   }
 
-  const data: { features?: PhotonFeature[] } = await response.json();
+  const data: { features?: PhotonFeature[] } =
+    await response.json();
+
   return parsePhoton(data.features ?? [], query);
 }
 
@@ -261,7 +280,10 @@ async function searchNominatim(
   query: string,
   signal: AbortSignal,
 ): Promise<Candidate[]> {
-  const url = new URL("https://nominatim.openstreetmap.org/search");
+  const url = new URL(
+    "https://nominatim.openstreetmap.org/search",
+  );
+
   url.searchParams.set("q", query);
   url.searchParams.set("format", "jsonv2");
   url.searchParams.set("addressdetails", "1");
@@ -280,10 +302,13 @@ async function searchNominatim(
   }
 
   const data: NominatimResult[] = await response.json();
+
   return parseNominatim(data, query);
 }
 
-export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
+export default function PlaceSearch({
+  onChoose,
+}: PlaceSearchProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PlaceSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -311,26 +336,36 @@ export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
 
         // Provider pertama: Photon.
         try {
-          candidates = await searchPhoton(text, controller.signal);
+          candidates = await searchPhoton(
+            text,
+            controller.signal,
+          );
         } catch (err) {
-          if (err instanceof Error && err.name === "AbortError") {
+          if (
+            err instanceof Error &&
+            err.name === "AbortError"
+          ) {
             return;
           }
         }
 
         if (controller.signal.aborted) return;
 
-        // Fallback: Nominatim jika Photon gagal atau hasilnya sedikit.
-        // Beri jeda debounce sebelum request kedua untuk mengurangi beban API.
+        // Fallback ke Nominatim jika Photon gagal
+        // atau jumlah hasil pencarian masih sedikit.
         if (candidates.length < 5) {
           try {
             const fallback = await searchNominatim(
               text,
               controller.signal,
             );
+
             candidates = [...candidates, ...fallback];
           } catch (err) {
-            if (err instanceof Error && err.name === "AbortError") {
+            if (
+              err instanceof Error &&
+              err.name === "AbortError"
+            ) {
               return;
             }
           }
@@ -339,6 +374,7 @@ export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
         if (controller.signal.aborted) return;
 
         const uniqueResults = mergeResults(candidates);
+
         setResults(uniqueResults);
 
         if (uniqueResults.length === 0) {
@@ -348,7 +384,9 @@ export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
         }
       } catch {
         if (!controller.signal.aborted) {
-          setError("Could not search right now. Please try again.");
+          setError(
+            "Could not search right now. Please try again.",
+          );
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -373,7 +411,10 @@ export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
   return (
     <div className="relative space-y-2">
       <label className="block space-y-2 text-sm">
-        <span className="font-medium">🔎 Search a place</span>
+        <span className="font-medium">
+          🔎 Search a place
+        </span>
+
         <input
           type="search"
           value={query}
