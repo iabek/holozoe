@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
@@ -21,9 +22,7 @@ export async function GET(request: Request) {
   const appUrl = "https://holozoe.vercel.app";
 
   function finish(path: string) {
-    const response = NextResponse.redirect(
-      new URL(path, appUrl)
-    );
+    const response = NextResponse.redirect(new URL(path, appUrl));
     response.cookies.delete("strava_oauth_state");
     return response;
   }
@@ -42,12 +41,28 @@ export async function GET(request: Request) {
   }
 
   if (!redirectUri || !clientId || !clientSecret) {
+    console.error("Strava configuration is incomplete.");
     return finish("/?strava=config_error");
   }
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabasePublishableKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (
+    !supabaseUrl ||
+    !supabasePublishableKey ||
+    !serviceRoleKey
+  ) {
+    console.error("Supabase server configuration is incomplete.");
+    return finish("/?strava=config_error");
+  }
+
+  // Client sesi pengguna: hanya untuk memverifikasi login.
+  const sessionSupabase = createServerClient(
+    supabaseUrl,
+    supabasePublishableKey,
     {
       cookies: {
         getAll() {
@@ -68,13 +83,15 @@ export async function GET(request: Request) {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+    error: userError,
+  } = await sessionSupabase.auth.getUser();
 
-  if (!user) {
+  if (userError || !user) {
     return finish("/?strava=login_required");
   }
 
   try {
+    // Tukar authorization code dengan token Strava.
     const tokenResponse = await fetch(
       "https://www.strava.com/oauth/token",
       {
@@ -107,9 +124,23 @@ export async function GET(request: Request) {
       return finish("/?strava=token_error");
     }
 
+    // Client administratif hanya digunakan di server.
+    // Client ini melewati RLS, jadi akses dibatasi pada operasi
+    // backend yang memang diperlukan.
+    const adminSupabase = createClient(
+      supabaseUrl,
+      serviceRoleKey,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
+
     const now = new Date().toISOString();
 
-    const { error: saveError } = await supabase
+    const { error: saveError } = await adminSupabase
       .from("strava_connections")
       .upsert(
         {
@@ -125,13 +156,21 @@ export async function GET(request: Request) {
       );
 
     if (saveError) {
-      console.error("Strava connection save failed:", saveError.message);
+      // Jangan mencatat token atau secret ke log.
+      console.error(
+        "Strava connection save failed:",
+        saveError.message,
+        saveError.code
+      );
       return finish("/?strava=save_error");
     }
 
     return finish("/?strava=connected");
   } catch (error) {
-    console.error("Strava callback failed:", error);
+    console.error(
+      "Strava callback failed:",
+      error instanceof Error ? error.message : "Unknown error"
+    );
     return finish("/?strava=connection_error");
   }
 }
