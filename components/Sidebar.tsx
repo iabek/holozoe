@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -33,6 +34,7 @@ type MenuIconName =
   | "health"
   | "history"
   | "screen-time"
+  | "strava"
   | "admin";
 
 const menuSections: {
@@ -76,6 +78,7 @@ const menuSections: {
     items: [
       { name: "History", icon: "history" },
       { name: "Screen Time", icon: "screen-time" },
+      { name: "Strava", icon: "strava" },
     ],
   },
 ];
@@ -261,6 +264,14 @@ function MenuIcon({
           <path d="M9 15h3" />
           <circle cx="16" cy="16" r="2.5" />
           <path d="M16 14.5V16l1 1" />
+        </svg>
+      );
+
+    case "strava":
+      return (
+        <svg {...commonProps}>
+          <path d="m12 3 8.5 18h-5L12 13l-3.5 8h-5L12 3Z" />
+          <path d="m12 3 4 8h-4l-4 8" />
         </svg>
       );
 

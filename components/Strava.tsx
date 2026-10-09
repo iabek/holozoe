@@ -1,5 +1,4 @@
-
-"use client";
+use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
@@ -178,16 +177,13 @@ export default function Strava() {
         "Otorisasi berhasil dikembalikan ke HOLOZOE, tetapi penyimpanan koneksi gagal. Kita perlu memperbaiki backend.",
       invalid_state:
         "Verifikasi OAuth gagal. Silakan coba menghubungkan Strava kembali.",
-      config_error:
-        "Konfigurasi Strava di server belum lengkap.",
+      config_error: "Konfigurasi Strava di server belum lengkap.",
       token_error:
         "Strava belum memberikan token yang valid. Coba hubungkan ulang.",
-      connection_error:
-        "Terjadi masalah saat menghubungkan Strava.",
+      connection_error: "Terjadi masalah saat menghubungkan Strava.",
       login_required:
         "Sesi login tidak ditemukan ketika Strava mengembalikan kamu ke HOLOZOE. Login kembali lalu coba lagi.",
-      cancelled:
-        "Proses koneksi Strava dibatalkan.",
+      cancelled: "Proses koneksi Strava dibatalkan.",
     };
 
     if (status && messages[status]) {
@@ -237,8 +233,8 @@ export default function Strava() {
             </div>
 
             <p className="mt-4 max-w-xl text-sm leading-6 text-[#817568]">
-              Every step, every ride, every little bit of progress.
-              Keep your movement history together in HOLOZOE.
+              Every step, every ride, every little bit of progress. Keep your
+              movement history together in HOLOZOE.
             </p>
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -433,22 +429,25 @@ export default function Strava() {
         </h3>
 
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#817568]">
-          A personal recap of your most active month, favorite sport,
-          distance milestones, elevation gained, and movement streaks.
-          Semua statistik akan dihitung dari data aktivitas asli.
+          A personal recap of your most active month, favorite sport, distance
+          milestones, elevation gained, and movement streaks. Semua statistik
+          akan dihitung dari data aktivitas asli.
         </p>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {["Monthly recap", "Sport breakdown", "Personal records", "Milestones"].map(
-            (feature) => (
-              <span
-                key={feature}
-                className="rounded-full border border-[#d8cec0] bg-[#f7f2ea] px-3 py-1.5 text-xs text-[#74685b]"
-              >
-                {feature}
-              </span>
-            )
-          )}
+          {[
+            "Monthly recap",
+            "Sport breakdown",
+            "Personal records",
+            "Milestones",
+          ].map((feature) => (
+            <span
+              key={feature}
+              className="rounded-full border border-[#d8cec0] bg-[#f7f2ea] px-3 py-1.5 text-xs text-[#74685b]"
+            >
+              {feature}
+            </span>
+          ))}
         </div>
       </section>
     </div>
