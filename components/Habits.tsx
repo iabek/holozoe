@@ -706,10 +706,7 @@ export default function Habits() {
           </div>
         ) : (
           habits.map(
-            (
-              habit,
-              index
-            ) => (
+            (habit) => (
               <div
                 key={
                   habit.id
@@ -771,11 +768,6 @@ export default function Habits() {
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold opacity-30">
-                      {index +
-                        1}
-                    </span>
-
                     <p className="truncate font-semibold">
                       {habit.name}
                     </p>
