@@ -24,6 +24,8 @@ import Archive from "@/components/Archive";
 import People from "@/components/People";
 import PersonArchive from "@/components/PersonArchive";
 import Places from "@/components/Places";
+import MoviesSeries from "@/components/MoviesSeries";
+import Books from "@/components/Books";
 
 type DailyStats = {
   Energy: number;
@@ -588,6 +590,14 @@ export default function Home() {
       return <Archive onNavigate={setActivePage} />;
     }
 
+    if (activePage === "Movies & Series") {
+      return <MoviesSeries onBack={() => setActivePage("Archive")} />;
+    }
+
+    if (activePage === "Books") {
+      return <Books onBack={() => setActivePage("Archive")} />;
+    }
+
     if (activePage === "Places") {
       return (
         <Places
@@ -689,17 +699,21 @@ export default function Home() {
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl bg-[#f5f0e8] p-4">
               <p className="text-xs opacity-50">Earned today</p>
+
               <p className="mt-1 text-2xl font-bold">
                 +{goldEarnedToday}
               </p>
+
               <p className="mt-1 text-xs opacity-50">Gold</p>
             </div>
 
             <div className="rounded-2xl bg-[#f5f0e8] p-4">
               <p className="text-xs opacity-50">Leisure used</p>
+
               <p className="mt-1 text-2xl font-bold">
                 {leisureUsedToday}m
               </p>
+
               <p className="mt-1 text-xs opacity-50">
                 of {totalLeisureToday}m
               </p>
@@ -707,9 +721,11 @@ export default function Home() {
 
             <div className="rounded-2xl bg-[#f5f0e8] p-4">
               <p className="text-xs opacity-50">Leisure remaining</p>
+
               <p className="mt-1 text-2xl font-bold">
                 {leisureRemainingToday}m
               </p>
+
               <p className="mt-1 text-xs opacity-50">
                 +{leisureExtensionToday}m extension
               </p>
@@ -719,6 +735,7 @@ export default function Home() {
           <div className="mt-4">
             <div className="mb-2 flex items-center justify-between text-xs opacity-50">
               <span>Leisure usage</span>
+
               <span>
                 {leisureUsedToday} / {totalLeisureToday}m
               </span>

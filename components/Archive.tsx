@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -26,12 +27,12 @@ const folders: ArchiveFolder[] = [
   {
     icon: "🎬",
     name: "Movies & Series",
-    description: "Films and series you want to remember.",
+    description: "Dialogue and quotes worth remembering.",
   },
   {
     icon: "📚",
     name: "Books",
-    description: "Books, quotes, and things you've read.",
+    description: "Passages and words you want to keep.",
   },
   {
     icon: "🎵",
@@ -50,7 +51,12 @@ export default function Archive({ onNavigate }: ArchiveProps) {
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
 
   function handleFolderClick(name: string) {
-    if (name === "People" || name === "Places") {
+    if (
+      name === "People" ||
+      name === "Places" ||
+      name === "Movies & Series" ||
+      name === "Books"
+    ) {
       onNavigate(name);
       return;
     }
