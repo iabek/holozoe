@@ -1,3 +1,4 @@
+
 "use client";
 
 type ArchiveFolder = {
@@ -37,18 +38,18 @@ const folders: ArchiveFolder[] = [
     description: "Songs, albums, and memories attached to them.",
   },
   {
-    icon: "✈️",
-    name: "Travel",
-    description: "Places you've visited and journeys you've taken.",
+    icon: "📍",
+    name: "Places",
+    description: "Places you've visited and experiences you want to remember.",
   },
 ];
 
-export default function Archive({
-  onNavigate,
-}: ArchiveProps) {
+export default function Archive({ onNavigate }: ArchiveProps) {
   function handleFolderClick(name: string) {
     if (name === "People") {
       onNavigate("People");
+    } else if (name === "Places") {
+      onNavigate("Places");
     }
   }
 
@@ -76,9 +77,7 @@ export default function Archive({
           <button
             key={folder.name}
             type="button"
-            onClick={() =>
-              handleFolderClick(folder.name)
-            }
+            onClick={() => handleFolderClick(folder.name)}
             className="group rounded-2xl border border-[#d8cec0] bg-[#f7f2ea] p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:bg-[#f2ece3]"
           >
             <div className="flex items-start justify-between">
