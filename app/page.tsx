@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import Sidebar from "@/components/Sidebar";
 import Stats from "@/components/Stats";
 import Today from "@/components/Today";
@@ -27,6 +28,7 @@ import Places from "@/components/Places";
 import MoviesSeries from "@/components/MoviesSeries";
 import Books from "@/components/Books";
 import MusicWrapped from "@/components/MusicWrapped";
+import Strava from "@/components/Strava";
 
 type DailyStats = {
   Energy: number;
@@ -630,6 +632,10 @@ export default function Home() {
           }}
         />
       );
+    }
+
+    if (activePage === "Strava") {
+      return <Strava />;
     }
 
     if (activePage === "PersonArchive" && selectedPersonId) {
