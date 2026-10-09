@@ -1,10 +1,10 @@
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import dynamic from "next/dynamic";
 import type { MapPlace, PlaceSearchResult } from "@/components/PlacesMap";
+import PlaceSearch from "@/components/PlaceSearch";
 
 const PlacesMap = dynamic(() => import("@/components/PlacesMap"), {
   ssr: false,
@@ -72,11 +72,13 @@ function getErrorMessage(error: unknown): string {
   ) {
     return String(error.message);
   }
+
   return "An unexpected error occurred.";
 }
 
 function formatDate(date: string): string {
   if (!date) return "No date";
+
   return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
     day: "numeric",
     month: "short",
@@ -86,6 +88,7 @@ function formatDate(date: string): string {
 
 function RatingStars({ rating }: { rating: number | null }) {
   const value = Math.max(0, Math.min(5, Math.round(Number(rating ?? 0))));
+
   return (
     <span className="text-amber-500">
       {value > 0 ? "★".repeat(value) + "☆".repeat(5 - value) : "Not rated"}
@@ -169,6 +172,7 @@ export default function Places({ onBack }: PlacesProps) {
       } = await supabase.auth.getUser();
 
       if (authError) throw authError;
+
       if (!user) {
         setPlaces([]);
         setMenuItems([]);
@@ -231,6 +235,7 @@ export default function Places({ onBack }: PlacesProps) {
 
   const filteredPlaces = places.filter((place) => {
     const text = search.trim().toLowerCase();
+
     const matchesSearch =
       !text ||
       place.name.toLowerCase().includes(text) ||
@@ -276,9 +281,6 @@ export default function Places({ onBack }: PlacesProps) {
     setPlaceLocation(result.address);
     setPlaceLatitude(result.latitude);
     setPlaceLongitude(result.longitude);
-    setEditingPlaceId(null);
-    setSelectedPlace(null);
-    setShowPlaceForm(true);
     setError("");
     setNotice("Location selected. Complete the form and save your place.");
   }
@@ -295,6 +297,7 @@ export default function Places({ onBack }: PlacesProps) {
       setError("Please enter a place name.");
       return;
     }
+
     if (!Number.isFinite(rating) || rating < 0 || rating > 5) {
       setError("Rating must be between 0 and 5.");
       return;
@@ -407,6 +410,7 @@ export default function Places({ onBack }: PlacesProps) {
       setVisits((current) =>
         current.filter((visit) => visit.place_id !== place.id),
       );
+
       if (selectedPlace === place.id) setSelectedPlace(null);
 
       setNotice("Place deleted.");
@@ -421,18 +425,21 @@ export default function Places({ onBack }: PlacesProps) {
     setNotice("");
 
     if (!selectedPlaceData) return;
+
     if (!menuName.trim()) {
       setError("Please enter a menu item name.");
       return;
     }
 
     const rating = Number(menuRating);
+
     if (!Number.isFinite(rating) || rating < 0 || rating > 5) {
       setError("Menu rating must be between 0 and 5.");
       return;
     }
 
     setSaving(true);
+
     try {
       const { error: insertError } = await supabase
         .from("place_menu_items")
@@ -509,12 +516,14 @@ export default function Places({ onBack }: PlacesProps) {
     setNotice("");
 
     if (!selectedPlaceData) return;
+
     if (!visitDate) {
       setError("Please select a visit date.");
       return;
     }
 
     setSaving(true);
+
     try {
       const { error: insertError } = await supabase
         .from("place_visits")
@@ -550,7 +559,9 @@ export default function Places({ onBack }: PlacesProps) {
 
       if (deleteError) throw deleteError;
 
-      setVisits((current) => current.filter((item) => item.id !== visit.id));
+      setVisits((current) =>
+        current.filter((item) => item.id !== visit.id),
+      );
       setNotice("Visit record deleted.");
     } catch (err) {
       setError(getErrorMessage(err));
@@ -652,6 +663,8 @@ export default function Places({ onBack }: PlacesProps) {
           </h2>
 
           <form onSubmit={savePlace} className="mt-4 space-y-4">
+            <PlaceSearch onChoose={handleChooseLocation} />
+
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="space-y-2 text-sm">
                 <span className="font-medium">Place name *</span>
@@ -750,6 +763,7 @@ export default function Places({ onBack }: PlacesProps) {
                     ? "Save Changes"
                     : "Save Place"}
               </button>
+
               <button
                 type="button"
                 onClick={resetPlaceForm}
@@ -802,6 +816,7 @@ export default function Places({ onBack }: PlacesProps) {
                 placeholder="Search places, locations, tags..."
                 className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-transparent px-4 py-3"
               />
+
               <select
                 value={categoryFilter}
                 onChange={(event) => setCategoryFilter(event.target.value)}
@@ -814,6 +829,7 @@ export default function Places({ onBack }: PlacesProps) {
                   </option>
                 ))}
               </select>
+
               <button
                 type="button"
                 onClick={() => setFavoritesOnly((current) => !current)}
@@ -883,6 +899,7 @@ export default function Places({ onBack }: PlacesProps) {
                             {place.name}
                           </h2>
                         </button>
+
                         <button
                           type="button"
                           onClick={() => void toggleFavorite(place)}
@@ -911,18 +928,15 @@ export default function Places({ onBack }: PlacesProps) {
                         </p>
                       )}
 
-                      {place.latitude !== null &&
-                        place.longitude !== null && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedPlace(place.id);
-                            }}
-                            className="mt-2 self-start text-xs text-[var(--primary)] underline"
-                          >
-                            View on map
-                          </button>
-                        )}
+                      {place.latitude !== null && place.longitude !== null && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPlace(place.id)}
+                          className="mt-2 self-start text-xs text-[var(--primary)] underline"
+                        >
+                          View on map
+                        </button>
+                      )}
 
                       {place.notes && (
                         <p className="mt-3 line-clamp-3 whitespace-pre-wrap text-sm">
@@ -1019,14 +1033,17 @@ export default function Places({ onBack }: PlacesProps) {
                 <h2 className="mt-2 break-words text-3xl font-bold">
                   {selectedPlaceData.name}
                 </h2>
+
                 {selectedPlaceData.location && (
                   <p className="mt-3 break-words text-sm text-[var(--muted)]">
                     📍 {selectedPlaceData.location}
                   </p>
                 )}
+
                 <p className="mt-3 text-sm">
                   <RatingStars rating={selectedPlaceData.rating} />
                 </p>
+
                 {selectedPlaceData.latitude !== null &&
                   selectedPlaceData.longitude !== null && (
                     <p className="mt-2 text-xs text-[var(--muted)]">
@@ -1101,7 +1118,10 @@ export default function Places({ onBack }: PlacesProps) {
           {showPlaceForm && editingPlaceId === selectedPlaceData.id && (
             <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
               <h3 className="text-lg font-semibold">Edit Place</h3>
+
               <form onSubmit={savePlace} className="mt-4 space-y-4">
+                <PlaceSearch onChoose={handleChooseLocation} />
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="space-y-2 text-sm">
                     <span className="font-medium">Place name *</span>
@@ -1113,6 +1133,7 @@ export default function Places({ onBack }: PlacesProps) {
                       className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
                     />
                   </label>
+
                   <label className="space-y-2 text-sm">
                     <span className="font-medium">Category</span>
                     <select
@@ -1127,6 +1148,7 @@ export default function Places({ onBack }: PlacesProps) {
                       ))}
                     </select>
                   </label>
+
                   <label className="space-y-2 text-sm">
                     <span className="font-medium">Rating (0–5)</span>
                     <select
@@ -1141,6 +1163,7 @@ export default function Places({ onBack }: PlacesProps) {
                       ))}
                     </select>
                   </label>
+
                   <label className="space-y-2 text-sm">
                     <span className="font-medium">Location / address</span>
                     <input
@@ -1151,7 +1174,8 @@ export default function Places({ onBack }: PlacesProps) {
                     />
                     {placeLatitude !== null && placeLongitude !== null && (
                       <span className="block text-xs text-[var(--muted)]">
-                        {placeLatitude.toFixed(6)}, {placeLongitude.toFixed(6)}
+                        Coordinates: {placeLatitude.toFixed(6)},{" "}
+                        {placeLongitude.toFixed(6)}
                       </span>
                     )}
                   </label>
@@ -1213,6 +1237,7 @@ export default function Places({ onBack }: PlacesProps) {
                     className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
                   />
                 </label>
+
                 <label className="block space-y-2 text-sm">
                   <span className="font-medium">Rating (0–5)</span>
                   <select
@@ -1227,6 +1252,7 @@ export default function Places({ onBack }: PlacesProps) {
                     ))}
                   </select>
                 </label>
+
                 <label className="block space-y-2 text-sm">
                   <span className="font-medium">Notes</span>
                   <textarea
@@ -1238,15 +1264,19 @@ export default function Places({ onBack }: PlacesProps) {
                     className="w-full resize-y rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
                   />
                 </label>
+
                 <label className="flex items-center gap-3 text-sm">
                   <input
                     type="checkbox"
                     checked={menuRecommended}
-                    onChange={(event) => setMenuRecommended(event.target.checked)}
+                    onChange={(event) =>
+                      setMenuRecommended(event.target.checked)
+                    }
                     className="h-4 w-4"
                   />
                   Mark as recommended
                 </label>
+
                 <button
                   type="submit"
                   disabled={saving}
@@ -1272,6 +1302,7 @@ export default function Places({ onBack }: PlacesProps) {
                     className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
                   />
                 </label>
+
                 <label className="block space-y-2 text-sm">
                   <span className="font-medium">Visit notes</span>
                   <textarea
@@ -1283,6 +1314,7 @@ export default function Places({ onBack }: PlacesProps) {
                     className="w-full resize-y rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
                   />
                 </label>
+
                 <button
                   type="submit"
                   disabled={saving}
@@ -1338,13 +1370,18 @@ export default function Places({ onBack }: PlacesProps) {
                             </p>
                           )}
                         </div>
+
                         <div className="flex shrink-0 flex-col gap-2">
                           <button
                             type="button"
-                            onClick={() => void toggleMenuRecommendation(item)}
+                            onClick={() =>
+                              void toggleMenuRecommendation(item)
+                            }
                             className="rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-xs"
                           >
-                            {item.is_recommended ? "Unrecommend" : "Recommend"}
+                            {item.is_recommended
+                              ? "Unrecommend"
+                              : "Recommend"}
                           </button>
                           <button
                             type="button"
