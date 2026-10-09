@@ -1,4 +1,5 @@
 "use client";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import PlaceSearch, { type PlaceSearchResult } from "@/components/PlaceSearch";
@@ -521,7 +522,7 @@ export default function Places({ onBack }: PlacesProps) {
             setError("");
             setNotice("");
           }}
-          className="rounded-xl bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-white"
+          className="rounded-xl border border-[#776956] bg-[#8f806d] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#776956]"
         >
           + Add Place
         </button>
@@ -1180,7 +1181,7 @@ export default function Places({ onBack }: PlacesProps) {
                       <button
                         type="button"
                         onClick={() => setSelectedPlace(place.id)}
-                        className="flex-1 rounded-xl bg-[var(--primary)] px-3 py-2.5 text-sm font-semibold text-white"
+                        className="flex-1 rounded-xl border border-[#776956] bg-[#8f806d] px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#776956]"
                       >
                         View Details
                       </button>
