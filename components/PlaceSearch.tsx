@@ -2,8 +2,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { PlaceSearchResult } from "@/components/PlacesMap";
 
+export type PlaceSearchResult = {
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+};
 type PlaceSearchProps = {
   onChoose: (result: PlaceSearchResult) => void;
 };

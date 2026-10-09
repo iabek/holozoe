@@ -3,18 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
-import dynamic from "next/dynamic";
-import type { MapPlace, PlaceSearchResult } from "@/components/PlacesMap";
-import PlaceSearch from "@/components/PlaceSearch";
-
-const PlacesMap = dynamic(() => import("@/components/PlacesMap"), {
-  ssr: false,
-  loading: () => (
-    <div className="rounded-2xl border border-[var(--border)] p-10 text-center text-sm text-[var(--muted)]">
-      Loading map...
-    </div>
-  ),
-});
+import PlaceSearch, { type PlaceSearchResult } from "@/components/PlaceSearch";
 
 type Place = {
   id: string;
@@ -636,10 +625,7 @@ export default function Places({ onBack }: PlacesProps) {
           ) / places.length
         ).toFixed(1)
       : "0.0";
-
-  const mappedPlaces = places as MapPlace[];
-
-  return (
+return (
     <main className="mx-auto w-full max-w-7xl space-y-6 p-4 pb-12 sm:p-6 lg:p-8">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-start gap-3">
@@ -696,15 +682,6 @@ export default function Places({ onBack }: PlacesProps) {
         >
           {notice}
         </div>
-      )}
-
-      {!selectedPlaceData && (
-        <PlacesMap
-          places={mappedPlaces}
-          selectedPlaceId={selectedPlace}
-          onSelectPlace={(place) => setSelectedPlace(place.id)}
-          onChooseLocation={handleChooseLocation}
-        />
       )}
 
       {showPlaceForm && !selectedPlaceData && (
@@ -909,7 +886,7 @@ export default function Places({ onBack }: PlacesProps) {
                 </h2>
                 <p className="mx-auto mt-2 max-w-md text-sm text-[var(--muted)]">
                   {places.length === 0
-                    ? "Search for a place on the map above or add a place manually."
+                    ? "Search for a place above or add a place manually."
                     : "Try another search or change your filters."}
                 </p>
                 {places.length === 0 && (
@@ -978,17 +955,6 @@ export default function Places({ onBack }: PlacesProps) {
                           📍 {place.location}
                         </p>
                       )}
-
-                      {place.latitude !== null &&
-                        place.longitude !== null && (
-                          <button
-                            type="button"
-                            onClick={() => setSelectedPlace(place.id)}
-                            className="mt-2 self-start text-xs text-[var(--primary)] underline"
-                          >
-                            View on map
-                          </button>
-                        )}
 
                       {place.notes && (
                         <p className="mt-3 line-clamp-3 whitespace-pre-wrap text-sm">
@@ -1066,15 +1032,6 @@ export default function Places({ onBack }: PlacesProps) {
           >
             ← All Places
           </button>
-
-          {selectedPlaceData.latitude !== null &&
-            selectedPlaceData.longitude !== null && (
-              <PlacesMap
-                places={mappedPlaces}
-                selectedPlaceId={selectedPlace}
-                onSelectPlace={(place) => setSelectedPlace(place.id)}
-              />
-            )}
 
           <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 sm:p-7">
             <div className="flex flex-wrap items-start justify-between gap-4">
