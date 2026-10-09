@@ -1,1196 +1,1417 @@
+
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { createClient } from "@/lib/supabase";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { createBrowserClient } from "@supabase/ssr";
+import dynamic from "next/dynamic";
+import type { MapPlace, PlaceSearchResult } from "@/components/PlacesMap";
 
-type PlannerEvent = {
-  id: string;
-  title: string;
-  date: string;
-  startTime?: string;
-  endTime?: string;
-  recurrence:
-    | "none"
-    | "daily"
-    | "weekly"
-    | "monthly"
-    | "yearly";
-  notes: string;
-};
+const PlacesMap = dynamic(() => import("@/components/PlacesMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-2xl border border-[var(--border)] p-10 text-center text-sm text-[var(--muted)]">
+      Loading map...
+    </div>
+  ),
+});
 
-type PersonBirthday = {
+type Place = {
   id: string;
+  user_id: string;
   name: string;
-  birth_date: string;
+  category: string | null;
+  rating: number | null;
+  location: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  notes: string | null;
+  is_favorite: boolean;
+  tags: string[] | null;
+  created_at: string;
 };
 
-const STORAGE_KEY = "life-game-planner-events";
+type MenuItem = {
+  id: string;
+  place_id: string;
+  name: string;
+  rating: number | null;
+  notes: string | null;
+  is_recommended: boolean;
+  created_at: string;
+};
 
-const WEEKDAYS = [
-  "Mon",
-  "Tue",
-  "Wed",
-  "Thu",
-  "Fri",
-  "Sat",
-  "Sun",
+type PlaceVisit = {
+  id: string;
+  place_id: string;
+  visited_at: string;
+  notes: string | null;
+  created_at: string;
+};
+
+type PlacesProps = {
+  onBack: () => void;
+};
+
+const CATEGORIES = [
+  "Restaurant",
+  "Cafe",
+  "Dessert",
+  "Shopping",
+  "Nature",
+  "Entertainment",
+  "Study Spot",
+  "Travel",
+  "Other",
 ];
 
-function getDateKey(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+function getErrorMessage(error: unknown): string {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error
+  ) {
+    return String(error.message);
+  }
+  return "An unexpected error occurred.";
 }
 
-function getTodayKey() {
-  return getDateKey(new Date());
-}
-
-function formatMonth(date: Date) {
-  return date.toLocaleDateString("en-US", {
-    month: "long",
+function formatDate(date: string): string {
+  if (!date) return "No date";
+  return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "short",
     year: "numeric",
   });
 }
 
-function getCalendarDays(date: Date) {
-  const year = date.getFullYear();
-  const month = date.getMonth();
-
-  const firstDay = new Date(year, month, 1);
-
-  const mondayIndex =
-    firstDay.getDay() === 0
-      ? 6
-      : firstDay.getDay() - 1;
-
-  const daysInMonth = new Date(
-    year,
-    month + 1,
-    0
-  ).getDate();
-
-  const days: Date[] = [];
-
-  for (let i = 0; i < mondayIndex; i++) {
-    days.push(
-      new Date(
-        year,
-        month,
-        1 - (mondayIndex - i)
-      )
-    );
-  }
-
-  for (let day = 1; day <= daysInMonth; day++) {
-    days.push(new Date(year, month, day));
-  }
-
-  while (days.length < 42) {
-    const lastDate = days[days.length - 1];
-    const nextDate = new Date(lastDate);
-
-    nextDate.setDate(nextDate.getDate() + 1);
-
-    days.push(nextDate);
-  }
-
-  return days;
+function RatingStars({ rating }: { rating: number | null }) {
+  const value = Math.max(0, Math.min(5, Math.round(Number(rating ?? 0))));
+  return (
+    <span className="text-amber-500">
+      {value > 0 ? "★".repeat(value) + "☆".repeat(5 - value) : "Not rated"}
+      {value > 0 && (
+        <span className="ml-2 text-[var(--muted)]">
+          {Number(rating).toFixed(1)}/5
+        </span>
+      )}
+    </span>
+  );
 }
 
-function formatEventTime(event: PlannerEvent) {
-  if (!event.startTime && !event.endTime) {
-    return "All day";
-  }
-
-  if (event.startTime && event.endTime) {
-    return `${event.startTime}–${event.endTime}`;
-  }
-
-  return event.startTime || event.endTime || "All day";
-}
-
-function getRecurrenceLabel(
-  recurrence: PlannerEvent["recurrence"]
-) {
-  switch (recurrence) {
-    case "daily":
-      return "Daily";
-
-    case "weekly":
-      return "Weekly";
-
-    case "monthly":
-      return "Monthly";
-
-    case "yearly":
-      return "Yearly";
-
-    default:
-      return "One-time";
-  }
-}
-
-function eventOccursOnDate(
-  event: PlannerEvent,
-  date: Date
-) {
-  const target = getDateKey(date);
-
-  if (event.recurrence === "none") {
-    return event.date === target;
-  }
-
-  const eventDate = new Date(
-    `${event.date}T00:00:00`
+export default function Places({ onBack }: PlacesProps) {
+  const supabase = useMemo(
+    () =>
+      createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+      ),
+    [],
   );
 
-  const targetDate = new Date(
-    `${target}T00:00:00`
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [visits, setVisits] = useState<PlaceVisit[]>([]);
+  const [selectedPlace, setSelectedPlace] = useState<string | null>(null);
+
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const [showPlaceForm, setShowPlaceForm] = useState(false);
+  const [showMenuForm, setShowMenuForm] = useState(false);
+  const [showVisitForm, setShowVisitForm] = useState(false);
+
+  const [editingPlaceId, setEditingPlaceId] = useState<string | null>(null);
+
+  const [placeName, setPlaceName] = useState("");
+  const [placeCategory, setPlaceCategory] = useState("Restaurant");
+  const [placeRating, setPlaceRating] = useState("0");
+  const [placeLocation, setPlaceLocation] = useState("");
+  const [placeLatitude, setPlaceLatitude] = useState<number | null>(null);
+  const [placeLongitude, setPlaceLongitude] = useState<number | null>(null);
+  const [placeNotes, setPlaceNotes] = useState("");
+  const [placeTags, setPlaceTags] = useState("");
+
+  const [menuName, setMenuName] = useState("");
+  const [menuRating, setMenuRating] = useState("0");
+  const [menuNotes, setMenuNotes] = useState("");
+  const [menuRecommended, setMenuRecommended] = useState(false);
+
+  const [visitDate, setVisitDate] = useState(
+    new Date().toLocaleDateString("en-CA"),
+  );
+  const [visitNotes, setVisitNotes] = useState("");
+
+  const selectedPlaceData =
+    places.find((place) => place.id === selectedPlace) ?? null;
+
+  const selectedMenuItems = menuItems.filter(
+    (item) => item.place_id === selectedPlace,
   );
 
-  if (targetDate < eventDate) {
-    return false;
-  }
+  const selectedVisits = visits
+    .filter((visit) => visit.place_id === selectedPlace)
+    .sort((a, b) => b.visited_at.localeCompare(a.visited_at));
 
-  if (event.recurrence === "daily") {
-    return true;
-  }
-
-  if (event.recurrence === "weekly") {
-    return (
-      eventDate.getDay() === targetDate.getDay()
-    );
-  }
-
-  if (event.recurrence === "monthly") {
-    return (
-      eventDate.getDate() === targetDate.getDate()
-    );
-  }
-
-  if (event.recurrence === "yearly") {
-    return (
-      eventDate.getMonth() ===
-        targetDate.getMonth() &&
-      eventDate.getDate() ===
-        targetDate.getDate()
-    );
-  }
-
-  return false;
-}
-
-function getEventsForDate(
-  events: PlannerEvent[],
-  date: Date
-) {
-  return events
-    .filter((event) =>
-      eventOccursOnDate(event, date)
-    )
-    .sort((a, b) =>
-      (a.startTime || "99:99").localeCompare(
-        b.startTime || "99:99"
-      )
-    );
-}
-
-export default function Planner() {
-  const [currentMonth, setCurrentMonth] =
-    useState(() => {
-      const now = new Date();
-
-      return new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        1
-      );
-    });
-
-  const [events, setEvents] = useState<
-    PlannerEvent[]
-  >([]);
-
-  const [birthdayEvents, setBirthdayEvents] =
-    useState<PlannerEvent[]>([]);
-
-  const [selectedDate, setSelectedDate] =
-    useState(getTodayKey());
-
-  const [showForm, setShowForm] =
-    useState(false);
-
-  const [editingId, setEditingId] =
-    useState<string | null>(null);
-
-  const [title, setTitle] = useState("");
-
-  const [date, setDate] =
-    useState(getTodayKey());
-
-  const [startTime, setStartTime] =
-    useState("");
-
-  const [endTime, setEndTime] =
-    useState("");
-
-  const [recurrence, setRecurrence] =
-    useState<PlannerEvent["recurrence"]>("none");
-
-  const [notes, setNotes] = useState("");
-
-  /* =========================
-     LOAD MANUAL EVENTS
-  ========================= */
-
-  useEffect(() => {
-    const saved =
-      localStorage.getItem(STORAGE_KEY);
-
-    if (!saved) {
-      return;
-    }
+  const loadPlaces = useCallback(async () => {
+    setLoading(true);
+    setError("");
 
     try {
-      const parsed = JSON.parse(saved);
-
-      if (Array.isArray(parsed)) {
-        setEvents(parsed);
-      }
-    } catch {
-      setEvents([]);
-    }
-  }, []);
-
-  /* =========================
-     LOAD PEOPLE BIRTHDAYS
-  ========================= */
-
-  useEffect(() => {
-    async function loadBirthdays() {
-      const supabase = createClient();
-
       const {
         data: { user },
-        error: userError,
+        error: authError,
       } = await supabase.auth.getUser();
 
-      if (userError || !user) {
-        console.error(
-          "PLANNER: USER ERROR",
-          userError
-        );
+      if (authError) throw authError;
+      if (!user) {
+        setPlaces([]);
+        setMenuItems([]);
+        setVisits([]);
+        setError("Please log in to manage your saved places.");
         return;
       }
 
-      const { data, error } = await supabase
-        .from("people")
-        .select("id, name, birth_date")
-        .eq("user_id", user.id)
-        .not("birth_date", "is", null);
-
-      if (error) {
-        console.error(
-          "PLANNER: BIRTHDAY LOAD ERROR",
-          error
-        );
-        return;
-      }
-
-      const people =
-        (data ?? []) as PersonBirthday[];
-
-      const generatedBirthdayEvents: PlannerEvent[] =
-        people.map((person) => ({
-          id: `birthday-${person.id}`,
-          title: `🎂 ${person.name}'s Birthday`,
-          date: person.birth_date,
-          recurrence: "yearly",
-          notes: "Birthday from People archive.",
-        }));
-
-      setBirthdayEvents(
-        generatedBirthdayEvents
-      );
-    }
-
-    void loadBirthdays();
-  }, []);
-
-  /* =========================
-     ALL EVENTS
-  ========================= */
-
-  const allEvents = useMemo(
-    () => [...events, ...birthdayEvents],
-    [events, birthdayEvents]
-  );
-
-  /* =========================
-     SAVE MANUAL EVENTS
-  ========================= */
-
-  function saveEvents(
-    nextEvents: PlannerEvent[]
-  ) {
-    setEvents(nextEvents);
-
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(nextEvents)
-    );
-
-    window.dispatchEvent(
-      new Event("life-game-updated")
-    );
-  }
-
-  /* =========================
-     FORM
-  ========================= */
-
-  function resetForm() {
-    setTitle("");
-    setDate(selectedDate);
-    setStartTime("");
-    setEndTime("");
-    setRecurrence("none");
-    setNotes("");
-    setEditingId(null);
-  }
-
-  function openAddForm(
-    selectedDateValue?: string
-  ) {
-    resetForm();
-
-    setDate(
-      selectedDateValue || selectedDate
-    );
-
-    setShowForm(true);
-  }
-
-  function openEditForm(
-    event: PlannerEvent
-  ) {
-    if (event.id.startsWith("birthday-")) {
-      return;
-    }
-
-    setEditingId(event.id);
-    setTitle(event.title);
-    setDate(event.date);
-    setStartTime(event.startTime ?? "");
-    setEndTime(event.endTime ?? "");
-    setRecurrence(event.recurrence);
-    setNotes(event.notes);
-    setShowForm(true);
-  }
-
-  function handleSubmit(
-    e: React.FormEvent
-  ) {
-    e.preventDefault();
-
-    if (!title.trim()) {
-      return;
-    }
-
-    if (
-      startTime &&
-      endTime &&
-      endTime < startTime
-    ) {
-      window.alert(
-        "End time cannot be earlier than start time."
-      );
-
-      return;
-    }
-
-    const event: PlannerEvent = {
-      id:
-        editingId ||
-        `${Date.now()}-${Math.random()}`,
-      title: title.trim(),
-      date,
-      startTime:
-        startTime || undefined,
-      endTime:
-        endTime || undefined,
-      recurrence,
-      notes: notes.trim(),
-    };
-
-    if (editingId) {
-      saveEvents(
-        events.map((item) =>
-          item.id === editingId
-            ? event
-            : item
-        )
-      );
-    } else {
-      saveEvents([
-        ...events,
-        event,
+      const [
+        { data: placeData, error: placesError },
+        { data: menuData, error: menuError },
+        { data: visitData, error: visitsError },
+      ] = await Promise.all([
+        supabase
+          .from("places")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("place_menu_items")
+          .select("*")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("place_visits")
+          .select("*")
+          .order("visited_at", { ascending: false }),
       ]);
-    }
 
-    setSelectedDate(date);
-    setShowForm(false);
-    resetForm();
+      if (placesError) throw placesError;
+      if (menuError) throw menuError;
+      if (visitsError) throw visitsError;
+
+      const loadedPlaces = (placeData ?? []) as Place[];
+      const ownedIds = new Set(loadedPlaces.map((place) => place.id));
+
+      setPlaces(loadedPlaces);
+      setMenuItems(
+        ((menuData ?? []) as MenuItem[]).filter((item) =>
+          ownedIds.has(item.place_id),
+        ),
+      );
+      setVisits(
+        ((visitData ?? []) as PlaceVisit[]).filter((visit) =>
+          ownedIds.has(visit.place_id),
+        ),
+      );
+      setSelectedPlace((current) =>
+        current && ownedIds.has(current) ? current : null,
+      );
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [supabase]);
+
+  useEffect(() => {
+    void loadPlaces();
+  }, [loadPlaces]);
+
+  const filteredPlaces = places.filter((place) => {
+    const text = search.trim().toLowerCase();
+    const matchesSearch =
+      !text ||
+      place.name.toLowerCase().includes(text) ||
+      (place.location ?? "").toLowerCase().includes(text) ||
+      (place.notes ?? "").toLowerCase().includes(text) ||
+      (place.tags ?? []).some((tag) => tag.toLowerCase().includes(text));
+
+    return (
+      matchesSearch &&
+      (categoryFilter === "All" || place.category === categoryFilter) &&
+      (!favoritesOnly || place.is_favorite)
+    );
+  });
+
+  function resetPlaceForm() {
+    setPlaceName("");
+    setPlaceCategory("Restaurant");
+    setPlaceRating("0");
+    setPlaceLocation("");
+    setPlaceLatitude(null);
+    setPlaceLongitude(null);
+    setPlaceNotes("");
+    setPlaceTags("");
+    setEditingPlaceId(null);
+    setShowPlaceForm(false);
   }
 
-  function deleteEvent(
-    eventId: string
-  ) {
-    if (eventId.startsWith("birthday-")) {
+  function openEditPlaceForm(place: Place) {
+    setEditingPlaceId(place.id);
+    setPlaceName(place.name);
+    setPlaceCategory(place.category || "Other");
+    setPlaceRating(String(place.rating ?? 0));
+    setPlaceLocation(place.location ?? "");
+    setPlaceLatitude(place.latitude);
+    setPlaceLongitude(place.longitude);
+    setPlaceNotes(place.notes ?? "");
+    setPlaceTags((place.tags ?? []).join(", "));
+    setShowPlaceForm(true);
+  }
+
+  function handleChooseLocation(result: PlaceSearchResult) {
+    setPlaceName(result.name);
+    setPlaceLocation(result.address);
+    setPlaceLatitude(result.latitude);
+    setPlaceLongitude(result.longitude);
+    setEditingPlaceId(null);
+    setSelectedPlace(null);
+    setShowPlaceForm(true);
+    setError("");
+    setNotice("Location selected. Complete the form and save your place.");
+  }
+
+  async function savePlace(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setNotice("");
+
+    const name = placeName.trim();
+    const rating = Number(placeRating);
+
+    if (!name) {
+      setError("Please enter a place name.");
+      return;
+    }
+    if (!Number.isFinite(rating) || rating < 0 || rating > 5) {
+      setError("Rating must be between 0 and 5.");
       return;
     }
 
-    const confirmed =
-      window.confirm(
-        "Delete this event?"
-      );
+    setSaving(true);
 
-    if (!confirmed) {
-      return;
-    }
+    try {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
 
-    saveEvents(
-      events.filter(
-        (event) =>
-          event.id !== eventId
-      )
-    );
-  }
+      if (authError) throw authError;
+      if (!user) throw new Error("Please log in first.");
 
-  /* =========================
-     NAVIGATION
-  ========================= */
+      const payload = {
+        name,
+        category: placeCategory,
+        rating,
+        location: placeLocation.trim() || null,
+        latitude: placeLatitude,
+        longitude: placeLongitude,
+        notes: placeNotes.trim() || null,
+        tags: placeTags
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+      };
 
-  function goToPreviousMonth() {
-    setCurrentMonth(
-      (current) =>
-        new Date(
-          current.getFullYear(),
-          current.getMonth() - 1,
-          1
-        )
-    );
-  }
+      if (editingPlaceId) {
+        const { error: updateError } = await supabase
+          .from("places")
+          .update(payload)
+          .eq("id", editingPlaceId)
+          .eq("user_id", user.id);
 
-  function goToNextMonth() {
-    setCurrentMonth(
-      (current) =>
-        new Date(
-          current.getFullYear(),
-          current.getMonth() + 1,
-          1
-        )
-    );
-  }
+        if (updateError) throw updateError;
+        setNotice("Place updated successfully.");
+      } else {
+        const { error: insertError } = await supabase.from("places").insert({
+          ...payload,
+          user_id: user.id,
+          is_favorite: false,
+        });
 
-  function goToToday() {
-    const today = new Date();
-
-    setCurrentMonth(
-      new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        1
-      )
-    );
-
-    setSelectedDate(
-      getTodayKey()
-    );
-  }
-
-  /* =========================
-     DERIVED DATA
-  ========================= */
-
-  const calendarDays = useMemo(
-    () =>
-      getCalendarDays(
-        currentMonth
-      ),
-    [currentMonth]
-  );
-
-  const selectedDateObject =
-    new Date(
-      `${selectedDate}T00:00:00`
-    );
-
-  const selectedEvents =
-    getEventsForDate(
-      allEvents,
-      selectedDateObject
-    );
-
-  const upcomingEvents =
-    useMemo(() => {
-      const today = new Date();
-
-      today.setHours(
-        0,
-        0,
-        0,
-        0
-      );
-
-      const result: {
-        event: PlannerEvent;
-        date: Date;
-      }[] = [];
-
-      for (
-        let i = 0;
-        i < 90;
-        i++
-      ) {
-        const currentDate =
-          new Date(today);
-
-        currentDate.setDate(
-          today.getDate() + i
-        );
-
-        const dayEvents =
-          getEventsForDate(
-            allEvents,
-            currentDate
-          );
-
-        dayEvents.forEach(
-          (event) => {
-            result.push({
-              event,
-              date: new Date(
-                currentDate
-              ),
-            });
-          }
-        );
+        if (insertError) throw insertError;
+        setNotice("Place saved successfully.");
       }
 
-      return result
-        .sort((a, b) => {
-          const dateCompare =
-            a.date.getTime() -
-            b.date.getTime();
+      resetPlaceForm();
+      await loadPlaces();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
 
-          if (dateCompare !== 0) {
-            return dateCompare;
-          }
+  async function toggleFavorite(place: Place) {
+    setError("");
+    setNotice("");
 
-          return (
-            a.event.startTime ||
-            "99:99"
-          ).localeCompare(
-            b.event.startTime ||
-              "99:99"
-          );
-        })
-        .slice(0, 8);
-    }, [allEvents]);
+    try {
+      const { error: updateError } = await supabase
+        .from("places")
+        .update({ is_favorite: !place.is_favorite })
+        .eq("id", place.id)
+        .eq("user_id", place.user_id);
+
+      if (updateError) throw updateError;
+
+      setPlaces((current) =>
+        current.map((item) =>
+          item.id === place.id
+            ? { ...item, is_favorite: !item.is_favorite }
+            : item,
+        ),
+      );
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  }
+
+  async function deletePlace(place: Place) {
+    if (
+      !window.confirm(
+        `Delete "${place.name}" and its saved menu items and visits?`,
+      )
+    ) {
+      return;
+    }
+
+    setError("");
+    setNotice("");
+
+    try {
+      const { error: deleteError } = await supabase
+        .from("places")
+        .delete()
+        .eq("id", place.id)
+        .eq("user_id", place.user_id);
+
+      if (deleteError) throw deleteError;
+
+      setPlaces((current) => current.filter((item) => item.id !== place.id));
+      setMenuItems((current) =>
+        current.filter((item) => item.place_id !== place.id),
+      );
+      setVisits((current) =>
+        current.filter((visit) => visit.place_id !== place.id),
+      );
+      if (selectedPlace === place.id) setSelectedPlace(null);
+
+      setNotice("Place deleted.");
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  }
+
+  async function saveMenuItem(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setNotice("");
+
+    if (!selectedPlaceData) return;
+    if (!menuName.trim()) {
+      setError("Please enter a menu item name.");
+      return;
+    }
+
+    const rating = Number(menuRating);
+    if (!Number.isFinite(rating) || rating < 0 || rating > 5) {
+      setError("Menu rating must be between 0 and 5.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { error: insertError } = await supabase
+        .from("place_menu_items")
+        .insert({
+          place_id: selectedPlaceData.id,
+          name: menuName.trim(),
+          rating,
+          notes: menuNotes.trim() || null,
+          is_recommended: menuRecommended,
+        });
+
+      if (insertError) throw insertError;
+
+      setMenuName("");
+      setMenuRating("0");
+      setMenuNotes("");
+      setMenuRecommended(false);
+      setShowMenuForm(false);
+      setNotice("Menu item saved.");
+      await loadPlaces();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleMenuRecommendation(item: MenuItem) {
+    try {
+      const { error: updateError } = await supabase
+        .from("place_menu_items")
+        .update({ is_recommended: !item.is_recommended })
+        .eq("id", item.id)
+        .eq("place_id", item.place_id);
+
+      if (updateError) throw updateError;
+
+      setMenuItems((current) =>
+        current.map((menu) =>
+          menu.id === item.id
+            ? { ...menu, is_recommended: !menu.is_recommended }
+            : menu,
+        ),
+      );
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  }
+
+  async function deleteMenuItem(item: MenuItem) {
+    if (!window.confirm(`Delete "${item.name}"?`)) return;
+
+    try {
+      const { error: deleteError } = await supabase
+        .from("place_menu_items")
+        .delete()
+        .eq("id", item.id)
+        .eq("place_id", item.place_id);
+
+      if (deleteError) throw deleteError;
+
+      setMenuItems((current) =>
+        current.filter((menu) => menu.id !== item.id),
+      );
+      setNotice("Menu item deleted.");
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  }
+
+  async function saveVisit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setNotice("");
+
+    if (!selectedPlaceData) return;
+    if (!visitDate) {
+      setError("Please select a visit date.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { error: insertError } = await supabase
+        .from("place_visits")
+        .insert({
+          place_id: selectedPlaceData.id,
+          visited_at: visitDate,
+          notes: visitNotes.trim() || null,
+        });
+
+      if (insertError) throw insertError;
+
+      setVisitDate(new Date().toLocaleDateString("en-CA"));
+      setVisitNotes("");
+      setShowVisitForm(false);
+      setNotice("Visit added to your history.");
+      await loadPlaces();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteVisit(visit: PlaceVisit) {
+    if (!window.confirm("Delete this visit record?")) return;
+
+    try {
+      const { error: deleteError } = await supabase
+        .from("place_visits")
+        .delete()
+        .eq("id", visit.id)
+        .eq("place_id", visit.place_id);
+
+      if (deleteError) throw deleteError;
+
+      setVisits((current) => current.filter((item) => item.id !== visit.id));
+      setNotice("Visit record deleted.");
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  }
+
+  const averageRating =
+    places.length > 0
+      ? (
+          places.reduce(
+            (sum, place) => sum + Number(place.rating ?? 0),
+            0,
+          ) / places.length
+        ).toFixed(1)
+      : "0.0";
+
+  const mappedPlaces = places as MapPlace[];
 
   return (
-    <div>
-      {/* HEADER */}
-
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-widest opacity-50">
-            Planning
-          </p>
-
-          <h2 className="mt-1 text-3xl font-bold">
-            Planner
-          </h2>
-
-          <p className="mt-1 text-sm opacity-50">
-            Schedule your time, events, and important dates.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() =>
-            openAddForm()
-          }
-          className="rounded-xl bg-[#8f806d] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-        >
-          + Add event
-        </button>
-      </div>
-
-      {/* CALENDAR */}
-
-      <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={
-                goToPreviousMonth
-              }
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f5f0e8] text-lg transition hover:bg-[#e6dccf]"
-              aria-label="Previous month"
-            >
-              ‹
-            </button>
-
-            <button
-              type="button"
-              onClick={
-                goToNextMonth
-              }
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f5f0e8] text-lg transition hover:bg-[#e6dccf]"
-              aria-label="Next month"
-            >
-              ›
-            </button>
-
-            <h3 className="ml-2 text-xl font-bold">
-              {formatMonth(
-                currentMonth
-              )}
-            </h3>
-          </div>
-
+    <main className="mx-auto w-full max-w-7xl space-y-6 p-4 pb-12 sm:p-6 lg:p-8">
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
           <button
             type="button"
-            onClick={goToToday}
-            className="rounded-xl border border-[#cfc3b4] bg-[#f5f0e8] px-4 py-2 text-sm font-medium transition hover:bg-[#e6e0d7]"
+            onClick={onBack}
+            className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] transition hover:bg-[var(--surface-hover)]"
+            aria-label="Back to Archive"
+            title="Back to Archive"
           >
-            Today
+            ←
           </button>
+          <div>
+            <p className="text-sm text-[var(--muted)]">Archive / Places</p>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight">Places</h1>
+            <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
+              Keep track of places you love, meals you want to remember, and
+              experiences from your visits.
+            </p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-7 border-b border-[#d8cec0]">
-          {WEEKDAYS.map(
-            (day) => (
-              <div
-                key={day}
-                className="px-2 pb-3 text-center text-xs font-semibold uppercase tracking-wider opacity-40"
-              >
-                {day}
-              </div>
-            )
-          )}
+        {!selectedPlaceData && (
+          <button
+            type="button"
+            onClick={() => {
+              if (showPlaceForm) {
+                resetPlaceForm();
+              } else {
+                setEditingPlaceId(null);
+                setPlaceName("");
+                setPlaceCategory("Restaurant");
+                setPlaceRating("0");
+                setPlaceLocation("");
+                setPlaceLatitude(null);
+                setPlaceLongitude(null);
+                setPlaceNotes("");
+                setPlaceTags("");
+                setShowPlaceForm(true);
+              }
+            }}
+            className="rounded-xl bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+          >
+            {showPlaceForm ? "Cancel" : "+ Add Place"}
+          </button>
+        )}
+      </header>
+
+      {error && (
+        <div
+          role="alert"
+          className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-700"
+        >
+          {error}
         </div>
+      )}
 
-        <div className="grid grid-cols-7">
-          {calendarDays.map(
-            (day) => {
-              const dateKey =
-                getDateKey(day);
+      {notice && (
+        <div
+          role="status"
+          className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-800"
+        >
+          {notice}
+        </div>
+      )}
 
-              const isCurrentMonth =
-                day.getMonth() ===
-                currentMonth.getMonth();
+      {!selectedPlaceData && (
+        <PlacesMap
+          places={mappedPlaces}
+          selectedPlaceId={selectedPlace}
+          onSelectPlace={(place) => setSelectedPlace(place.id)}
+          onChooseLocation={handleChooseLocation}
+        />
+      )}
 
-              const isToday =
-                dateKey ===
-                getTodayKey();
+      {showPlaceForm && !selectedPlaceData && (
+        <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
+          <h2 className="text-lg font-semibold">
+            {editingPlaceId ? "Edit Place" : "Add a New Place"}
+          </h2>
 
-              const isSelected =
-                dateKey ===
-                selectedDate;
+          <form onSubmit={savePlace} className="mt-4 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="space-y-2 text-sm">
+                <span className="font-medium">Place name *</span>
+                <input
+                  required
+                  maxLength={120}
+                  value={placeName}
+                  onChange={(event) => setPlaceName(event.target.value)}
+                  placeholder="e.g. Kopi Senja"
+                  className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3 outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                />
+              </label>
 
-              const dayEvents =
-                getEventsForDate(
-                  allEvents,
-                  day
-                );
-
-              return (
-                <button
-                  key={dateKey}
-                  type="button"
-                  onClick={() => {
-                    setSelectedDate(
-                      dateKey
-                    );
-                  }}
-                  className={`min-h-[105px] border-b border-r border-[#ddd4c7] p-2 text-left transition ${
-                    isCurrentMonth
-                      ? "bg-white/20"
-                      : "bg-[#eee8df]/40"
-                  } ${
-                    isSelected
-                      ? "bg-[#e1d6c8]"
-                      : "hover:bg-[#eee6dc]"
-                  }`}
+              <label className="space-y-2 text-sm">
+                <span className="font-medium">Category</span>
+                <select
+                  value={placeCategory}
+                  onChange={(event) => setPlaceCategory(event.target.value)}
+                  className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-3"
                 >
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={`flex h-7 w-7 items-center justify-center rounded-full text-sm ${
-                        isToday
-                          ? "bg-[#8f806d] font-bold text-white"
-                          : isCurrentMonth
-                          ? "font-medium"
-                          : "opacity-30"
-                      }`}
-                    >
-                      {day.getDate()}
-                    </span>
+                  {CATEGORIES.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-                    {dayEvents.length >
-                      0 && (
-                      <span className="text-[10px] opacity-40">
-                        {dayEvents.length}
-                      </span>
-                    )}
-                  </div>
+              <label className="space-y-2 text-sm">
+                <span className="font-medium">Rating (0–5)</span>
+                <select
+                  value={placeRating}
+                  onChange={(event) => setPlaceRating(event.target.value)}
+                  className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-3"
+                >
+                  {[0, 1, 2, 3, 4, 5].map((rating) => (
+                    <option key={rating} value={rating}>
+                      {rating === 0 ? "Not rated" : `${rating}/5`}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-                  <div className="mt-2 space-y-1">
-                    {dayEvents
-                      .slice(0, 2)
-                      .map(
-                        (event) => (
-                          <div
-                            key={
-                              event.id
-                            }
-                            className="truncate rounded-md bg-[#d8cec0] px-2 py-1 text-[11px] font-medium"
-                          >
-                            {event.startTime &&
-                              `${event.startTime} `}
-                            {event.title}
-                          </div>
-                        )
-                      )}
-
-                    {dayEvents.length >
-                      2 && (
-                      <div className="px-1 text-[10px] opacity-50">
-                        +
-                        {dayEvents.length -
-                          2}{" "}
-                        more
-                      </div>
-                    )}
-                  </div>
-                </button>
-              );
-            }
-          )}
-        </div>
-      </section>
-
-      {/* SELECTED DAY + UPCOMING */}
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        {/* SELECTED DAY */}
-
-        <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-widest opacity-50">
-                Selected day
-              </p>
-
-              <h3 className="mt-1 text-xl font-bold">
-                {selectedDateObject.toLocaleDateString(
-                  "en-US",
-                  {
-                    weekday:
-                      "long",
-                    month:
-                      "long",
-                    day: "numeric",
-                    year:
-                      "numeric",
-                  }
+              <label className="space-y-2 text-sm">
+                <span className="font-medium">Location / address</span>
+                <input
+                  value={placeLocation}
+                  onChange={(event) => setPlaceLocation(event.target.value)}
+                  placeholder="City, address, or area"
+                  maxLength={300}
+                  className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                />
+                {placeLatitude !== null && placeLongitude !== null && (
+                  <span className="block text-xs text-[var(--muted)]">
+                    Coordinates: {placeLatitude.toFixed(6)},{" "}
+                    {placeLongitude.toFixed(6)}
+                  </span>
                 )}
-              </h3>
+              </label>
             </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                openAddForm(
-                  selectedDate
-                )
-              }
-              className="rounded-xl bg-[#f5f0e8] px-3 py-2 text-sm font-medium transition hover:bg-[#e9dfd2]"
-            >
-              + Add
-            </button>
-          </div>
+            <label className="block space-y-2 text-sm">
+              <span className="font-medium">Tags</span>
+              <input
+                value={placeTags}
+                onChange={(event) => setPlaceTags(event.target.value)}
+                placeholder="cozy, affordable, date spot"
+                className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+              />
+              <span className="text-xs text-[var(--muted)]">
+                Separate tags with commas.
+              </span>
+            </label>
 
-          <div className="mt-5 space-y-3">
-            {selectedEvents.length ===
-            0 ? (
-              <div className="rounded-2xl bg-[#f5f0e8] p-5 text-center">
-                <p className="text-sm opacity-50">
-                  No events for this day.
+            <label className="block space-y-2 text-sm">
+              <span className="font-medium">Notes</span>
+              <textarea
+                value={placeNotes}
+                onChange={(event) => setPlaceNotes(event.target.value)}
+                placeholder="What do you want to remember about this place?"
+                rows={3}
+                maxLength={5000}
+                className="w-full resize-y rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+              />
+            </label>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-xl bg-[var(--primary)] px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {saving
+                  ? "Saving..."
+                  : editingPlaceId
+                    ? "Save Changes"
+                    : "Save Place"}
+              </button>
+              <button
+                type="button"
+                onClick={resetPlaceForm}
+                className="rounded-xl border border-[var(--border)] px-5 py-3 text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      {!selectedPlaceData && (
+        <>
+          <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {[
+              { label: "Saved Places", value: places.length, icon: "📍" },
+              {
+                label: "Favorites",
+                value: places.filter((place) => place.is_favorite).length,
+                icon: "♥",
+              },
+              {
+                label: "Places Visited",
+                value: new Set(visits.map((visit) => visit.place_id)).size,
+                icon: "🗺️",
+              },
+              { label: "Average Rating", value: averageRating, icon: "★" },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm text-[var(--muted)]">
+                    {stat.label}
+                  </span>
+                  <span>{stat.icon}</span>
+                </div>
+                <p className="mt-3 text-2xl font-bold">{stat.value}</p>
+              </div>
+            ))}
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search places, locations, tags..."
+                className="min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-transparent px-4 py-3"
+              />
+              <select
+                value={categoryFilter}
+                onChange={(event) => setCategoryFilter(event.target.value)}
+                className="rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-3"
+              >
+                <option value="All">All categories</option>
+                {CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setFavoritesOnly((current) => !current)}
+                aria-pressed={favoritesOnly}
+                className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+                  favoritesOnly
+                    ? "border-pink-400 bg-pink-50 text-pink-700"
+                    : "border-[var(--border)]"
+                }`}
+              >
+                ♥ Favorites
+              </button>
+            </div>
+
+            {loading ? (
+              <div className="rounded-2xl border border-[var(--border)] p-12 text-center text-sm text-[var(--muted)]">
+                Loading your places...
+              </div>
+            ) : filteredPlaces.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[var(--border)] p-10 text-center">
+                <div className="text-4xl">📍</div>
+                <h2 className="mt-4 text-lg font-semibold">
+                  {places.length === 0
+                    ? "Your places collection starts here"
+                    : "No places found"}
+                </h2>
+                <p className="mx-auto mt-2 max-w-md text-sm text-[var(--muted)]">
+                  {places.length === 0
+                    ? "Search for a place on the map above or add a place manually."
+                    : "Try another search or change your filters."}
                 </p>
+                {places.length === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowPlaceForm(true)}
+                    className="mt-5 rounded-xl bg-[var(--primary)] px-5 py-3 text-sm font-semibold text-white"
+                  >
+                    + Save Your First Place
+                  </button>
+                )}
               </div>
             ) : (
-              selectedEvents.map(
-                (event) => {
-                  const isBirthday =
-                    event.id.startsWith(
-                      "birthday-"
-                    );
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {filteredPlaces.map((place) => {
+                  const visitCount = visits.filter(
+                    (visit) => visit.place_id === place.id,
+                  ).length;
+                  const menuCount = menuItems.filter(
+                    (item) => item.place_id === place.id,
+                  ).length;
 
                   return (
-                    <div
-                      key={event.id}
-                      className="rounded-2xl bg-[#f5f0e8] p-4"
+                    <article
+                      key={place.id}
+                      className="flex flex-col rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 transition hover:-translate-y-0.5 hover:shadow-md"
                     >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <p className="font-semibold">
-                            {event.title}
-                          </p>
+                      <div className="flex items-start justify-between gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPlace(place.id)}
+                          className="min-w-0 flex-1 text-left"
+                        >
+                          <span className="text-xs font-medium text-[var(--muted)]">
+                            {place.category || "Other"}
+                          </span>
+                          <h2 className="mt-1 break-words text-xl font-semibold">
+                            {place.name}
+                          </h2>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void toggleFavorite(place)}
+                          aria-label={
+                            place.is_favorite
+                              ? "Remove from favorites"
+                              : "Add to favorites"
+                          }
+                          className={`shrink-0 rounded-lg border px-3 py-2 ${
+                            place.is_favorite
+                              ? "border-pink-300 bg-pink-50 text-pink-600"
+                              : "border-[var(--border)]"
+                          }`}
+                        >
+                          {place.is_favorite ? "♥" : "♡"}
+                        </button>
+                      </div>
 
-                          <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs opacity-50">
-                            <span>
-                              {formatEventTime(
-                                event
-                              )}
-                            </span>
+                      <p className="mt-3 text-sm">
+                        <RatingStars rating={place.rating} />
+                      </p>
 
-                            <span>•</span>
+                      {place.location && (
+                        <p className="mt-3 break-words text-sm text-[var(--muted)]">
+                          📍 {place.location}
+                        </p>
+                      )}
 
-                            <span>
-                              {getRecurrenceLabel(
-                                event.recurrence
-                              )}
-                            </span>
-                          </div>
-
-                          {event.notes && (
-                            <p className="mt-3 whitespace-pre-wrap text-sm opacity-60">
-                              {event.notes}
-                            </p>
-                          )}
-
-                          {isBirthday && (
-                            <p className="mt-3 text-xs text-[#8b6f5a]">
-                              From People archive
-                            </p>
-                          )}
-                        </div>
-
-                        {!isBirthday && (
-                          <div className="flex shrink-0 gap-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                openEditForm(
-                                  event
-                                )
-                              }
-                              className="rounded-lg bg-[#ddd4c7] px-3 py-2 text-xs font-medium transition hover:bg-[#cfc3b4]"
-                            >
-                              Edit
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                deleteEvent(
-                                  event.id
-                                )
-                              }
-                              className="rounded-lg bg-[#e6d5d0] px-3 py-2 text-xs font-medium text-[#694d46] transition hover:bg-[#dcc6c0]"
-                            >
-                              Delete
-                            </button>
-                          </div>
+                      {place.latitude !== null &&
+                        place.longitude !== null && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedPlace(place.id);
+                            }}
+                            className="mt-2 self-start text-xs text-[var(--primary)] underline"
+                          >
+                            View on map
+                          </button>
                         )}
+
+                      {place.notes && (
+                        <p className="mt-3 line-clamp-3 whitespace-pre-wrap text-sm">
+                          {place.notes}
+                        </p>
+                      )}
+
+                      {(place.tags ?? []).length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {(place.tags ?? []).map((tag, index) => (
+                            <span
+                              key={`${tag}-${index}`}
+                              className="rounded-full border border-[var(--border)] px-2.5 py-1 text-xs text-[var(--muted)]"
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="mt-4 flex flex-wrap gap-2 text-xs text-[var(--muted)]">
+                        <span className="rounded-full bg-[var(--surface-hover)] px-2.5 py-1">
+                          🍽️ {menuCount} menu items
+                        </span>
+                        <span className="rounded-full bg-[var(--surface-hover)] px-2.5 py-1">
+                          🗓️ {visitCount} visits
+                        </span>
                       </div>
-                    </div>
+
+                      <div className="mt-auto flex flex-wrap gap-2 pt-5">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPlace(place.id)}
+                          className="flex-1 rounded-xl bg-[var(--primary)] px-3 py-2.5 text-sm font-semibold text-white"
+                        >
+                          View Details
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openEditPlaceForm(place)}
+                          className="rounded-xl border border-[var(--border)] px-3 py-2.5 text-sm"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void deletePlace(place)}
+                          className="rounded-xl border border-red-200 px-3 py-2.5 text-sm text-red-600"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </article>
                   );
-                }
-              )
-            )}
-          </div>
-        </section>
-
-        {/* UPCOMING */}
-
-        <section className="rounded-3xl bg-white/60 p-5 shadow-sm sm:p-6">
-          <div>
-            <p className="text-xs uppercase tracking-widest opacity-50">
-              Next
-            </p>
-
-            <h3 className="mt-1 text-xl font-bold">
-              Upcoming
-            </h3>
-          </div>
-
-          <div className="mt-5 space-y-3">
-            {upcomingEvents.length ===
-            0 ? (
-              <div className="rounded-2xl bg-[#f5f0e8] p-5 text-center">
-                <p className="text-sm opacity-50">
-                  No upcoming events.
-                </p>
+                })}
               </div>
-            ) : (
-              upcomingEvents.map(
-                ({ event, date }) => (
-                  <button
-                    key={`${event.id}-${getDateKey(
-                      date
-                    )}`}
-                    type="button"
-                    onClick={() => {
-                      setSelectedDate(
-                        getDateKey(
-                          date
-                        )
-                      );
-
-                      setCurrentMonth(
-                        new Date(
-                          date.getFullYear(),
-                          date.getMonth(),
-                          1
-                        )
-                      );
-                    }}
-                    className="w-full rounded-2xl bg-[#f5f0e8] p-4 text-left transition hover:bg-[#e9dfd2]"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-xs uppercase tracking-wider opacity-40">
-                          {date.toLocaleDateString(
-                            "en-US",
-                            {
-                              weekday:
-                                "short",
-                              month:
-                                "short",
-                              day: "numeric",
-                            }
-                          )}
-                        </p>
-
-                        <p className="mt-1 truncate font-semibold">
-                          {event.title}
-                        </p>
-                      </div>
-
-                      <span className="shrink-0 text-xs opacity-50">
-                        {event.startTime ||
-                          "All day"}
-                      </span>
-                    </div>
-                  </button>
-                )
-              )
             )}
-          </div>
-        </section>
-      </div>
+          </section>
+        </>
+      )}
 
-      {/* ADD / EDIT FORM */}
+      {selectedPlaceData && (
+        <section className="space-y-6">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedPlace(null);
+              setShowMenuForm(false);
+              setShowVisitForm(false);
+              setShowPlaceForm(false);
+              setError("");
+              setNotice("");
+            }}
+            className="rounded-xl border border-[var(--border)] px-4 py-2.5 text-sm font-medium"
+          >
+            ← All Places
+          </button>
 
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-[#f5f0e8] p-6 shadow-xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-widest opacity-50">
-                  Planner
+          {selectedPlaceData.latitude !== null &&
+            selectedPlaceData.longitude !== null && (
+              <PlacesMap
+                places={mappedPlaces}
+                selectedPlaceId={selectedPlace}
+                onSelectPlace={(place) => setSelectedPlace(place.id)}
+              />
+            )}
+
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 sm:p-7">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0">
+                <span className="text-sm text-[var(--muted)]">
+                  {selectedPlaceData.category || "Other"}
+                </span>
+                <h2 className="mt-2 break-words text-3xl font-bold">
+                  {selectedPlaceData.name}
+                </h2>
+                {selectedPlaceData.location && (
+                  <p className="mt-3 break-words text-sm text-[var(--muted)]">
+                    📍 {selectedPlaceData.location}
+                  </p>
+                )}
+                <p className="mt-3 text-sm">
+                  <RatingStars rating={selectedPlaceData.rating} />
                 </p>
-
-                <h3 className="mt-1 text-2xl font-bold">
-                  {editingId
-                    ? "Edit event"
-                    : "New event"}
-                </h3>
+                {selectedPlaceData.latitude !== null &&
+                  selectedPlaceData.longitude !== null && (
+                    <p className="mt-2 text-xs text-[var(--muted)]">
+                      Coordinates: {selectedPlaceData.latitude.toFixed(6)},{" "}
+                      {selectedPlaceData.longitude.toFixed(6)}
+                    </p>
+                  )}
               </div>
 
               <button
                 type="button"
-                onClick={() => {
-                  setShowForm(false);
-                  resetForm();
-                }}
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#e4d9cb] text-lg opacity-60 hover:opacity-100"
+                onClick={() => void toggleFavorite(selectedPlaceData)}
+                className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+                  selectedPlaceData.is_favorite
+                    ? "border-pink-300 bg-pink-50 text-pink-700"
+                    : "border-[var(--border)]"
+                }`}
               >
-                ×
+                {selectedPlaceData.is_favorite
+                  ? "♥ In Favorites"
+                  : "♡ Add to Favorites"}
               </button>
             </div>
 
-            <form
-              onSubmit={handleSubmit}
-              className="mt-6 space-y-4"
-            >
-              <div>
-                <label className="text-sm font-semibold">
-                  Event
-                </label>
-
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) =>
-                    setTitle(
-                      e.target.value
-                    )
-                  }
-                  placeholder="e.g. Thesis meeting"
-                  className="mt-2 w-full rounded-xl border border-[#cfc3b4] bg-white/70 px-4 py-3 text-sm outline-none focus:border-[#8f806d]"
-                  autoFocus
-                />
+            {selectedPlaceData.notes && (
+              <div className="mt-6 border-t border-[var(--border)] pt-5">
+                <h3 className="font-semibold">Notes & Memories</h3>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[var(--muted)]">
+                  {selectedPlaceData.notes}
+                </p>
               </div>
+            )}
 
-              <div>
-                <label className="text-sm font-semibold">
-                  Date
-                </label>
-
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) =>
-                    setDate(
-                      e.target.value
-                    )
-                  }
-                  className="mt-2 w-full rounded-xl border border-[#cfc3b4] bg-white/70 px-4 py-3 text-sm outline-none focus:border-[#8f806d]"
-                />
+            {(selectedPlaceData.tags ?? []).length > 0 && (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {(selectedPlaceData.tags ?? []).map((tag, index) => (
+                  <span
+                    key={`${tag}-${index}`}
+                    className="rounded-full border border-[var(--border)] px-3 py-1.5 text-xs"
+                  >
+                    #{tag}
+                  </span>
+                ))}
               </div>
+            )}
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="text-sm font-semibold">
-                    Start{" "}
-                    <span className="font-normal opacity-50">
-                      (optional)
-                    </span>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => openEditPlaceForm(selectedPlaceData)}
+                className="rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-medium"
+              >
+                Edit Place
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowMenuForm((current) => !current)}
+                className="rounded-xl bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-white"
+              >
+                {showMenuForm ? "Cancel Menu" : "+ Add Menu Item"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowVisitForm((current) => !current)}
+                className="rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-medium"
+              >
+                {showVisitForm ? "Cancel Visit" : "+ Record Visit"}
+              </button>
+            </div>
+          </div>
+
+          {showPlaceForm && editingPlaceId === selectedPlaceData.id && (
+            <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
+              <h3 className="text-lg font-semibold">Edit Place</h3>
+              <form onSubmit={savePlace} className="mt-4 space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="space-y-2 text-sm">
+                    <span className="font-medium">Place name *</span>
+                    <input
+                      required
+                      maxLength={120}
+                      value={placeName}
+                      onChange={(event) => setPlaceName(event.target.value)}
+                      className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                    />
                   </label>
-
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={(e) =>
-                      setStartTime(
-                        e.target.value
-                      )
-                    }
-                    className="mt-2 w-full rounded-xl border border-[#cfc3b4] bg-white/70 px-4 py-3 text-sm outline-none focus:border-[#8f806d]"
-                  />
+                  <label className="space-y-2 text-sm">
+                    <span className="font-medium">Category</span>
+                    <select
+                      value={placeCategory}
+                      onChange={(event) => setPlaceCategory(event.target.value)}
+                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-3"
+                    >
+                      {CATEGORIES.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="space-y-2 text-sm">
+                    <span className="font-medium">Rating (0–5)</span>
+                    <select
+                      value={placeRating}
+                      onChange={(event) => setPlaceRating(event.target.value)}
+                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-3"
+                    >
+                      {[0, 1, 2, 3, 4, 5].map((rating) => (
+                        <option key={rating} value={rating}>
+                          {rating === 0 ? "Not rated" : `${rating}/5`}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="space-y-2 text-sm">
+                    <span className="font-medium">Location / address</span>
+                    <input
+                      value={placeLocation}
+                      onChange={(event) => setPlaceLocation(event.target.value)}
+                      maxLength={300}
+                      className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                    />
+                    {placeLatitude !== null && placeLongitude !== null && (
+                      <span className="block text-xs text-[var(--muted)]">
+                        {placeLatitude.toFixed(6)}, {placeLongitude.toFixed(6)}
+                      </span>
+                    )}
+                  </label>
                 </div>
 
-                <div>
-                  <label className="text-sm font-semibold">
-                    End{" "}
-                    <span className="font-normal opacity-50">
-                      (optional)
-                    </span>
-                  </label>
-
+                <label className="block space-y-2 text-sm">
+                  <span className="font-medium">Tags</span>
                   <input
-                    type="time"
-                    value={endTime}
-                    onChange={(e) =>
-                      setEndTime(
-                        e.target.value
-                      )
-                    }
-                    className="mt-2 w-full rounded-xl border border-[#cfc3b4] bg-white/70 px-4 py-3 text-sm outline-none focus:border-[#8f806d]"
+                    value={placeTags}
+                    onChange={(event) => setPlaceTags(event.target.value)}
+                    placeholder="cozy, affordable, date spot"
+                    className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
                   />
+                </label>
+
+                <label className="block space-y-2 text-sm">
+                  <span className="font-medium">Notes</span>
+                  <textarea
+                    value={placeNotes}
+                    onChange={(event) => setPlaceNotes(event.target.value)}
+                    rows={4}
+                    maxLength={5000}
+                    className="w-full resize-y rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                  />
+                </label>
+
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="rounded-xl bg-[var(--primary)] px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {saving ? "Saving..." : "Save Changes"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetPlaceForm}
+                    className="rounded-xl border border-[var(--border)] px-5 py-3 text-sm"
+                  >
+                    Cancel
+                  </button>
                 </div>
-              </div>
+              </form>
+            </section>
+          )}
 
-              <div>
-                <label className="text-sm font-semibold">
-                  Repeat
+          {showMenuForm && (
+            <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
+              <h3 className="text-lg font-semibold">Add Menu Item</h3>
+              <form onSubmit={saveMenuItem} className="mt-4 space-y-4">
+                <label className="block space-y-2 text-sm">
+                  <span className="font-medium">Menu item name *</span>
+                  <input
+                    required
+                    maxLength={150}
+                    value={menuName}
+                    onChange={(event) => setMenuName(event.target.value)}
+                    placeholder="e.g. Iced Matcha Latte"
+                    className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                  />
                 </label>
-
-                <select
-                  value={recurrence}
-                  onChange={(e) =>
-                    setRecurrence(
-                      e.target
-                        .value as PlannerEvent["recurrence"]
-                    )
-                  }
-                  className="mt-2 w-full rounded-xl border border-[#cfc3b4] bg-white/70 px-4 py-3 text-sm outline-none focus:border-[#8f806d]"
-                >
-                  <option value="none">
-                    One-time
-                  </option>
-
-                  <option value="daily">
-                    Daily
-                  </option>
-
-                  <option value="weekly">
-                    Weekly
-                  </option>
-
-                  <option value="monthly">
-                    Monthly
-                  </option>
-
-                  <option value="yearly">
-                    Yearly
-                  </option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold">
-                  Notes
+                <label className="block space-y-2 text-sm">
+                  <span className="font-medium">Rating (0–5)</span>
+                  <select
+                    value={menuRating}
+                    onChange={(event) => setMenuRating(event.target.value)}
+                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-3"
+                  >
+                    {[0, 1, 2, 3, 4, 5].map((rating) => (
+                      <option key={rating} value={rating}>
+                        {rating === 0 ? "Not rated" : `${rating}/5`}
+                      </option>
+                    ))}
+                  </select>
                 </label>
-
-                <textarea
-                  value={notes}
-                  onChange={(e) =>
-                    setNotes(
-                      e.target.value
-                    )
-                  }
-                  placeholder="Optional notes..."
-                  rows={3}
-                  className="mt-2 w-full resize-none rounded-xl border border-[#cfc3b4] bg-white/70 px-4 py-3 text-sm outline-none focus:border-[#8f806d]"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 border-t border-[#d8cec0] pt-5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowForm(false);
-                    resetForm();
-                  }}
-                  className="rounded-xl border border-[#cfc3b4] bg-white/50 px-4 py-2.5 text-sm font-medium"
-                >
-                  Cancel
-                </button>
-
+                <label className="block space-y-2 text-sm">
+                  <span className="font-medium">Notes</span>
+                  <textarea
+                    value={menuNotes}
+                    onChange={(event) => setMenuNotes(event.target.value)}
+                    rows={2}
+                    maxLength={2000}
+                    placeholder="Taste, price, portion, or other details"
+                    className="w-full resize-y rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                  />
+                </label>
+                <label className="flex items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={menuRecommended}
+                    onChange={(event) => setMenuRecommended(event.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  Mark as recommended
+                </label>
                 <button
                   type="submit"
-                  className="rounded-xl bg-[#8f806d] px-5 py-2.5 text-sm font-semibold text-white"
+                  disabled={saving}
+                  className="rounded-xl bg-[var(--primary)] px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
                 >
-                  {editingId
-                    ? "Save changes"
-                    : "Add event"}
+                  {saving ? "Saving..." : "Save Menu Item"}
                 </button>
+              </form>
+            </section>
+          )}
+
+          {showVisitForm && (
+            <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
+              <h3 className="text-lg font-semibold">Record a Visit</h3>
+              <form onSubmit={saveVisit} className="mt-4 space-y-4">
+                <label className="block space-y-2 text-sm">
+                  <span className="font-medium">Visit date *</span>
+                  <input
+                    type="date"
+                    required
+                    value={visitDate}
+                    onChange={(event) => setVisitDate(event.target.value)}
+                    className="w-full rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                  />
+                </label>
+                <label className="block space-y-2 text-sm">
+                  <span className="font-medium">Visit notes</span>
+                  <textarea
+                    value={visitNotes}
+                    onChange={(event) => setVisitNotes(event.target.value)}
+                    rows={3}
+                    maxLength={3000}
+                    placeholder="Who were you with? What happened? How did it feel?"
+                    className="w-full resize-y rounded-xl border border-[var(--border)] bg-transparent px-3 py-3"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-xl bg-[var(--primary)] px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {saving ? "Saving..." : "Save Visit"}
+                </button>
+              </form>
+            </section>
+          )}
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold">
+                    Menu & Recommendations
+                  </h3>
+                  <p className="mt-1 text-sm text-[var(--muted)]">
+                    Foods and drinks you want to remember.
+                  </p>
+                </div>
+                <span className="rounded-full bg-[var(--surface-hover)] px-3 py-1 text-xs">
+                  {selectedMenuItems.length} items
+                </span>
               </div>
-            </form>
+
+              {selectedMenuItems.length === 0 ? (
+                <p className="mt-6 rounded-xl border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--muted)]">
+                  No menu items saved yet.
+                </p>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  {selectedMenuItems.map((item) => (
+                    <article
+                      key={item.id}
+                      className="rounded-xl border border-[var(--border)] p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h4 className="break-words font-medium">
+                            {item.name}
+                            {item.is_recommended && (
+                              <span className="ml-2 text-amber-500">★</span>
+                            )}
+                          </h4>
+                          <p className="mt-1 text-sm">
+                            <RatingStars rating={item.rating} />
+                          </p>
+                          {item.notes && (
+                            <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--muted)]">
+                              {item.notes}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void toggleMenuRecommendation(item)}
+                            className="rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-xs"
+                          >
+                            {item.is_recommended ? "Unrecommend" : "Recommend"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void deleteMenuItem(item)}
+                            className="rounded-lg border border-red-200 px-2.5 py-1.5 text-xs text-red-600"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold">Visit History</h3>
+                  <p className="mt-1 text-sm text-[var(--muted)]">
+                    The dates and memories of your visits.
+                  </p>
+                </div>
+                <span className="rounded-full bg-[var(--surface-hover)] px-3 py-1 text-xs">
+                  {selectedVisits.length} visits
+                </span>
+              </div>
+
+              {selectedVisits.length === 0 ? (
+                <p className="mt-6 rounded-xl border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--muted)]">
+                  No visits recorded yet.
+                </p>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  {selectedVisits.map((visit) => (
+                    <article
+                      key={visit.id}
+                      className="rounded-xl border border-[var(--border)] p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h4 className="font-medium">
+                            {formatDate(visit.visited_at)}
+                          </h4>
+                          {visit.notes && (
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--muted)]">
+                              {visit.notes}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void deleteVisit(visit)}
+                          className="shrink-0 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs text-red-600"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
-        </div>
+        </section>
       )}
-    </div>
+    </main>
   );
 }
