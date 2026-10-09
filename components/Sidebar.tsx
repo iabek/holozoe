@@ -23,7 +23,6 @@ type MenuIconName =
   | "journal"
   | "notes"
   | "archive"
-  | "music"
   | "learning"
   | "flashcard"
   | "finance"
@@ -57,7 +56,6 @@ const menuSections: {
       { name: "Journal", icon: "journal" },
       { name: "Notes", icon: "notes" },
       { name: "Archive", icon: "archive" },
-      { name: "Music", icon: "music" },
       { name: "Learning", icon: "learning" },
       { name: "Flashcard", icon: "flashcard" },
       { name: "Finance", icon: "finance" },
@@ -164,15 +162,6 @@ function MenuIcon({
           <path d="M5 6v13h14V6" />
           <path d="M6 3h12l1 3H5l1-3Z" />
           <path d="M9 11h6" />
-        </svg>
-      );
-
-    case "music":
-      return (
-        <svg {...commonProps}>
-          <path d="M9 18V5l12-2v13" />
-          <circle cx="6" cy="18" r="3" />
-          <circle cx="18" cy="16" r="3" />
         </svg>
       );
 

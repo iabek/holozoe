@@ -55,6 +55,7 @@ export default function Archive({ onNavigate }: ArchiveProps) {
       case "Places":
       case "Movies & Series":
       case "Books":
+      case "Music":
         onNavigate(name);
         break;
 
