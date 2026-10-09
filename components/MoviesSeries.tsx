@@ -1,4 +1,3 @@
-
 "use client";
 
 import QuoteCollection from "@/components/QuoteCollection";

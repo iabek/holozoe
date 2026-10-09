@@ -51,12 +51,14 @@ export default function Archive({ onNavigate }: ArchiveProps) {
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
 
   function handleFolderClick(name: string) {
-    if (
-      name === "People" ||
-      name === "Places" ||
-      name === "Movies & Series" ||
-      name === "Books"
-    ) {
+    const navigableFolders = [
+      "People",
+      "Places",
+      "Movies & Series",
+      "Books",
+    ];
+
+    if (navigableFolders.includes(name)) {
       onNavigate(name);
       return;
     }
