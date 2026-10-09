@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -41,50 +40,56 @@ export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
         });
 
         if (!response.ok) {
-          throw new Error("Search service is unavailable.");
+          throw new Error("Location search service is unavailable.");
         }
 
         const data = await response.json();
 
         const parsed: PlaceSearchResult[] = (data.features ?? [])
-          .map((feature: {
-            geometry?: { coordinates?: [number, number] };
-            properties?: {
-              name?: string;
-              street?: string;
-              housenumber?: string;
-              city?: string;
-              district?: string;
-              locality?: string;
-              state?: string;
-              country?: string;
-            };
-          }) => {
-            const coordinates = feature.geometry?.coordinates;
-            const p = feature.properties;
+          .map(
+            (feature: {
+              geometry?: { coordinates?: [number, number] };
+              properties?: {
+                name?: string;
+                street?: string;
+                housenumber?: string;
+                city?: string;
+                district?: string;
+                locality?: string;
+                state?: string;
+                country?: string;
+              };
+            }) => {
+              const coordinates = feature.geometry?.coordinates;
+              const p = feature.properties;
 
-            if (!coordinates || coordinates.length < 2) return null;
+              if (!coordinates || coordinates.length < 2) {
+                return null;
+              }
 
-            const address = [
-              p?.street,
-              p?.housenumber,
-              p?.locality,
-              p?.city,
-              p?.district,
-              p?.state,
-              p?.country,
-            ]
-              .filter(Boolean)
-              .filter((value, index, array) => array.indexOf(value) === index)
-              .join(", ");
+              const address = [
+                p?.street,
+                p?.housenumber,
+                p?.locality,
+                p?.city,
+                p?.district,
+                p?.state,
+                p?.country,
+              ]
+                .filter(Boolean)
+                .filter(
+                  (value, index, array) => array.indexOf(value) === index,
+                )
+                .join(", ");
 
-            return {
-              name: p?.name || address || text,
-              address,
-              longitude: coordinates[0],
-              latitude: coordinates[1],
-            };
-          })
+              return {
+                name: p?.name || address || text,
+                address,
+                longitude: coordinates[0],
+                latitude: coordinates[1],
+              };
+            },
+          )
           .filter(
             (item: PlaceSearchResult | null): item is PlaceSearchResult =>
               item !== null &&
@@ -92,10 +97,12 @@ export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
               Number.isFinite(item.longitude),
           );
 
-        setResults(parsed);
+        if (!controller.signal.aborted) {
+          setResults(parsed);
 
-        if (parsed.length === 0) {
-          setError("No matching places found. Try another search.");
+          if (parsed.length === 0) {
+            setError("No matching places found. Try another search.");
+          }
         }
       } catch (err) {
         if (err instanceof Error && err.name !== "AbortError") {
@@ -106,7 +113,7 @@ export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
           setSearching(false);
         }
       }
-    }, 650);
+    }, 500);
 
     return () => {
       window.clearTimeout(timer);
@@ -117,14 +124,17 @@ export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
   function chooseResult(result: PlaceSearchResult) {
     setQuery(result.name);
     setResults([]);
+    setError("");
     onChoose(result);
   }
 
   return (
-    <div className="space-y-2">
+    <div className="relative space-y-2">
       <label className="block space-y-2 text-sm">
-        <span className="font-medium">Search a place</span>
+        <span className="font-medium">🔎 Search a place</span>
+
         <input
+          type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search a cafe, restaurant, city..."
@@ -134,22 +144,24 @@ export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
       </label>
 
       <p className="text-xs text-[var(--muted)]">
-        Search for at least 3 characters, then select a result to fill in the
-        place name, address, and coordinates.
+        Type at least 3 characters and choose a result to fill in the place
+        name, address, and coordinates automatically.
       </p>
 
       {searching && (
-        <p className="text-xs text-[var(--muted)]">Searching locations...</p>
+        <p role="status" className="text-sm text-[var(--muted)]">
+          Searching locations...
+        </p>
       )}
 
       {error && (
-        <p role="status" className="text-xs text-[var(--muted)]">
+        <p role="status" className="text-sm text-[var(--muted)]">
           {error}
         </p>
       )}
 
       {results.length > 0 && (
-        <div className="overflow-hidden rounded-xl border border-[var(--border)]">
+        <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)]">
           {results.map((result, index) => (
             <button
               key={`${result.latitude}-${result.longitude}-${index}`}
@@ -160,6 +172,7 @@ export default function PlaceSearch({ onChoose }: PlaceSearchProps) {
               <span className="block text-sm font-medium">
                 📍 {result.name}
               </span>
+
               {result.address && (
                 <span className="mt-1 block text-xs text-[var(--muted)]">
                   {result.address}
